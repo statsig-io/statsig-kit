@@ -77,6 +77,33 @@ class AtomicDictionary<T>
         }
     }
 
+    private func dictSnapshotAsync(completion: @escaping (_: [String : T]) -> Void) {
+        self.queue.async {
+            let dict = self.internalDictionary
+            DispatchQueue.global().async {
+                completion(dict)
+            }
+        }
+    }
+
+    func toDataAsync(completion: @escaping (_: Data?) -> Void) {
+        self.dictSnapshotAsync { dict in
+            if #available(iOS 11.0, tvOS 11.0, *) {
+                guard let data = try? NSKeyedArchiver.archivedData(withRootObject: dict, requiringSecureCoding: false) else {
+                    PrintHandler.log("[Statsig]: Failed create Data from AtomicDictionary")
+                    completion(nil)
+                    return
+                }
+                completion(data)
+                return
+            } else {
+                let data = NSKeyedArchiver.archivedData(withRootObject: dict)
+                completion(data)
+                return
+            }
+        }
+    }
+
     internal func reset(_ values: [String: T] = [:]) {
         self.queue.async(flags: .barrier) {
             self.internalDictionary = values

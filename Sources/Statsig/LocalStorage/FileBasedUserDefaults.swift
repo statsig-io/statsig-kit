@@ -9,6 +9,8 @@ class FileBasedUserDefaults: DefaultsLike {
 
     private var dict: AtomicDictionary<Any?> = AtomicDictionary(label: FileBasedUserDefaultsQueue)
 
+    private let writeLock = NSLock()
+
     init() {
         readFromDisk()
     }
@@ -31,7 +33,7 @@ class FileBasedUserDefaults: DefaultsLike {
 
     func removeObject(forKey defaultName: String) {
         dict[defaultName] = nil
-        _ = writeToDisk()
+        writeToDiskAsync()
     }
 
     func setValue(_ value: Any?, forKey: String) {
@@ -40,7 +42,7 @@ class FileBasedUserDefaults: DefaultsLike {
 
     func set(_ value: Any?, forKey: String) {
         dict[forKey] = value
-        _ = writeToDisk()
+        writeToDiskAsync()
     }
 
     func synchronize() -> Bool {
@@ -70,13 +72,44 @@ class FileBasedUserDefaults: DefaultsLike {
             return false
         }
 
+        let data = dict.toData()
+
         do {
-            try dict.toData()?.write(to: url)
+            try writeLock.withLock {
+                try data?.write(to: url)
+            }
         } catch {
             return false
         }
 
         return true
+    }
+
+    private func writeToDiskAsync(completion: ((_: Bool) -> Void)? = nil) {
+        guard let url = cacheURL else {
+            completion?(false)
+            return
+        }
+
+        let writeLock = writeLock
+
+        dict.toDataAsync { data in
+            guard let data = data else {
+                completion?(false)
+                return
+            }
+
+            do {
+                try writeLock.withLock {
+                    try data.write(to: url)
+                }
+            } catch {
+                completion?(false)
+                return
+            }
+
+            completion?(true)
+        }
     }
 
     private func readFromDisk() {
