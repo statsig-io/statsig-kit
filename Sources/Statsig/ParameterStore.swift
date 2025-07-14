@@ -43,6 +43,10 @@ public struct ParameterStore: ConfigBase {
     internal let configuration: ParamStoreConfiguration
     weak internal var client: StatsigClient?
     internal var shouldExpose = true
+
+    public var keys: [String: [String: Any]].Keys {
+        return configuration.keys
+    }
     
     internal init(
         name: String,

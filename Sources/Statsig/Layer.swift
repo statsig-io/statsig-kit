@@ -58,6 +58,10 @@ public struct Layer: ConfigBase, ConfigProtocol {
 
     internal let value: [String: Any]
 
+    public var keys: [String: Any].Keys {
+        return value.keys
+    }
+
     internal init(
         client: StatsigClient?,
         name: String,

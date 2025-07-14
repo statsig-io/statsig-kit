@@ -58,6 +58,10 @@ public struct DynamicConfig: ConfigBase, ConfigProtocol {
     var isDeviceBased: Bool = false
     var rawValue: [String: Any] = [:]
 
+    public var keys: [String: Any].Keys {
+        return value.keys
+    }
+
     internal init(name: String, configObj: [String: Any] = [:], evalDetails: EvaluationDetails) {
         self.init(configName: name, configObj: configObj, evalDetails: evalDetails)
     }
