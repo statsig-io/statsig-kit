@@ -71,13 +71,17 @@ class PlatformCompatibility
     static let deviceInfo = DeviceInfo()
 
     static func getRootViewControllerClassName(_ callback: @escaping (_ name: String?) -> Void) {
-        ensureMainThread { [callback] in
-            if let klass = UIApplication.shared.keyWindow?.rootViewController?.classForCoder {
-                callback("\(klass)")
-            } else {
-                callback(nil)
+        #if STATSIG_WIDGET_BUILD
+            callback(nil)
+        #else
+            ensureMainThread { [callback] in
+                if let klass = UIApplication.shared.keyWindow?.rootViewController?.classForCoder {
+                    callback("\(klass)")
+                } else {
+                    callback(nil)
+                }
             }
-        }
+        #endif
     }
 }
 

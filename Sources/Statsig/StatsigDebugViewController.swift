@@ -21,6 +21,8 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
 
         var root: UIViewController?
 
+        #if !STATSIG_WIDGET_BUILD
+
         if root == nil, #available(iOS 13.0, *) {
             let scene = UIApplication.shared.connectedScenes.first(where: { scene in
                 return scene.activationState == UIScene.ActivationState.foregroundActive
@@ -32,6 +34,8 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
         if root == nil {
             root = UIApplication.shared.keyWindow?.rootViewController
         }
+
+        #endif
 
         guard let root = root else {
             PrintHandler.log("[Statsig] DebugView failed to find parent view controller")
