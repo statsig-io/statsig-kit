@@ -927,4 +927,8 @@ extension StatsigClient {
     public func refreshCache(_ completion: completionBlock = nil) {
         self.updateUser(self.currentUser, completion: completion)
     }
+    
+    public func getEvaluationSource() -> EvaluationSource {
+        return store.getEvaluationSource()
+    }
 }

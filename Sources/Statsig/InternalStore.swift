@@ -520,6 +520,10 @@ struct StatsigValuesCache {
     private func createUnfoundParamStore(_ client: StatsigClient?, _ name: String) -> ParameterStore {
         ParameterStore(name: name, evaluationDetails: getEvaluationDetails(.Unrecognized))
     }
+    
+    func getEvaluationSource() -> EvaluationSource {
+        return source
+    }
 }
 
 class InternalStore {
@@ -866,6 +870,12 @@ class InternalStore {
 
         storeQueue.async(flags: .barrier) { [weak self] in
             self?.cache.saveStickyExperimentIfNeeded(name, config)
+        }
+    }
+    
+    func getEvaluationSource() -> EvaluationSource {
+        storeQueue.sync {
+            return cache.getEvaluationSource()
         }
     }
 }

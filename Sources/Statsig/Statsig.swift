@@ -701,4 +701,8 @@ public class Statsig {
             completion?(error?.message)
         }
     }
+    
+    public static func getEvaluationSource() -> EvaluationSource? {
+        return client?.getEvaluationSource()
+    }
 }
