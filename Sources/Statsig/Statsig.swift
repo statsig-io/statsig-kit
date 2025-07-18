@@ -7,6 +7,7 @@ public typealias ResultCompletionBlock = ((_ error: StatsigClientError?) -> Void
 public class Statsig {
     internal static var client: StatsigClient?
     internal static var pendingListeners: [StatsigListening] = []
+    internal static let initLock = NSLock()
 
     /**
      Initializes the Statsig SDK. Fetching latest values from Statsig.
@@ -23,6 +24,12 @@ public class Statsig {
     public static func initialize(sdkKey: String, user: StatsigUser? = nil, options: StatsigOptions? = nil,
                              completion: ResultCompletionBlock? = nil)
     {
+        guard initLock.try() else {
+            completion?(StatsigClientError(.alreadyStarted))
+            return
+        }
+        defer { initLock.unlock() }
+
         if client != nil {
             completion?(StatsigClientError(.alreadyStarted))
             return
