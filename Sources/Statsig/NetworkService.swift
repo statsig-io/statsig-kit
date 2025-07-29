@@ -159,6 +159,9 @@ class NetworkService {
             lock.lock()
             defer { lock.unlock() }
             
+            if let req = self?.inflightRequests[cacheKey.v2], req === task, req.state != .completed && req.state != .canceling {
+                req.cancel()
+            }
             self?.inflightRequests.removeValue(forKey: cacheKey.v2)
             
             guard !completed else { return }

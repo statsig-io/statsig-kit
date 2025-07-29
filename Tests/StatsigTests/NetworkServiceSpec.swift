@@ -172,35 +172,43 @@ class NetworkServiceSpec: BaseSpec {
             it ("does not retry requests after timeout") {
                 var calls = 0
                 var timedout = false
+                let semaphore = DispatchSemaphore(value: 0)
+
                 stub(condition: isHost(ApiHost)) { request in
                     calls += 1
 
-                    while (timedout == false) {} // block until timeout
+                    if (!timedout) {
+                        semaphore.wait();
+                    }
 
                     // 500 so retry logic would try again
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 500, headers: nil)
                 }
 
                 let user = StatsigUser()
-                let opts = StatsigOptions(initTimeout: 0.01)
+                let opts = StatsigOptions(initTimeout: 0.1)
                 let store = InternalStore("client-key", user, options: opts)
                 let ns = NetworkService(sdkKey: "client-key", options: opts, store: store)
 
                 var expected = -1
                 waitUntil { done in
                     ns.fetchInitialValues(for: user, sinceTime: 0, previousDerivedFields: [:], fullChecksum: nil) { err in
-                        expected = calls
                         expect(err?.code).to(equal(StatsigClientErrorCode.initTimeoutExpired))
                         timedout = true;
+                        // Signal all semaphores to continue.
+                        // semaphore.signal returns non-zero if a thread is woken. Otherwise, zero is returned.
+                        // Source: https://developer.apple.com/documentation/dispatch/dispatchsemaphore/signal()
+                        while (semaphore.signal() != 0) {}
+                        expect(calls).to(beGreaterThan(0))
+                        expected = calls
                         done()
                     }
                 }
 
-
                 waitUntil { done in
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         expect(expected).notTo(equal(-1))
-                        expect(calls).to(equal(expected))
+                        expect(calls).to(equal(expected), description: "Calls after timeout (\(expected)) don't match calls before timeout (\(calls))")
                         done()
                     }
                 }
