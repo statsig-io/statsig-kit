@@ -49,6 +49,22 @@ public struct EvaluationDetails: Codable {
     static func uninitialized() -> EvaluationDetails {
         EvaluationDetails(source: .Uninitialized)
     }
+
+    var dedupeKey: DedupeKey {
+        get {
+            DedupeKey(
+                prefix: prefix,
+                source: source,
+                reason: (source == .NoValues || source == .Uninitialized) ? nil : reason
+            )
+        }
+    }
+
+    internal struct DedupeKey: Hashable {
+        public let prefix: String?
+        public let source: EvaluationSource
+        public let reason: EvaluationReason?
+    }
 }
 
 public enum EvaluationSource: String, Codable {

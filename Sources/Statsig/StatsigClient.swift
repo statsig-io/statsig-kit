@@ -295,7 +295,7 @@ extension StatsigClient {
     private func logGateExposureForGate(_ gateName: String, gate: FeatureGate, isManualExposure: Bool) {
         let gateValue = gate.value
         let ruleID = gate.ruleID
-        let dedupeKey = gateName + (gateValue ? "true" : "false") + ruleID + gate.evaluationDetails.getDetailedReason()
+        let dedupeKey = DedupeKey(featureGate: gate)
 
         logger.log(
             Event.gateExposure(
@@ -387,8 +387,7 @@ extension StatsigClient {
     }
 
     private func logConfigExposureForConfig(_ configName: String, config: DynamicConfig, isManualExposure: Bool) {
-        let ruleID = config.ruleID
-        let dedupeKey = configName + ruleID + config.evaluationDetails.getDetailedReason()
+        let dedupeKey = DedupeKey(dynamicConfig: config)
 
         logger.log(
             Event.configExposure(
@@ -537,14 +536,11 @@ extension StatsigClient {
             allocatedExperiment = layer.allocatedExperimentName
         }
 
-        let dedupeKey = [
-            layer.name,
-            layer.ruleID,
-            allocatedExperiment,
-            parameterName,
-            "\(isExplicit)",
-            layer.evaluationDetails.getDetailedReason()
-        ].joined(separator: "|")
+        let dedupeKey = DedupeKey(
+            layer: layer, 
+            parameterName: parameterName, 
+            isExplicit: isExplicit
+        )
 
         logger.log(
             Event.layerExposure(

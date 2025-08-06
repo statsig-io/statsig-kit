@@ -25,7 +25,7 @@ class EventLogger {
     var user: StatsigUser
     var nonExposedChecks: [String: Int]
 
-    private var exposuresDedupeDict = [String: TimeInterval]()
+    private var exposuresDedupeDict = [DedupeKey: TimeInterval]()
 
 #if os(tvOS)
     let MAX_SAVED_LOG_REQUEST_SIZE = 100_000 //100 KB
@@ -64,7 +64,7 @@ class EventLogger {
         }
     }
 
-    func log(_ event: Event, exposureDedupeKey: String? = nil) {
+    func log(_ event: Event, exposureDedupeKey: DedupeKey? = nil) {
         logQueue.async { [weak self] in
             guard let self = self else { return }
 
