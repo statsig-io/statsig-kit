@@ -786,6 +786,7 @@ class InternalStore {
             self?.localOverrides[jsonDict: InternalStore.configsKey]?.removeValue(forKey: name)
             self?.localOverrides[jsonDict: InternalStore.layerConfigsKey]?.removeValue(forKey: name)
             self?.localOverrides[jsonDict: InternalStore.paramStoresKey]?.removeValue(forKey: name)
+            self?.saveOverrides()
         }
     }
 
