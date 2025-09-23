@@ -174,6 +174,13 @@ public class StatsigClient {
     }
 
     /**
+     The generated identifier for this session
+     */
+    public func getSessionID() -> String? {
+        return currentUser.deviceEnvironment["sessionID"] as? String
+    }
+
+    /**
      Returns the raw values that the SDK is using internally to provide gate/config/layer results
      */
     public func getInitializeResponseJson() -> ExternalInitializeResponse {

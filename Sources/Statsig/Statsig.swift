@@ -457,9 +457,14 @@ public class Statsig {
      The generated identifier that exists across users
      */
     public static func getStableID() -> String? {
-        var result:String? = nil
-        result = client?.getStableID()
-        return result
+        return client?.getStableID()
+    }
+
+    /**
+     The generated identifier for this session
+     */
+    public static func getSessionID() -> String? {
+        return client?.getSessionID()
     }
 
     /**
