@@ -21,10 +21,10 @@ jobs:
       matrix:
         platform:
           [
-            "platform=iOS Simulator,name=iPhone SE (2nd generation)",
+            "platform=iOS Simulator,name=iPhone SE (3rd generation)",
             "platform=macOS",
             "platform=tvOS Simulator,name=Apple TV",
-            "platform=visionOS",
+            "platform=visionOS Simulator,name=Apple Vision Pro,OS=26.0",
           ]
     steps:
       - name: Checkout
