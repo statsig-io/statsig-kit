@@ -3,7 +3,7 @@ import Foundation
 /**
  The user object to be evaluated against your Statsig configurations (gates/experiments/dynamic configs).
  */
-public struct StatsigUser {
+public struct StatsigUser: Sendable {
     /**
      An identifier for this user. Evaluated against the [User ID](https://docs.statsig.com/feature-gates/conditions#userid) criteria.
      */

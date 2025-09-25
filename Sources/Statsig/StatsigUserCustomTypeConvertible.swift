@@ -1,6 +1,6 @@
 import Foundation
 
-public protocol StatsigUserCustomTypeConvertible {}
+public protocol StatsigUserCustomTypeConvertible: Sendable {}
 
 extension Bool: StatsigUserCustomTypeConvertible {}
 
