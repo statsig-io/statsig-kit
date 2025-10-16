@@ -111,7 +111,7 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                     defaults.set("Foo", forKey: "Bar")
                     defaults.removeObject(forKey: "Bar")
 
-                    let defaults2 = FileBasedUserDefaults()
+                    let defaults2 = StorageProviderBasedUserDefaults(storageProvider: mockStorageProvider)
                     expect(defaults2.string(forKey: "Bar")).to(beNil())
                     expect(mockStorageProvider.read("com.statsig.cache")).to(equal(defaults.dict.toData()))
                 }
