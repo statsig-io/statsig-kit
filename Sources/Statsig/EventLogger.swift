@@ -51,7 +51,10 @@ class EventLogger {
 
     internal func retryFailedRequests(forUser user: StatsigUser) {
         logQueue.async { [weak self] in
-            guard let self = self else { return }
+            guard
+                let self = self,
+                self.networkService.statsigOptions.eventLoggingEnabled
+            else { return }
             if let failedRequestsCache = userDefaults.array(forKey: storageKey) as? [Data], !failedRequestsCache.isEmpty {
                 userDefaults.removeObject(forKey: storageKey)
                 
@@ -127,6 +130,12 @@ class EventLogger {
         let oldEvents = events
         events = []
 
+        if !networkService.statsigOptions.eventLoggingEnabled {
+            addFailedLogEvents(oldEvents, forUser: user)
+            saveFailedLogRequestsToDisk()
+            return
+        }
+
         let capturedSelf = isShuttingDown ? self : nil
         networkService.sendEvents(forUser: user, events: oldEvents) {
             [weak self, capturedSelf] errorMessage, requestData in
@@ -185,6 +194,28 @@ class EventLogger {
         )
         self.events.append(event)
         self.nonExposedChecks = [String: Int]()
+    }
+
+    private func addFailedLogEvents(_ events: [Event], forUser user: StatsigUser) {
+        let (requestBody, parseError) = networkService.prepareEventRequestBody(forUser: user, events: events)
+
+        guard let body = requestBody else {
+            if let parseError {
+                let errorMessage = parseError.localizedDescription
+                if !errorMessage.isEmpty && !loggedErrorMessage.contains(errorMessage) {
+                    loggedErrorMessage.insert(errorMessage)
+                    log(Event.statsigInternalEvent(
+                        user: user,
+                        name: "log_event_failed",
+                        value: nil,
+                        metadata: ["error": errorMessage])
+                    )
+                }
+            }
+            return;
+        }
+
+        addSingleFailedLogRequest(body)
     }
 
     private func addSingleFailedLogRequest(_ requestData: Data?) {

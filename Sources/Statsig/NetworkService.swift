@@ -243,14 +243,18 @@ class NetworkService {
         }
     }
 
-    func sendEvents(forUser user: StatsigUser, events: [Event],
-                    completion: @escaping ((_ errorMessage: String?, _ data: Data?) -> Void))
-    {
-        let (uncompressedBody, parseErr) = makeReqBody([
+    func prepareEventRequestBody(forUser user: StatsigUser, events: [Event]) -> (Data?, Error?) {
+        return makeReqBody([
             "events": events.map { $0.toDictionary() },
             "user": user.toDictionary(forLogging: true),
             "statsigMetadata": user.deviceEnvironment
         ])
+    }
+
+    func sendEvents(forUser user: StatsigUser, events: [Event],
+                    completion: @escaping ((_ errorMessage: String?, _ data: Data?) -> Void))
+    {
+        let (uncompressedBody, parseErr) = prepareEventRequestBody(forUser: user, events: events)
 
         guard let uncompressedBody = uncompressedBody else {
             completion(parseErr?.localizedDescription, nil)

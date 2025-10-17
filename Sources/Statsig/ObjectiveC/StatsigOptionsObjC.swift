@@ -24,6 +24,10 @@ public final class StatsigOptionsObjC: NSObject {
             self.optionsInternal.overrideStableID = overrideStableID
         }
 
+        if let eventLoggingEnabled = args["eventLoggingEnabled"] as? Bool {
+            self.optionsInternal.eventLoggingEnabled = eventLoggingEnabled
+        }
+
         if let disableDiagnostics = args["disableDiagnostics"] as? Bool {
             self.optionsInternal.disableDiagnostics = disableDiagnostics
         }

@@ -167,6 +167,21 @@ public class StatsigClient {
     }
 
     /**
+     Updates mutable-at-runtime options.
+     */
+    public func updateOptions(eventLoggingEnabled: Bool? = nil) {
+        if let eventLoggingEnabled = eventLoggingEnabled {
+            self.logger.logQueue.async { [weak self] in
+                guard let self = self else { return }
+                statsigOptions.eventLoggingEnabled = eventLoggingEnabled
+                if (eventLoggingEnabled) {
+                    logger.retryFailedRequests(forUser: self.currentUser)
+                }
+            }
+        }
+    }
+
+    /**
      The generated identifier that exists across users
      */
     public func getStableID() -> String? {

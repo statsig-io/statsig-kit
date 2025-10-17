@@ -57,6 +57,11 @@ public class StatsigOptions {
     public var disableDiagnostics = false;
     
     /**
+     Controls whether the SDK sends events over the network.
+     */
+    public var eventLoggingEnabled = true
+    
+    /**
      When disabled, the SDK will not hash gate/config/experiment names, instead they will be readable as plain text.
      Note: This requires special authorization from Statsig. Reach out to us if you are interested in this feature.
      */
@@ -172,6 +177,7 @@ public class StatsigOptions {
                 overrideStableID: String? = nil,
                 enableCacheByFile: Bool? = false,
                 initializeValues: [String: Any]? = nil,
+                eventLoggingEnabled: Bool? = true,
                 disableDiagnostics: Bool? = false,
                 disableHashing: Bool? = false,
                 disableCompression: Bool? = false,
@@ -210,6 +216,10 @@ public class StatsigOptions {
         
         if let enableCacheByFile = enableCacheByFile {
             self.enableCacheByFile = enableCacheByFile
+        }
+
+        if let eventLoggingEnabled = eventLoggingEnabled {
+            self.eventLoggingEnabled = eventLoggingEnabled
         }
         
         if let initializeValues = initializeValues {
@@ -326,8 +336,14 @@ extension StatsigOptions {
         if autoValueUpdateIntervalSec != defaultOptions.autoValueUpdateIntervalSec {
             dict["autoValueUpdateIntervalSec"] = autoValueUpdateIntervalSec
         }
+        if eventLoggingEnabled != defaultOptions.eventLoggingEnabled {
+            dict["eventLoggingEnabled"] = eventLoggingEnabled
+        }
         if disableCurrentVCLogging != defaultOptions.disableCurrentVCLogging {
             dict["disableCurrentVCLogging"] = disableCurrentVCLogging
+        }
+        if eventLoggingEnabled != defaultOptions.eventLoggingEnabled {
+            dict["eventLoggingEnabled"] = eventLoggingEnabled
         }
         if enableAutoValueUpdate != defaultOptions.enableAutoValueUpdate {
             dict["enableAutoValueUpdate"] = enableAutoValueUpdate

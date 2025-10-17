@@ -78,6 +78,7 @@ class StatsigOptionsSpec: BaseSpec {
                     overrideStableID: "test-stable-id",
                     enableCacheByFile: true,
                     initializeValues: [:],
+                    eventLoggingEnabled: false,
                     disableDiagnostics: true,
                     disableHashing: true,
                     disableCompression: true,
@@ -115,18 +116,32 @@ class StatsigOptionsSpec: BaseSpec {
                 }
 
                 it("creates a dictionary with every option") {
-                    let ignoredKeys = ["getDictionaryForLogging", "api", "eventLoggingApi", "printHandler"]
+                    let ignoredKeys = [
+                        "getDictionaryForLogging",
+                        "api",
+                        "eventLoggingApi",
+                        "printHandler"
+                    ]
 
                     let dict = options.getDictionaryForLogging()
 
                     let mirror = Mirror(reflecting: options)
                     let mirrorKeys = Set(mirror.children
-                        .compactMap { $0.label }
+                        .compactMap { $0.label?.replacingPrefix("_") }
                         .filter { !ignoredKeys.contains($0) })
                     let dictKeys = Set(dict.keys)
                     expect(dictKeys).to(equal(mirrorKeys))
                 }
             }
         }
+    }
+}
+
+fileprivate extension String {
+    func replacingPrefix(_ prefix: String) -> String {
+        if (self.starts(with: prefix)) {
+            return String(self.dropFirst(prefix.count))
+        }
+        return self
     }
 }
