@@ -32,11 +32,6 @@ class EventLoggerSpec: BaseSpec {
             }
 
             it("should add events to internal queue and send once flush timer hits") {
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
-                logger.start(flushInterval: 1)
-                logger.log(event1)
-                logger.log(event2)
-                logger.log(event3)
 
                 var actualRequest: URLRequest?
                 var actualRequestHttpBody: [String: Any]?
@@ -47,6 +42,12 @@ class EventLoggerSpec: BaseSpec {
                         options: []) as! [String: Any]
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
+
+                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                logger.start(flushInterval: 1)
+                logger.log(event1)
+                logger.log(event2)
+                logger.log(event3)
 
                 waitUntil(timeout: .seconds(2)) { done in
                     logger.logQueue.asyncAfter(deadline: .now() + 1) {
@@ -62,12 +63,6 @@ class EventLoggerSpec: BaseSpec {
             }
 
             it("should add events to internal queue and send once it passes max batch size") {
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
-                logger.maxEventQueueSize = 3
-                logger.log(event1)
-                logger.log(event2)
-                logger.log(event3)
-
                 var actualRequest: URLRequest?
                 var actualRequestHttpBody: [String: Any]?
 
@@ -78,6 +73,12 @@ class EventLoggerSpec: BaseSpec {
                         options: []) as! [String: Any]
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
+
+                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                logger.maxEventQueueSize = 3
+                logger.log(event1)
+                logger.log(event2)
+                logger.log(event3)
 
                 expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
                 expect((actualRequestHttpBody?["events"] as? [Any])?.count).toEventually(equal(3))
@@ -87,13 +88,6 @@ class EventLoggerSpec: BaseSpec {
             }
 
             it("should send events with flush()") {
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
-                logger.start(flushInterval: 10)
-                logger.log(event1)
-                logger.log(event2)
-                logger.log(event3)
-                logger.maxEventQueueSize = 10
-                logger.flush()
 
                 var actualRequest: URLRequest?
                 var actualRequestHttpBody: [String: Any]?
@@ -105,6 +99,14 @@ class EventLoggerSpec: BaseSpec {
                         options: []) as! [String: Any]
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
+
+                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                logger.start(flushInterval: 10)
+                logger.maxEventQueueSize = 10
+                logger.log(event1)
+                logger.log(event2)
+                logger.log(event3)
+                logger.flush()
 
                 expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
                 expect((actualRequestHttpBody?["events"] as? [Any])?.count).toEventually(equal(3))
