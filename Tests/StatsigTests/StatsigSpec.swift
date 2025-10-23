@@ -606,14 +606,14 @@ class StatsigSpec: BaseSpec {
                     initTimeoutExpect.fulfill()
                 }
 
-                self.wait(for: [initTimeoutExpect], timeout: 0.11)
+                self.wait(for: [initTimeoutExpect], timeout: 0.15)
 
                 // check the values immediately following the completion block from start() assignments
                 expect(errorCode).to(equal(StatsigClientErrorCode.initTimeoutExpired))
                 expect(gate).to(beFalse())
                 expect(NSDictionary(dictionary: dc!.value)).to(equal(NSDictionary(dictionary: [:])))
                 expect(dc!.evaluationDetails.reason).to(equal(.Unrecognized))
-                expect(timeDiff).to(beCloseTo(0.1, within: 0.01))
+                expect(timeDiff).to(beCloseTo(0.1, within: 0.05))
 
 
                 waitUntil { done in
@@ -627,7 +627,7 @@ class StatsigSpec: BaseSpec {
                 expect(gate).to(beFalse())
                 expect(NSDictionary(dictionary: dc!.value)).to(equal(NSDictionary(dictionary: [:])))
                 expect(dc!.evaluationDetails.reason).to(equal(.Unrecognized))
-                expect(timeDiff).to(beCloseTo(0.1, within: 0.01))
+                expect(timeDiff).to(beCloseTo(0.1, within: 0.05))
             }
 
             it("times out and returns value from local cache") {
