@@ -183,7 +183,7 @@ class EventLoggingEnabledSpec: BaseSpec {
                 logger.logQueue.sync {}
                 skipFrame()
 
-                Statsig.client?.updateOptions(eventLoggingEnabled: true)
+                Statsig.updateOptions(eventLoggingEnabled: true)
                 logger.logQueue.sync {}
 
                 Statsig.logEvent("post_enable_event")
