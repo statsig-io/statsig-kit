@@ -25,7 +25,7 @@ class BootstrapValidator {
         }
 
         for (key, value) in one {
-            if key == "stableID" {
+            if key == StatsigMetadata.STABLE_ID_KEY {
                 continue
             }
 
@@ -64,7 +64,7 @@ class BootstrapValidator {
 
         if let customIDs = obj["customIDs"] as? [String: Any] {
             var customIDsCopy = customIDs
-            customIDsCopy.removeValue(forKey: "stableID")
+            customIDsCopy.removeValue(forKey: StatsigMetadata.STABLE_ID_KEY)
             if !customIDsCopy.isEmpty {
                 copy["customIDs"] = customIDsCopy
             }

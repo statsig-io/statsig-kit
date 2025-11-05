@@ -477,6 +477,13 @@ public class Statsig {
     public static func getSessionID() -> String? {
         return client?.getSessionID()
     }
+    
+    /**
+     The  statsigMetadata included by the SDK on events
+     */
+    public static func getStatsigMetadata() -> StatsigMetadata? {
+        return client?.getStatsigMetadata()
+    }
 
     /**
      Sets a value to be returned for the given gate instead of the actual evaluated value.

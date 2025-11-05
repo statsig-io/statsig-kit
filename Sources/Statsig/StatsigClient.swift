@@ -185,14 +185,21 @@ public class StatsigClient {
      The generated identifier that exists across users
      */
     public func getStableID() -> String? {
-        return currentUser.deviceEnvironment["stableID"] as? String
+        return currentUser.deviceEnvironment[StatsigMetadata.STABLE_ID_KEY] as? String
     }
 
     /**
      The generated identifier for this session
      */
     public func getSessionID() -> String? {
-        return currentUser.deviceEnvironment["sessionID"] as? String
+        return currentUser.deviceEnvironment[StatsigMetadata.SESSION_ID_KEY] as? String
+    }
+    
+    /**
+     The statsigMetadata included by the SDK on events
+     */
+    public func getStatsigMetadata() -> StatsigMetadata {
+        return StatsigMetadata.buildMetadataFromEnvironmentDict(deviceEnvironment: currentUser.deviceEnvironment)
     }
 
     /**

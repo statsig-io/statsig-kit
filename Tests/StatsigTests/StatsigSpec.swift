@@ -849,7 +849,7 @@ class StatsigSpec: BaseSpec {
 
 
                 // validate stable ID
-                expect(statsigMetadata["stableID"]).to(equal("custom_stable_id"))
+                expect(statsigMetadata[StatsigMetadata.STABLE_ID_KEY]).to(equal("custom_stable_id"))
                 expect(stableID).to(equal("custom_stable_id"))
             }
 
@@ -866,7 +866,57 @@ class StatsigSpec: BaseSpec {
 
                 expect(initialized).toEventually(beTrue())
             }
-
+            
+            it("fully populates StatsigMetadata") {
+                _ = TestUtils
+                    .startWithResponseAndWait(
+                        StatsigSpec.mockUserValues,
+                        "client-api-key",
+                        StatsigUser(userID: "whd")
+                    )
+                
+                let statsigMetadata = Statsig.getStatsigMetadata() ?? StatsigMetadata()
+                expect(statsigMetadata).notTo(beNil())
+                expect(statsigMetadata.stableID).notTo(beNil())
+                expect(statsigMetadata.sdkType).notTo(beNil())
+                expect(statsigMetadata.sdkVersion).notTo(beNil())
+                expect(statsigMetadata.sessionID).notTo(beNil())
+                expect(statsigMetadata.appIdentifier).notTo(beNil())
+                expect(statsigMetadata.appVersion).notTo(beNil())
+                expect(statsigMetadata.deviceModel).notTo(beNil())
+                expect(statsigMetadata.deviceOS).notTo(beNil())
+                expect(statsigMetadata.locale).notTo(beNil())
+                expect(statsigMetadata.language).notTo(beNil())
+                expect(statsigMetadata.systemVersion).notTo(beNil())
+                expect(statsigMetadata.systemName).notTo(beNil())
+            }
+            
+            it("does not fully populate StatsigMetadata for optOut user") {
+                _ = TestUtils
+                    .startWithResponseAndWait(
+                        StatsigSpec.mockUserValues,
+                        "client-api-key",
+                        StatsigUser(optOutNonSdkMetadata: true)
+                    )
+                let statsigMetadata = Statsig.getStatsigMetadata() ?? StatsigMetadata()
+                expect(statsigMetadata).notTo(beNil())
+                
+                // Expect these fields
+                expect(statsigMetadata.stableID).notTo(beNil())
+                expect(statsigMetadata.sdkType).notTo(beNil())
+                expect(statsigMetadata.sdkVersion).notTo(beNil())
+                expect(statsigMetadata.sessionID).notTo(beNil())
+                
+                // These fields should be nil
+                expect(statsigMetadata.appIdentifier).to(beNil())
+                expect(statsigMetadata.appVersion).to(beNil())
+                expect(statsigMetadata.deviceModel).to(beNil())
+                expect(statsigMetadata.deviceOS).to(beNil())
+                expect(statsigMetadata.locale).to(beNil())
+                expect(statsigMetadata.language).to(beNil())
+                expect(statsigMetadata.systemVersion).to(beNil())
+                expect(statsigMetadata.systemName).to(beNil())
+            }
         }
     }
 }

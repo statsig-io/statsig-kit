@@ -17,7 +17,7 @@ class DeviceEnvironmentSpec: BaseSpec {
 
             it("gets the same value across multiple times") {
                 for (key, value) in env1 {
-                    if key == "sessionID" {
+                    if key == StatsigMetadata.SESSION_ID_KEY {
                         expect(value) != env2[key]
                     } else {
                         expect(value) == env2[key]
@@ -28,18 +28,18 @@ class DeviceEnvironmentSpec: BaseSpec {
 
             it("has all the fields and non-nil values for required ones") {
                 expect(env1.count) == 12
-                expect(env1["sessionID"]).toNot(beNil())
-                expect(env1["stableID"]).toNot(beNil())
-                expect(env1["deviceOS"]).toNot(beNil())
-                expect(env1["sdkVersion"]).toNot(beNil())
-                expect(env1["sdkType"]).toNot(beNil())
+                expect(env1[StatsigMetadata.SESSION_ID_KEY]).toNot(beNil())
+                expect(env1[StatsigMetadata.STABLE_ID_KEY]).toNot(beNil())
+                expect(env1[StatsigMetadata.DEVICE_OS_KEY]).toNot(beNil())
+                expect(env1[StatsigMetadata.SDK_VERSION_KEY]).toNot(beNil())
+                expect(env1[StatsigMetadata.SDK_TYPE_KEY]).toNot(beNil())
             }
 
             it("has the same stable ID if no override, otherwise override is used") {
-                expect(env1["stableID"]).to(equal(env2["stableID"]))
-                expect(env1["stableID"]).toNot(equal(env3["stableID"]))
-                expect(env3["stableID"]).to(equal("12345"))
-                expect(env3["stableID"]).to(equal(env4["stableID"]))
+                expect(env1[StatsigMetadata.STABLE_ID_KEY]).to(equal(env2[StatsigMetadata.STABLE_ID_KEY]))
+                expect(env1[StatsigMetadata.STABLE_ID_KEY]).toNot(equal(env3[StatsigMetadata.STABLE_ID_KEY]))
+                expect(env3[StatsigMetadata.STABLE_ID_KEY]).to(equal("12345"))
+                expect(env3[StatsigMetadata.STABLE_ID_KEY]).to(equal(env4[StatsigMetadata.STABLE_ID_KEY]))
             }
         }
     }
