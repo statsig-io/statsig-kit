@@ -3,18 +3,18 @@
  Typed bundle of StatsigMetadata for external consumption.
  */
 public struct StatsigMetadata {
-    var stableID: String? = nil
-    var sdkType: String? = nil
-    var sdkVersion: String? = nil
-    var sessionID: String? = nil
-    var appIdentifier: String? = nil
-    var appVersion: String? = nil
-    var deviceModel: String? = nil
-    var deviceOS: String? = nil
-    var locale: String? = nil
-    var language: String? = nil
-    var systemVersion: String? = nil
-    var systemName: String? = nil
+    public var stableID: String? = nil
+    public var sdkType: String? = nil
+    public var sdkVersion: String? = nil
+    public var sessionID: String? = nil
+    public var appIdentifier: String? = nil
+    public var appVersion: String? = nil
+    public var deviceModel: String? = nil
+    public var deviceOS: String? = nil
+    public var locale: String? = nil
+    public var language: String? = nil
+    public var systemVersion: String? = nil
+    public var systemName: String? = nil
     
     internal static func buildMetadataFromEnvironmentDict(deviceEnvironment: [String: String?]) -> StatsigMetadata {
         return StatsigMetadata(
