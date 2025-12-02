@@ -212,7 +212,8 @@ public class StatsigClient {
             "dynamic_configs": self.store.cache.configs,
             "layer_configs": self.store.cache.layers,
             "hash_used": self.store.cache.hashUsed,
-            "time": self.store.cache.userCache["time"]
+            "time": self.store.cache.userCache["time"],
+            "has_updates" : true
         ]
 
         if JSONSerialization.isValidJSONObject(dict),
