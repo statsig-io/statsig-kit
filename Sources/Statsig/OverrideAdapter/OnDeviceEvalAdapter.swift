@@ -71,7 +71,7 @@ public class OnDeviceEvalAdapter: OverrideAdapter {
             return overriddenConfig
         }
 
-        return overriddenConfigLcut < originalConfigLcut ? nil : overriddenConfig
+        return overriddenConfigLcut <= originalConfigLcut ? nil : overriddenConfig
     }
 }
 
