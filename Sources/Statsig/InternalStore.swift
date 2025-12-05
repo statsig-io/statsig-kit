@@ -7,11 +7,13 @@ fileprivate let MaxCachedUserObjects = 10
 public struct StatsigOverrides {
     public var gates: [String: Bool]
     public var configs: [String: [String: Any]]
+    public var layers: [String: [String: Any]]
     public var params: [String: [String: Any]]
 
     init(_ overrides: [String: Any]) {
         gates = overrides[InternalStore.gatesKey] as? [String: Bool] ?? [:]
         configs = overrides[InternalStore.configsKey] as? [String: [String: Any]] ?? [:]
+        layers = overrides[InternalStore.layerConfigsKey] as? [String: [String: Any]] ?? [:]
         params = overrides[InternalStore.paramStoresKey] as? [String: [String: Any]] ?? [:]
     }
 }
