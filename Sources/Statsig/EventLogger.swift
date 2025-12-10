@@ -105,25 +105,32 @@ class EventLogger {
         }
     }
 
-    func stop() {
+    func stop(completion: (() -> Void)? = nil) {
         ensureMainThread { [weak self] in
             self?.flushTimer?.invalidate()
         }
         logQueue.sync {
             self.addNonExposedChecksEvent()
-            self.flushInternal(isShuttingDown: true)
+            self.flushInternal(isShuttingDown: true) {
+                guard let completion = completion else { return }
+                DispatchQueue.global().async { completion() }
+            }
         }
     }
 
-    func flush() {
+    func flush(completion: (() -> Void)? = nil) {
         logQueue.async { [weak self] in
             self?.addNonExposedChecksEvent()
-            self?.flushInternal()
+            self?.flushInternal() {
+                guard let completion = completion else { return }
+                DispatchQueue.global().async { completion() }
+            }
         }
     }
 
-    private func flushInternal(isShuttingDown: Bool = false) {
+    private func flushInternal(isShuttingDown: Bool = false, completion: (() -> Void)? = nil) {
         if events.isEmpty {
+            completion?()
             return
         }
 
@@ -133,15 +140,20 @@ class EventLogger {
         if !networkService.statsigOptions.eventLoggingEnabled {
             addFailedLogEvents(oldEvents, forUser: user)
             saveFailedLogRequestsToDisk()
+            completion?()
             return
         }
 
         let capturedSelf = isShuttingDown ? self : nil
         networkService.sendEvents(forUser: user, events: oldEvents) {
             [weak self, capturedSelf] errorMessage, requestData in
-            guard let self = self ?? capturedSelf else { return }
+            guard let self = self ?? capturedSelf else {
+                completion?();
+                return
+            }
 
             if errorMessage == nil {
+                completion?()
                 return
             }
 
@@ -157,6 +169,7 @@ class EventLogger {
                     metadata: ["error": errorMessage])
                 )
             }
+            completion?()
         }
     }
 

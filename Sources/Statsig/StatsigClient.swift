@@ -160,10 +160,28 @@ public class StatsigClient {
     }
 
     /**
+     Stops all Statsig activity and flushes any pending events.
+     Currently it's only available for tests.
+     */
+    internal func shutdown(completion: @escaping (() -> Void)) {
+        Diagnostics.shutdown()
+        syncTimer?.invalidate()
+        logger.stop(completion: completion)
+    }
+
+    /**
      Manually triggers a flush of any queued events.
      */
     public func flush() {
         logger.flush()
+    }
+
+    /**
+     Manually triggers a flush of any queued events.
+     Currently it's only available for tests.
+     */
+    internal func flush(completion: @escaping (() -> Void)) {
+        logger.flush(completion: completion);
     }
 
     /**

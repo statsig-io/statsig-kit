@@ -63,16 +63,16 @@ class LogEventFailureSpec: BaseSpec {
 
                 it("handles errors that come back on the calling thread") {
                     network.responseIsAsync = false
-                    logger.flush()
-                    expect(network.timesCalled).toEventually(equal(1))
-                    expect(logger.failedRequestQueue.count).toEventually(equal(1))
+                    waitUntil { done in logger.flush(completion: done) }
+                    expect(network.timesCalled).to(equal(1))
+                    expect(logger.failedRequestQueue.count).to(equal(1))
                 }
 
                 it("handles errors that come back on a bg thread") {
                     network.responseIsAsync = true
-                    logger.flush()
-                    expect(network.timesCalled).toEventually(equal(1))
-                    expect(logger.failedRequestQueue.count).toEventually(equal(1))
+                    waitUntil { done in logger.flush(completion: done) }
+                    expect(network.timesCalled).to(equal(1))
+                    expect(logger.failedRequestQueue.count).to(equal(1))
                 }
             }
 
@@ -135,11 +135,11 @@ class LogEventFailureSpec: BaseSpec {
                 }
 
                 it("an event failed multiple times isn't duplicated in the queue") {
-                    logger.flush()
-                    expect(logger.failedRequestQueue).toEventuallyNot(beEmpty())
+                    waitUntil { done in logger.flush(completion: done) }
+                    expect(logger.failedRequestQueue).toNot(beEmpty())
                     
                     // Shutdown the current logger. Create a new one.
-                    logger.stop()
+                    waitUntil { done in logger.stop(completion: done) }
                     createLogger()
 
                     expect(logger.failedRequestQueue).toEventuallyNot(beEmpty())
@@ -167,11 +167,11 @@ class LogEventFailureSpec: BaseSpec {
                 }
 
                 it("persists failed events across SDK initializations") {
-                    logger.flush()
-                    expect(logger.failedRequestQueue.count).toEventually(equal(1)) // Initial event + new event
+                    waitUntil { done in logger.flush(completion: done) }
+                    expect(logger.failedRequestQueue.count).to(equal(1)) // Initial event + new event
                     
                     // Shutdown the current logger
-                    logger.stop()
+                    waitUntil { done in logger.stop(completion: done) }
                     
                     // Verify events were persisted to UserDefaults
                     let storageKey = logger.storageKey
@@ -188,9 +188,9 @@ class LogEventFailureSpec: BaseSpec {
                 }
                 
                 it("retries failed requests on next initialization") {
-                    logger.stop()
-                    expect(requestCount).toEventually(equal(1))
-                    expect(logger.failedRequestQueue.count).toEventually(equal(1))
+                    waitUntil { done in logger.stop(completion: done) }
+                    expect(requestCount).to(equal(1))
+                    expect(logger.failedRequestQueue.count).to(equal(1))
                     expect(defaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
                     expect(defaults.array(forKey: logger.storageKey)).toEventuallyNot(beEmpty())
                     
@@ -207,30 +207,30 @@ class LogEventFailureSpec: BaseSpec {
                 it("accumulates multiple failed events in the retry queue") {
                     logger.log(Event(user: user, name: "event_1", disableCurrentVCLogging: true))
                     logger.log(Event(user: user, name: "event_2", disableCurrentVCLogging: true))
-                    logger.flush()
+                    waitUntil { done in logger.flush(completion: done) }
                     // Since we flush once, we'll have one request on the retry queue
-                    expect(logger.failedRequestQueue.count).toEventually(equal(1))
-                    expect(requestCount).toEventually(equal(1))
+                    expect(logger.failedRequestQueue.count).to(equal(1))
+                    expect(requestCount).to(equal(1))
                 }
 
                 it("accumulates multiple failed requests in the retry queue") {
-                    logger.flush()
+                    waitUntil { done in logger.flush(completion: done) }
                     logger.log(Event(user: user, name: "event_1", disableCurrentVCLogging: true))
-                    logger.flush()
+                    waitUntil { done in logger.flush(completion: done) }
                     logger.log(Event(user: user, name: "event_2", disableCurrentVCLogging: true))
-                    logger.flush()
+                    waitUntil { done in logger.flush(completion: done) }
                     // Since we flush three times, we'll have three requests on the retry queue
-                    expect(logger.failedRequestQueue.count).toEventually(equal(3))
-                    expect(requestCount).toEventually(equal(3))
+                    expect(logger.failedRequestQueue.count).to(equal(3))
+                    expect(requestCount).to(equal(3))
                 }
 
                 it("handles partial success in retry queue") {
-                    logger.flush()
+                    waitUntil { done in logger.flush(completion: done) }
                     logger.log(Event(user: user, name: "event_ok", disableCurrentVCLogging: true))
-                    logger.flush()
+                    waitUntil { done in logger.flush(completion: done) }
                     logger.log(Event(user: user, name: "event_fail", disableCurrentVCLogging: true))
-                    logger.flush()
-                    expect(logger.failedRequestQueue).toEventuallyNot(beEmpty())
+                    waitUntil { done in logger.flush(completion: done) }
+                    expect(logger.failedRequestQueue).toNot(beEmpty())
 
                     teardownNetwork()
                     stub(condition: isHost(LogEventHost)) { request in
@@ -252,8 +252,8 @@ class LogEventFailureSpec: BaseSpec {
 
 
                 it("compresses the request data") {
-                    logger.flush()
-                    expect(logger.failedRequestQueue).toEventuallyNot(beEmpty())
+                    waitUntil { done in logger.flush(completion: done) }
+                    expect(logger.failedRequestQueue).toNot(beEmpty())
 
                     // Verify that the request had a compressed body
                     let requestBody = lastRequest?.ohhttpStubs_httpBody

@@ -41,9 +41,9 @@ class EventLoggingEnabledSpec: BaseSpec {
                 )
 
                 Statsig.logEvent("default_event")
-                Statsig.flush()
+                waitUntil { done in Statsig.flush(completion: done) }
 
-                expect(capturedEvents.contains(where: { $0["eventName"] as? String == "default_event" })).toEventually(beTrue(), timeout: .seconds(5))
+                expect(capturedEvents.contains(where: { $0["eventName"] as? String == "default_event" })).to(beTrue())
             }
 
             it("sends events when initialized with logging enabled") {
@@ -64,9 +64,9 @@ class EventLoggingEnabledSpec: BaseSpec {
                 )
 
                 Statsig.logEvent("test_event")
-                Statsig.flush()
+                waitUntil { done in Statsig.flush(completion: done) }
 
-                expect(capturedEvents.contains(where: { $0["eventName"] as? String == "test_event" })).toEventually(beTrue(), timeout: .seconds(5))
+                expect(capturedEvents.contains(where: { $0["eventName"] as? String == "test_event" })).to(beTrue())
             }
 
             it("does not send events when logging is disabled") {
@@ -91,14 +91,7 @@ class EventLoggingEnabledSpec: BaseSpec {
                 )
 
                 Statsig.logEvent("event_while_disabled")
-                Statsig.flush()
-
-                guard let logger = Statsig.client?.logger else {
-                    fail("Failed to obtain logger"); return
-                }
-
-                logger.logQueue.sync {}
-                skipFrame()
+                waitUntil { done in Statsig.flush(completion: done) }
 
                 lock.lock()
                 let eventsAfterFlush = capturedEventNames
@@ -132,10 +125,8 @@ class EventLoggingEnabledSpec: BaseSpec {
                     fail("Failed to obtain logger"); return
                 }
 
-                Statsig.logEvent("saved_event")
-                Statsig.flush()
-                logger.logQueue.sync {}
-                skipFrame()
+                Statsig.logEvent("saved_event")                
+                waitUntil { done in Statsig.flush(completion: done) }
 
                 lock.lock()
                 let eventsAfterFlush = capturedEventNames
@@ -179,16 +170,13 @@ class EventLoggingEnabledSpec: BaseSpec {
                 }
 
                 Statsig.logEvent("pre_enable_event")
-                Statsig.flush()
-                logger.logQueue.sync {}
-                skipFrame()
+                waitUntil { done in Statsig.flush(completion: done) }
 
                 Statsig.updateOptions(eventLoggingEnabled: true)
                 logger.logQueue.sync {}
 
                 Statsig.logEvent("post_enable_event")
-                Statsig.flush()
-                logger.logQueue.sync {}
+                waitUntil { done in Statsig.flush(completion: done) }
 
                 expect {
                     lock.lock()

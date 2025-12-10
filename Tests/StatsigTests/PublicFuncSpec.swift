@@ -73,8 +73,8 @@ final class PublicFuncSpec: BaseSpec {
                     (t(Statsig.logEvent as (String, Double, [String: String]) -> Void), t(client.logEvent as (String, Double, [String: String]) -> Void)),
 
                     // Misc
-                    (t(Statsig.shutdown), t(client.shutdown)),
-                    (t(Statsig.flush), t(client.flush)),
+                    (t(Statsig.shutdown as () -> Void), t(client.shutdown as () -> Void)),
+                    (t(Statsig.flush as () -> Void), t(client.flush as () -> Void)),
                     (t(Statsig.getInitializeResponseJson), t(client.getInitializeResponseJson)),
                     (t(Statsig.updateUserWithResult), t(client.updateUserWithResult)),
                     (t(Statsig.getStableID), t(client.getStableID)),

@@ -452,6 +452,19 @@ public class Statsig {
 
         client.flush()
     }
+
+    /**
+     Manually triggers a flush of any queued events.
+     Currently it's only available for tests.
+     */
+    internal static func flush(completion: @escaping (() -> Void)) {
+        guard let client = client else {
+            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage()).")
+            return
+        }
+
+        client.flush(completion: completion)
+    }
     
     /**
       Updates mutable-at-runtime options.

@@ -27,8 +27,8 @@ final class ManualFlushSpec: BaseSpec {
                 logs = captured["events"] as! [[String: Any]]
             }
 
-            Statsig.flush()
-            expect(logs).toEventually(haveCount(1))
+            waitUntil { done in Statsig.flush(completion: done) }
+            expect(logs).to(haveCount(1))
             expect(logs[0]["eventName"]as? String).to(equal("my_event"))
 
             Statsig.shutdown()

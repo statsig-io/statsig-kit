@@ -106,13 +106,14 @@ class EventLoggerSpec: BaseSpec {
                 logger.log(event1)
                 logger.log(event2)
                 logger.log(event3)
-                logger.flush()
+                waitUntil { done in logger.flush(completion: done) }
+                
 
-                expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
-                expect((actualRequestHttpBody?["events"] as? [Any])?.count).toEventually(equal(3))
-                expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"]).toEventually(equal(sdkKey))
-                expect(actualRequest?.httpMethod).toEventually(equal("POST"))
-                expect(actualRequest?.url?.absoluteString).toEventually(equal("https://prodregistryv2.org/v1/rgstr"))
+                expect(actualRequestHttpBody?.keys).to(contain("user", "events", "statsigMetadata"))
+                expect((actualRequestHttpBody?["events"] as? [Any])?.count).to(equal(3))
+                expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"]).to(equal(sdkKey))
+                expect(actualRequest?.httpMethod).to(equal("POST"))
+                expect(actualRequest?.url?.absoluteString).to(equal("https://prodregistryv2.org/v1/rgstr"))
             }
 
             it("should save failed to send requests locally during shutdown, and load and resend local requests during startup") {
@@ -129,7 +130,7 @@ class EventLoggerSpec: BaseSpec {
                 logger.log(event2)
                 logger.log(event3)
                 logger.maxEventQueueSize = 10
-                logger.stop()
+                waitUntil { done in logger.stop(completion: done) }
 
                 expect(isPendingRequest).toEventually(beFalse())
                 expect(userDefaults.data[getFailedEventStorageKey("client-key")] as? [Data]).toEventuallyNot(beNil())
@@ -231,11 +232,11 @@ class EventLoggerSpec: BaseSpec {
                 var logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
                 logger.start(flushInterval: 10)
                 logger.log(Event(user: user, name: "a", value: 1, metadata: ["text": text], disableCurrentVCLogging: false))
-                logger.stop()
+                waitUntil { done in logger.stop(completion: done) }
                 let failedEventsStorageKey = logger.storageKey
 
                 // Fail to save because event is too big
-                expect(logEndpointCalled).toEventually(equal(true))
+                expect(logEndpointCalled).to(equal(true))
                 expect(userDefaults.data[failedEventsStorageKey] as? [Data]).toEventuallyNot(beNil())
                 expect((userDefaults.data[failedEventsStorageKey] as! [Data]).count).to(equal(0))
 
@@ -245,7 +246,7 @@ class EventLoggerSpec: BaseSpec {
                 logger.retryFailedRequests(forUser: user)
                 logger.start(flushInterval: 2)
                 logger.log(Event(user: user, name: "b", value: 1, metadata: ["text": "small"], disableCurrentVCLogging: false))
-                logger.stop()
+                waitUntil { done in logger.stop(completion: done) }
 
                 // Successfully save event
                 expect(userDefaults.data[failedEventsStorageKey] as? [Data]).toEventuallyNot(beNil())
