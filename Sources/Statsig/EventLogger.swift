@@ -105,30 +105,41 @@ class EventLogger {
         }
     }
 
-    func stop(completion: (() -> Void)? = nil) {
+    func stop(persistPendingEvents: Bool = false, completion: (() -> Void)? = nil) {
         ensureMainThread { [weak self] in
             self?.flushTimer?.invalidate()
         }
         logQueue.sync {
             self.addNonExposedChecksEvent()
-            self.flushInternal(isShuttingDown: true) {
+            self.flushInternal(isShuttingDown: true, persistPendingEvents: persistPendingEvents) {
                 guard let completion = completion else { return }
                 DispatchQueue.global().async { completion() }
             }
         }
     }
 
-    func flush(completion: (() -> Void)? = nil) {
+    func flush(persistPendingEvents: Bool = false, completion: (() -> Void)? = nil) {
         logQueue.async { [weak self] in
             self?.addNonExposedChecksEvent()
-            self?.flushInternal() {
+            self?.flushInternal(persistPendingEvents: persistPendingEvents) {
                 guard let completion = completion else { return }
                 DispatchQueue.global().async { completion() }
             }
         }
     }
 
-    private func flushInternal(isShuttingDown: Bool = false, completion: (() -> Void)? = nil) {
+    func removePendingEventsData(_ requestData: Data) {
+        failedRequestLock.withLock {
+            for (i, req) in failedRequestQueue.enumerated() {
+                if (req == requestData) {
+                    failedRequestQueue.remove(at: i)
+                    return
+                }
+            }
+        }
+    }
+
+    private func flushInternal(isShuttingDown: Bool = false, persistPendingEvents: Bool = false, completion: (() -> Void)? = nil) {
         if events.isEmpty {
             completion?()
             return
@@ -145,31 +156,52 @@ class EventLogger {
         }
 
         let capturedSelf = isShuttingDown ? self : nil
-        networkService.sendEvents(forUser: user, events: oldEvents) {
-            [weak self, capturedSelf] errorMessage, requestData in
-            guard let self = self ?? capturedSelf else {
-                completion?();
-                return
-            }
 
-            if errorMessage == nil {
+        let requestData: Data
+        do {
+            requestData = try networkService.prepareEventRequestBody(forUser: user, events: oldEvents).get()
+        } catch {
+            logErrorMessageOnce(error.localizedDescription)
+            completion?()
+            return
+        }
+
+        if (persistPendingEvents) {
+            self.addSingleFailedLogRequest(requestData)
+            self.saveFailedLogRequestsToDisk()
+        }
+
+        networkService.sendEvents(forUser: user, uncompressedBody: requestData) {
+            [weak self, capturedSelf] errorMessage in
+            guard let self = self ?? capturedSelf else {
                 completion?()
                 return
             }
 
-            self.addSingleFailedLogRequest(requestData)
-            self.saveFailedLogRequestsToDisk()
+            if let errorMessage = errorMessage {
 
-            if let errorMessage = errorMessage, !self.loggedErrorMessage.contains(errorMessage) {
-                self.loggedErrorMessage.insert(errorMessage)
-                self.log(Event.statsigInternalEvent(
-                    user: self.user,
-                    name: "log_event_failed",
-                    value: nil,
-                    metadata: ["error": errorMessage])
-                )
+                self.addSingleFailedLogRequest(requestData)
+                self.saveFailedLogRequestsToDisk()
+
+                self.logErrorMessageOnce(errorMessage)
+            } else if (persistPendingEvents) {
+                self.removePendingEventsData(requestData)
+                self.saveFailedLogRequestsToDisk()
             }
+
             completion?()
+        }
+    }
+
+    func logErrorMessageOnce(_ errorMessage: String, user: StatsigUser? = nil) {
+        if !errorMessage.isEmpty && !self.loggedErrorMessage.contains(errorMessage) {
+            self.loggedErrorMessage.insert(errorMessage)
+            self.log(Event.statsigInternalEvent(
+                user: user ?? self.user,
+                name: "log_event_failed",
+                value: nil,
+                metadata: ["error": errorMessage])
+            )
         }
     }
 
@@ -210,25 +242,12 @@ class EventLogger {
     }
 
     private func addFailedLogEvents(_ events: [Event], forUser user: StatsigUser) {
-        let (requestBody, parseError) = networkService.prepareEventRequestBody(forUser: user, events: events)
-
-        guard let body = requestBody else {
-            if let parseError {
-                let errorMessage = parseError.localizedDescription
-                if !errorMessage.isEmpty && !loggedErrorMessage.contains(errorMessage) {
-                    loggedErrorMessage.insert(errorMessage)
-                    log(Event.statsigInternalEvent(
-                        user: user,
-                        name: "log_event_failed",
-                        value: nil,
-                        metadata: ["error": errorMessage])
-                    )
-                }
-            }
-            return;
+        let bodyResult = networkService.prepareEventRequestBody(forUser: user, events: events)
+        do {
+            addSingleFailedLogRequest(try bodyResult.get())
+        } catch {
+            logErrorMessageOnce(error.localizedDescription, user: user)
         }
-
-        addSingleFailedLogRequest(body)
     }
 
     private func addSingleFailedLogRequest(_ requestData: Data?) {

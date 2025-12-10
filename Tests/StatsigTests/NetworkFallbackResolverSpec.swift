@@ -107,9 +107,10 @@ class NetworkFallbackResolverSpec: BaseSpec {
                 let ns = NetworkService(sdkKey: sdkKey, options: opts, store: store)
 
                 // Make request
+                let event1 = Event(user: user, name: "test_event1", value: 1, disableCurrentVCLogging: false)
+                let body = try ns.prepareEventRequestBody(forUser: user, events: [event1]).get()
                 waitUntil { done in
-                    let event1 = Event(user: user, name: "test_event1", value: 1, disableCurrentVCLogging: false)
-                    ns.sendEvents(forUser: user, events: [event1]) { err, _ in
+                    ns.sendEvents(forUser: user, uncompressedBody: body) { err in
                         done()
                     }
                 }

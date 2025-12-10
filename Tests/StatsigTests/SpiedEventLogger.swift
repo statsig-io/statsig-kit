@@ -14,13 +14,13 @@ class SpiedEventLogger: EventLogger {
         }
     }
 
-    override func flush(completion: (() -> Void)? = nil) {
-        super.flush(completion: completion)
+    override func flush(persistPendingEvents: Bool = false, completion: (() -> Void)? = nil) {
+        super.flush(persistPendingEvents: persistPendingEvents, completion: completion)
         timesFlushCalled += 1
     }
 
-    override func stop(completion: (() -> Void)? = nil) {
-        super.stop(completion: completion)
+    override func stop(persistPendingEvents: Bool = false, completion: (() -> Void)? = nil) {
+        super.stop(persistPendingEvents: persistPendingEvents, completion: completion)
         timesShutdownCalled += 1
     }
 }

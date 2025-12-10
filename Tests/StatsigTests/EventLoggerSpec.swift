@@ -238,7 +238,7 @@ class EventLoggerSpec: BaseSpec {
                 // Fail to save because event is too big
                 expect(logEndpointCalled).to(equal(true))
                 expect(userDefaults.data[failedEventsStorageKey] as? [Data]).toEventuallyNot(beNil())
-                expect((userDefaults.data[failedEventsStorageKey] as! [Data]).count).to(equal(0))
+                expect((userDefaults.data[failedEventsStorageKey] as? [Data])?.count).to(equal(0))
 
                 userDefaults.reset()
 
@@ -415,6 +415,126 @@ class EventLoggerSpec: BaseSpec {
                     logger.addFailedLogRequest([mediumdata])
                     logger.addFailedLogRequest([bigdata])
                     expect(logger.failedRequestQueue.count).to(equal(0))
+                }
+            }
+
+            describe("with pending events") {
+                let userDefaults = MockDefaults()
+                var logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+
+                func readRetryQueue() -> [Data] {
+                    return userDefaults.array(forKey: logger.storageKey) as? [Data] ?? []
+                }
+
+                func flushAndWait(persistPendingEvents: Bool = false) {
+                    waitUntil { done in
+                        logger.flush(persistPendingEvents: persistPendingEvents) {
+                            DispatchQueue.main.async {
+                                done()
+                            }
+                        }
+                    }
+                }
+                
+                afterEach {
+                    userDefaults.reset()
+                    logger.stop()
+                    userDefaults.removeObject(forKey: getFailedEventStorageKey(sdkKey))
+                    logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                }
+
+                it("should persist pending events while the request is in progress") {
+                    var dataDuringRequest: [Data]?
+                    
+                    stub(condition: isHost(LogEventHost)) { request in
+                        dataDuringRequest = readRetryQueue()
+                        return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+
+                    logger.log(event1)
+
+                    // Ensures the the retry queue starts empty
+                    expect(readRetryQueue()).to(beEmpty())
+                    
+                    flushAndWait(persistPendingEvents: true)
+                    
+
+                    expect(dataDuringRequest).toNot(beEmpty())
+                }
+
+                it("should not contain pending events after a successful request") {
+                    stub(condition: isHost(LogEventHost)) { request in
+                        return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+
+                    logger.log(event1)
+
+                    // Ensures the the retry queue starts empty
+                    expect(readRetryQueue()).to(beEmpty())
+                    
+                    flushAndWait(persistPendingEvents: true)
+
+                    let dataAfterRequest = readRetryQueue()
+                    expect(dataAfterRequest).to(beEmpty())
+                }
+                
+                it("should contain pending events after a failed request") {
+                    stub(condition: isHost(LogEventHost)) { request in
+                        return HTTPStubsResponse(error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
+                    }
+
+                    logger.log(event1)
+
+                    // Ensures the the retry queue starts empty
+                    expect(readRetryQueue()).to(beEmpty())
+                    
+                    flushAndWait(persistPendingEvents: true)
+
+                    let dataAfterRequest = readRetryQueue()
+                    expect(dataAfterRequest).toNot(beEmpty())
+                }
+
+                it("should keep existing items in the failed request queue") {
+                    var dataDuringRequest: [Data]?
+
+                    // Add something to the retry queue
+                    let mockFailedRequests = [Data(count: 16), Data(count: 12), Data(count: 24)]
+                    logger.addFailedLogRequest(mockFailedRequests)
+                    logger.saveFailedLogRequestsToDisk()
+
+                    stub(condition: isHost(LogEventHost)) { request in
+                        dataDuringRequest = readRetryQueue()
+                        return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+
+                    logger.log(event1)
+                    
+                    flushAndWait(persistPendingEvents: true)
+
+                    expect(dataDuringRequest).to(haveCount(mockFailedRequests.count + 1))
+
+                    let dataAfterRequest = readRetryQueue()
+
+                    expect(dataAfterRequest).to(equal(mockFailedRequests))
+                }
+
+                it("should not persist pending events when persistPendingEvents is false and request succeeds") {
+                    var dataDuringRequest: [Data]?
+                    
+                    stub(condition: isHost(LogEventHost)) { request in
+                        dataDuringRequest = readRetryQueue()
+                        return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+
+                    logger.log(event1)
+
+                    // Ensures the retry queue starts empty
+                    expect(readRetryQueue()).to(beEmpty())
+                    
+                    flushAndWait(persistPendingEvents: false)
+
+                    expect(dataDuringRequest).to(beEmpty())
+                    expect(readRetryQueue()).to(beEmpty())
                 }
             }
         }

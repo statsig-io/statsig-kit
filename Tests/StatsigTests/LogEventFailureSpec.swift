@@ -23,12 +23,12 @@ class MockNetwork: NetworkService {
     }
 
     override func sendEvents(
-        forUser: StatsigUser,
-        events: [Event],
-        completion: @escaping ((String?, Data?) -> Void)) {
+        forUser user: StatsigUser,
+        uncompressedBody: Data,
+        completion: @escaping ((String?) -> Void)) {
             let work = { [weak self] in
                 guard let it = self else { return }
-                completion(it.responseError, it.responseData)
+                completion(it.responseError)
                 it.timesCalled += 1
             }
 

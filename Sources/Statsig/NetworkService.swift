@@ -79,7 +79,7 @@ class NetworkService {
         fullChecksum: String?,
         completion: ResultCompletionBlock?
     ) {
-        let (body, parseErr) = makeReqBody([
+        let bodyResult = makeReqBody([
             "user": user.toDictionary(forLogging: false),
             "statsigMetadata": user.deviceEnvironment,
             "lastSyncTimeForUser": lastSyncTimeForUser,
@@ -89,12 +89,16 @@ class NetworkService {
             "hash": statsigOptions.disableHashing ? "none" : "djb2",
         ])
 
-        guard let body = body else {
+        let body: Data
+        switch bodyResult {
+        case .success(let data):
+            body = data
+        case .failure(let error):
             self.store.finalizeValues {
                 completion?(StatsigClientError(
                     .failedToFetchValues,
-                    message: parseErr?.localizedDescription ?? "Failed to serialize request body ",
-                    cause: parseErr
+                    message: (error as? LocalizedError)?.localizedDescription ?? "Failed to serialize request body",
+                    cause: error
                 ))
             }
             return
@@ -180,7 +184,7 @@ class NetworkService {
             }
         }
 
-        let (body, parseErr) = makeReqBody([
+        let bodyResult = makeReqBody([
             "user": user.toDictionary(forLogging: false),
             "statsigMetadata": user.deviceEnvironment,
             "sinceTime": sinceTime,
@@ -189,8 +193,12 @@ class NetworkService {
             "full_checksum": fullChecksum ?? nil,
         ])
 
-        guard let body = body else {
-            done(StatsigClientError(.failedToFetchValues, cause: parseErr))
+        let body: Data
+        switch bodyResult {
+        case .success(let data):
+            body = data
+        case .failure(let error):
+            done(StatsigClientError(.failedToFetchValues, cause: error))
             return
         }
 
@@ -243,7 +251,7 @@ class NetworkService {
         }
     }
 
-    func prepareEventRequestBody(forUser user: StatsigUser, events: [Event]) -> (Data?, Error?) {
+    func prepareEventRequestBody(forUser user: StatsigUser, events: [Event]) -> Result<Data, Error> {
         return makeReqBody([
             "events": events.map { $0.toDictionary() },
             "user": user.toDictionary(forLogging: true),
@@ -251,31 +259,24 @@ class NetworkService {
         ])
     }
 
-    func sendEvents(forUser user: StatsigUser, events: [Event],
-                    completion: @escaping ((_ errorMessage: String?, _ data: Data?) -> Void))
+    func sendEvents(forUser user: StatsigUser, uncompressedBody: Data,
+                    completion: @escaping ((_ errorMessage: String?) -> Void))
     {
-        let (uncompressedBody, parseErr) = prepareEventRequestBody(forUser: user, events: events)
-
-        guard let uncompressedBody = uncompressedBody else {
-            completion(parseErr?.localizedDescription, nil)
-            return
-        }
-
         let compressed = tryCompress(body: uncompressedBody, forUser: user)
 
         makeAndSendRequest(.logEvent, body: compressed.body, compression: compressed.compression) { _, response, error in
             if let error = error {
-                completion(error.localizedDescription, uncompressedBody)
+                completion(error.localizedDescription)
                 return
             }
 
             guard response?.isOK == true else {
                 completion("An error occurred during sending events to server. "
-                           + "\(String(describing: response?.status))", uncompressedBody)
+                           + "\(String(describing: response?.status))")
                 return
             }
 
-            completion(nil, uncompressedBody)
+            completion(nil)
         }
     }
 
@@ -323,13 +324,13 @@ class NetworkService {
         }
     }
 
-    private func makeReqBody(_ dict: Dictionary<String, Any?>) -> (Data?, Error?) {
+    private func makeReqBody(_ dict: Dictionary<String, Any?>) -> Result<Data, Error> {
         if JSONSerialization.isValidJSONObject(dict),
            let data = try? JSONSerialization.data(withJSONObject: dict){
-            return (data, nil)
+            return .success(data)
         }
 
-        return (nil, StatsigError.invalidJSONParam("requestBody"))
+        return .failure(StatsigError.invalidJSONParam("requestBody"))
     }
 
     private func urlForEndpoint(_ endpoint: Endpoint) -> URL? {

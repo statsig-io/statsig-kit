@@ -105,10 +105,11 @@ class NetworkServiceSpec: BaseSpec {
                 let store = InternalStore(sdkKey, StatsigUser(userID: "jkw"), options: opts)
                 let ns = NetworkService(sdkKey: sdkKey, options: opts, store: store)
                 let user = StatsigUser(userID: "jkw", privateAttributes: ["email": "something@somethingelse.com"])
+                let body = try ns.prepareEventRequestBody(forUser: user, events: [Event(user: user, name: "test_event", value: 9.99, disableCurrentVCLogging: false)]).get()
                 waitUntil { done in
-                    ns.sendEvents(forUser: user, events: [Event(user: user, name: "test_event", value: 9.99, disableCurrentVCLogging: false)])
-                        { _, jsonData in
-                            returnedRequestData = jsonData
+                    ns.sendEvents(forUser: user, uncompressedBody: body)
+                        { _ in
+                            returnedRequestData = body
                             done()
                         }
                 }
@@ -243,8 +244,9 @@ class NetworkServiceSpec: BaseSpec {
                     let store = InternalStore(sdkKey, user, options: options)
                     let ns = NetworkService(sdkKey: sdkKey, options: options, store: store)
 
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
-                        ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                        ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                             done()
                         }
                     }
@@ -263,8 +265,9 @@ class NetworkServiceSpec: BaseSpec {
                     let store = InternalStore(sdkKey, user, options: options)
                     let ns = NetworkService(sdkKey: sdkKey, options: options, store: store)
 
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
-                        ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                        ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                             done()
                         }
                     }
@@ -283,8 +286,9 @@ class NetworkServiceSpec: BaseSpec {
                     let store = InternalStore(sdkKey, user, options: options)
                     let ns = NetworkService(sdkKey: sdkKey, options: options, store: store)
 
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
-                        ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                        ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                             done()
                         }
                     }
@@ -302,8 +306,9 @@ class NetworkServiceSpec: BaseSpec {
                     let store = InternalStore(sdkKey, user, options: options)
                     let ns = NetworkService(sdkKey: sdkKey, options: options, store: store)
 
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
-                        ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                        ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                             done()
                         }
                     }
@@ -330,8 +335,9 @@ class NetworkServiceSpec: BaseSpec {
                     }
 
                     // Send event
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
-                        ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                        ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                             done()
                         }
                     }
@@ -371,10 +377,11 @@ class NetworkServiceSpec: BaseSpec {
 
                 it("should send requests from main dispatch queue") {
                     var completionErrorMessage: String? = nil
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
                         // Probably not needed
                         DispatchQueue.main.async {
-                            ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                            ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                                 completionErrorMessage = errorMessage
                                 done()
                             }
@@ -387,9 +394,10 @@ class NetworkServiceSpec: BaseSpec {
 
                 it("should send requests from a background dispatch queue") {
                     var completionErrorMessage: String? = nil
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
                         DispatchQueue.global().async {
-                            ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                            ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                                 completionErrorMessage = errorMessage
                                 done()
                             }
@@ -403,9 +411,10 @@ class NetworkServiceSpec: BaseSpec {
                 it("should send requests from a custom dispatch queue") {
                     var completionErrorMessage: String? = nil
                     let queue = DispatchQueue(label: "com.Statsig.Test", attributes: .concurrent)
+                    let uncompressedBody = try ns.prepareEventRequestBody(forUser: user, events: []).get()
                     waitUntil { done in
                         queue.async {
-                            ns.sendEvents(forUser: user, events: []) { errorMessage, data in
+                            ns.sendEvents(forUser: user, uncompressedBody: uncompressedBody) { errorMessage in
                                 completionErrorMessage = errorMessage
                                 done()
                             }
