@@ -1,6 +1,6 @@
 import Foundation
 
-@objcMembers public class StatsigClientError : NSObject, Error {
+@objcMembers public class StatsigClientError: NSObject, Error {
     public let code: StatsigClientErrorCode
     public let message: String
     public let cause: (any Error)?
@@ -22,19 +22,19 @@ import Foundation
 
 func defaultDescription(_ code: StatsigClientErrorCode) -> String {
     switch code {
-        case .alreadyStarted:
-            return "Statsig has already started!"
-        case .invalidClientSDKKey:
-            return "Must use a valid client SDK key."
-        case .initTimeoutExpired:
-            return "initTimeout Expired"
-        
-        // The clientUnstarted error code always has a custom message
-        case .clientUnstarted:
-            return "Must start Statsig first and wait for it to complete."
+    case .alreadyStarted:
+        return "Statsig has already started!"
+    case .invalidClientSDKKey:
+        return "Must use a valid client SDK key."
+    case .initTimeoutExpired:
+        return "initTimeout Expired"
 
-        // The failedToFetchValues error code often has a custom message
-        case .failedToFetchValues:
-            return "Failed to fetch values."
+    // The clientUnstarted error code always has a custom message
+    case .clientUnstarted:
+        return "Must start Statsig first and wait for it to complete."
+
+    // The failedToFetchValues error code often has a custom message
+    case .failedToFetchValues:
+        return "Failed to fetch values."
     }
 }

@@ -1,0 +1,41 @@
+name: Format
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  main:
+    name: Format
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Set Up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Validate Formatting
+        run: |
+          swift format -i -r Sources/Statsig/ Tests/ Sample/App Package.swift
+
+          # Exit early if no files changed
+          git diff-index --quiet HEAD && exit 0
+
+          # Print debug information when there's a format mismatch
+          echo "Formatting mismatch!"
+          echo "Swift version:"
+          swift --version
+          echo "Swift format version:"
+          swift format --version
+          echo "Swift format configuration:"
+          swift format dump-configuration
+          echo "Git info:"
+          git status
+          git diff
+          exit 1

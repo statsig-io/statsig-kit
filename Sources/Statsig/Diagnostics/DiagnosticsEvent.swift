@@ -17,11 +17,11 @@ class DiagnosticsEvent: Event {
         )
     }
 
-    override func toDictionary() -> [String : Any] {
+    override func toDictionary() -> [String: Any] {
         var dict = super.toDictionary()
         dict["metadata"] = [
             "context": context,
-            "markers": markers
+            "markers": markers,
         ]
         return dict
     }

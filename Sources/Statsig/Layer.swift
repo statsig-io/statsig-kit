@@ -74,7 +74,8 @@ public struct Layer: ConfigBase, ConfigProtocol {
         self.groupName = configObj["group_name"] as? String
         self.value = configObj["value"] as? [String: Any] ?? [:]
         self.secondaryExposures = configObj["secondary_exposures"] as? [[String: String]] ?? []
-        self.undelegatedSecondaryExposures = configObj["undelegated_secondary_exposures"] as? [[String: String]] ?? []
+        self.undelegatedSecondaryExposures =
+            configObj["undelegated_secondary_exposures"] as? [[String: String]] ?? []
         self.hashedName = configObj["name"] as? String ?? ""
 
         self.isDeviceBased = configObj["is_device_based"] as? Bool ?? false
@@ -145,24 +146,29 @@ public struct Layer: ConfigBase, ConfigProtocol {
         return getValueImpl(forKey: key)
     }
 
-    public func getValueImpl<T: StatsigDynamicConfigValue>(forKey key: String, defaultValue: T? = nil) -> T? {
+    public func getValueImpl<T: StatsigDynamicConfigValue>(
+        forKey key: String, defaultValue: T? = nil
+    ) -> T? {
         let returningLog = defaultValue == nil ? "nil" : "the defaultValue"
         guard let result = value[key] else {
-            PrintHandler.log("[Statsig]: \(key) does not exist in this Layer. Returning \(returningLog).")
+            PrintHandler.log(
+                "[Statsig]: \(key) does not exist in this Layer. Returning \(returningLog).")
             return defaultValue
         }
-        
+
         guard let result = result as? T else {
-            PrintHandler.log("[Statsig]: \(key) exists in this Layer, but requested type was incorrect (Requested = \(type(of: T.self)), Actual = \(type(of: result))). Returning \(returningLog).")
+            PrintHandler.log(
+                "[Statsig]: \(key) exists in this Layer, but requested type was incorrect (Requested = \(type(of: T.self)), Actual = \(type(of: result))). Returning \(returningLog)."
+            )
             return defaultValue
         }
-        
+
         client?.logLayerParameterExposureForLayer(
             self,
             parameterName: key,
             isManualExposure: false
         )
-        
+
         return result
     }
 
@@ -203,11 +209,16 @@ extension Layer: Codable {
         self.value = dict ?? [:]
         self.ruleID = try container.decode(String.self, forKey: .ruleID)
         self.groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
-        self.allocatedExperimentName = try container.decode(String.self, forKey: .allocatedExperimentName)
-        self.secondaryExposures = try container.decode([[String: String]].self, forKey: .secondaryExposures)
-        self.undelegatedSecondaryExposures = try container.decode([[String: String]].self, forKey: .undelegatedSecondaryExposures)
-        self.evaluationDetails = try container.decode(EvaluationDetails.self, forKey: .evaluationDetails)
-        self.explicitParameters = try container.decode(Set<String>.self, forKey: .explicitParameters)
+        self.allocatedExperimentName = try container.decode(
+            String.self, forKey: .allocatedExperimentName)
+        self.secondaryExposures = try container.decode(
+            [[String: String]].self, forKey: .secondaryExposures)
+        self.undelegatedSecondaryExposures = try container.decode(
+            [[String: String]].self, forKey: .undelegatedSecondaryExposures)
+        self.evaluationDetails = try container.decode(
+            EvaluationDetails.self, forKey: .evaluationDetails)
+        self.explicitParameters = try container.decode(
+            Set<String>.self, forKey: .explicitParameters)
 
         self.hashedName = ""
         self.isExperimentActive = false

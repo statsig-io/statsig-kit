@@ -1,15 +1,14 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+import SwiftUI
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
-import SwiftUI
 
 class SDKKeySpec: BaseSpec {
     static let mockUserValues: [String: Any] = [
@@ -19,9 +18,9 @@ class SDKKeySpec: BaseSpec {
                 "rule_id": "rule_id_1",
                 "secondary_exposures": [
                     ["gate": "employee", "gateValue": "true", "ruleID": "rule_id_employee"]
-                ]
+                ],
             ],
-            "gate_name_2".sha256(): ["value": true, "rule_id": "rule_id_2"]
+            "gate_name_2".sha256(): ["value": true, "rule_id": "rule_id_2"],
         ],
         "dynamic_configs": [
             "config".sha256(): DynamicConfigSpec.TestMixedConfig
@@ -29,16 +28,16 @@ class SDKKeySpec: BaseSpec {
         "layer_configs": [
             "allocated_layer".sha256(): DynamicConfigSpec
                 .TestMixedConfig
-                .merging(["allocated_experiment_name":"config".sha256()]) { (_, new) in new },
+                .merging(["allocated_experiment_name": "config".sha256()]) { (_, new) in new },
             "unallocated_layer".sha256(): DynamicConfigSpec
-                .TestMixedConfig
+                .TestMixedConfig,
         ],
-        "has_updates": true
+        "has_updates": true,
     ]
 
     override func spec() {
         super.spec()
-        
+
         describe("SDK Keys") {
             beforeEach {
                 TestUtils.clearStorage()
@@ -70,7 +69,8 @@ class SDKKeySpec: BaseSpec {
 
                 expect(errorMessage).toEventually(contain("403"))
                 expect(gate).toEventually(beFalse())
-                expect(NSDictionary(dictionary: config!.value)).toEventually(equal(NSDictionary(dictionary: [:])))
+                expect(NSDictionary(dictionary: config!.value)).toEventually(
+                    equal(NSDictionary(dictionary: [:])))
                 expect(config!.evaluationDetails.reason).toEventually(equal(.Unrecognized))
             }
 
@@ -85,7 +85,8 @@ class SDKKeySpec: BaseSpec {
                 }
                 expect(errorCode).toEventually(equal(StatsigClientErrorCode.invalidClientSDKKey))
                 expect(gate).toEventually(beFalse())
-                expect(NSDictionary(dictionary: config!.value)).toEventually(equal(NSDictionary(dictionary: [:])))
+                expect(NSDictionary(dictionary: config!.value)).toEventually(
+                    equal(NSDictionary(dictionary: [:])))
                 expect(config!.evaluationDetails.source).toEventually(equal(.Uninitialized))
             }
         }

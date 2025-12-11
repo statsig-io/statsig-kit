@@ -1,5 +1,5 @@
-import UIKit
 import Statsig
+import UIKit
 
 class ShowDebugViewController: UIViewController {
 
@@ -10,13 +10,15 @@ class ShowDebugViewController: UIViewController {
 
         view.backgroundColor = UIColor.white
 
-        let user = StatsigUser(userID: "a-user", custom: [
-            "name": "jkw",
-            "speed": 1.2,
-            "verified": true,
-            "visits": 3,
-            "tags": ["cool", "rad", "neat"],
-        ])
+        let user = StatsigUser(
+            userID: "a-user",
+            custom: [
+                "name": "jkw",
+                "speed": 1.2,
+                "verified": true,
+                "visits": 3,
+                "tags": ["cool", "rad", "neat"],
+            ])
 
         Statsig.initialize(sdkKey: Constants.CLIENT_SDK_KEY, user: user) { [weak self] err in
             if let err = err {
@@ -41,4 +43,3 @@ class ShowDebugViewController: UIViewController {
         }
     }
 }
-

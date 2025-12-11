@@ -2,11 +2,11 @@ import Nimble
 import OHHTTPStubs
 import Quick
 
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
 
 class LogFlushTimerSpec: BaseSpec {
     override func spec() {
@@ -18,11 +18,13 @@ class LogFlushTimerSpec: BaseSpec {
 
         describe("LogFlushTimer") {
             beforeEach {
-                   let key = "client-key"
+                let key = "client-key"
                 let opts = StatsigOptions()
                 let store = InternalStore(key, user, options: opts)
                 let network = NetworkService(sdkKey: key, options: opts, store: store)
-                logger = SpiedEventLogger(sdkKey: "client-key", user: user, networkService: network, userDefaults: MockDefaults())
+                logger = SpiedEventLogger(
+                    sdkKey: "client-key", user: user, networkService: network,
+                    userDefaults: MockDefaults())
             }
 
             it("invalidates previous timers") {

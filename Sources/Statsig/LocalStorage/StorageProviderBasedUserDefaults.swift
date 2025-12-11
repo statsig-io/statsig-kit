@@ -6,10 +6,12 @@ import Foundation
     @objc func remove(_ key: String)
 }
 
-private let StorageProviderBasedUserDefaultsQueue = "com.Statsig.StorageProviderBasedUserDefaults"
+fileprivate let StorageProviderBasedUserDefaultsQueue =
+    "com.Statsig.StorageProviderBasedUserDefaults"
 
 class StorageProviderBasedUserDefaults: DefaultsLike {
-    internal var dict: AtomicDictionary<Any?> = AtomicDictionary(label: StorageProviderBasedUserDefaultsQueue)
+    internal var dict: AtomicDictionary<Any?> = AtomicDictionary(
+        label: StorageProviderBasedUserDefaultsQueue)
     private let storageProvider: StorageProvider
 
     init(storageProvider: StorageProvider) {

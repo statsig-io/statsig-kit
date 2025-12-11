@@ -5,18 +5,16 @@ internal enum Endpoint: String {
     case logEvent = "/v1/rgstr"
 
     var dnsKey: String {
-        get {
-            return switch self {
-                case .initialize: "i"
-                case .logEvent: "e"
-            }
+        return switch self {
+        case .initialize: "i"
+        case .logEvent: "e"
         }
     }
 }
 
 fileprivate let RetryLimits: [Endpoint: Int] = [
     .initialize: 3,
-    .logEvent: 3
+    .logEvent: 3,
 ]
 
 fileprivate typealias NetworkCompletionHandler = (Data?, URLResponse?, Error?) -> Void
@@ -27,8 +25,8 @@ internal enum CompressionType {
     case none
     func contentEncodingHeader() -> String? {
         return switch self {
-            case .gzip: "gzip"
-            case .none: nil
+        case .gzip: "gzip"
+        case .none: nil
         }
     }
 }
@@ -48,13 +46,15 @@ class NetworkService {
     /**
      Default URL used to initialize the SDK. Used for tests.
      */
-    internal static var defaultInitializationURL = URL(string: "https://\(ApiHost)\(Endpoint.initialize.rawValue)")
+    internal static var defaultInitializationURL = URL(
+        string: "https://\(ApiHost)\(Endpoint.initialize.rawValue)")
 
     /**
      Default URL used for log_event network requests. Used for tests.
      */
-    internal static var defaultEventLoggingURL = URL(string: "https://\(LogEventHost)\(Endpoint.logEvent.rawValue)")
-    
+    internal static var defaultEventLoggingURL = URL(
+        string: "https://\(LogEventHost)\(Endpoint.logEvent.rawValue)")
+
     /**
      Disables compression globally. Used for tests.
      */
@@ -69,7 +69,8 @@ class NetworkService {
         self.statsigOptions = options
         self.store = store
         self.errorBoundary = ErrorBoundary.boundary(clientKey: sdkKey, statsigOptions: options)
-        self.networkFallbackResolver = NetworkFallbackResolver(sdkKey: sdkKey, store: store, errorBoundary: self.errorBoundary)
+        self.networkFallbackResolver = NetworkFallbackResolver(
+            sdkKey: sdkKey, store: store, errorBoundary: self.errorBoundary)
     }
 
     func fetchUpdatedValues(
@@ -95,11 +96,13 @@ class NetworkService {
             body = data
         case .failure(let error):
             self.store.finalizeValues {
-                completion?(StatsigClientError(
-                    .failedToFetchValues,
-                    message: (error as? LocalizedError)?.localizedDescription ?? "Failed to serialize request body",
-                    cause: error
-                ))
+                completion?(
+                    StatsigClientError(
+                        .failedToFetchValues,
+                        message: (error as? LocalizedError)?.localizedDescription
+                            ?? "Failed to serialize request body",
+                        cause: error
+                    ))
             }
             return
         }
@@ -112,19 +115,26 @@ class NetworkService {
                 completion?(StatsigClientError(.failedToFetchValues, cause: error))
                 return
             }
-            
+
             let statusCode = response?.status ?? 0
 
             if !(200...299).contains(statusCode) {
-                completion?(StatsigClientError(.failedToFetchValues, message: "An error occurred during fetching values for the user. \(statusCode)"))
+                completion?(
+                    StatsigClientError(
+                        .failedToFetchValues,
+                        message:
+                            "An error occurred during fetching values for the user. \(statusCode)"))
                 return
             }
 
             guard let self = self else {
-                completion?(StatsigClientError(.failedToFetchValues, message: "Failed to call NetworkService as it has been released"))
+                completion?(
+                    StatsigClientError(
+                        .failedToFetchValues,
+                        message: "Failed to call NetworkService as it has been released"))
                 return
             }
-            
+
             guard let dict = data?.json, dict["has_updates"] as? Bool == true else {
                 self.store.finalizeValues {
                     completion?(nil)
@@ -149,7 +159,7 @@ class NetworkService {
         if let inflight = inflightRequests[cacheKey.v2] {
             inflight.cancel()
         }
-        
+
         if inflightRequests.count() > 50 {
             inflightRequests.reset()
         }
@@ -162,12 +172,14 @@ class NetworkService {
             // Ensures the completion is invoked only once
             lock.lock()
             defer { lock.unlock() }
-            
-            if let req = self?.inflightRequests[cacheKey.v2], req === task, req.state != .completed && req.state != .canceling {
+
+            if let req = self?.inflightRequests[cacheKey.v2], req === task,
+                req.state != .completed && req.state != .canceling
+            {
                 req.cancel()
             }
             self?.inflightRequests.removeValue(forKey: cacheKey.v2)
-            
+
             guard !completed else { return }
             completed = true
 
@@ -217,12 +229,19 @@ class NetworkService {
             let statusCode = response?.status ?? 0
 
             if !(200...299).contains(statusCode) {
-                done(StatsigClientError(.failedToFetchValues, message: "An error occurred during fetching values for the user. \(statusCode)"))
+                done(
+                    StatsigClientError(
+                        .failedToFetchValues,
+                        message:
+                            "An error occurred during fetching values for the user. \(statusCode)"))
                 return
             }
 
             guard let self = self else {
-                done(StatsigClientError(.failedToFetchValues, message: "Failed to call NetworkService as it has been released"))
+                done(
+                    StatsigClientError(
+                        .failedToFetchValues,
+                        message: "Failed to call NetworkService as it has been released"))
                 return
             }
 
@@ -236,7 +255,10 @@ class NetworkService {
 
             guard let values = values else {
                 processMarker?.end(success: false)
-                done(StatsigClientError(.failedToFetchValues, message: "No values returned with initialize response"))
+                done(
+                    StatsigClientError(
+                        .failedToFetchValues, message: "No values returned with initialize response"
+                    ))
                 return
             }
 
@@ -251,28 +273,32 @@ class NetworkService {
         }
     }
 
-    func prepareEventRequestBody(forUser user: StatsigUser, events: [Event]) -> Result<Data, Error> {
+    func prepareEventRequestBody(forUser user: StatsigUser, events: [Event]) -> Result<Data, Error>
+    {
         return makeReqBody([
             "events": events.map { $0.toDictionary() },
             "user": user.toDictionary(forLogging: true),
-            "statsigMetadata": user.deviceEnvironment
+            "statsigMetadata": user.deviceEnvironment,
         ])
     }
 
-    func sendEvents(forUser user: StatsigUser, uncompressedBody: Data,
-                    completion: @escaping ((_ errorMessage: String?) -> Void))
-    {
+    func sendEvents(
+        forUser user: StatsigUser, uncompressedBody: Data,
+        completion: @escaping ((_ errorMessage: String?) -> Void)
+    ) {
         let compressed = tryCompress(body: uncompressedBody, forUser: user)
 
-        makeAndSendRequest(.logEvent, body: compressed.body, compression: compressed.compression) { _, response, error in
+        makeAndSendRequest(.logEvent, body: compressed.body, compression: compressed.compression) {
+            _, response, error in
             if let error = error {
                 completion(error.localizedDescription)
                 return
             }
 
             guard response?.isOK == true else {
-                completion("An error occurred during sending events to server. "
-                           + "\(String(describing: response?.status))")
+                completion(
+                    "An error occurred during sending events to server. "
+                        + "\(String(describing: response?.status))")
                 return
             }
 
@@ -280,21 +306,21 @@ class NetworkService {
         }
     }
 
-    func tryCompress(body: Data, forUser user: StatsigUser) -> CompressedBody  {
+    func tryCompress(body: Data, forUser user: StatsigUser) -> CompressedBody {
         #if !os(watchOS)
-        guard  !self.statsigOptions.disableCompression,
+        guard !self.statsigOptions.disableCompression,
             !NetworkService.disableCompression,
-            (self.statsigOptions.eventLoggingURL == nil
-            || self.store.getSDKFlags(user: user).enableLogEventCompression)
+            self.statsigOptions.eventLoggingURL == nil
+                || self.store.getSDKFlags(user: user).enableLogEventCompression
         else {
             return CompressedBody(body: body, compression: .none)
         }
 
         switch gzipped(body) {
-            case .success(let compressed):
-                return CompressedBody(body: compressed, compression: .gzip)
-            case .failure(let error):
-                self.errorBoundary.logException(tag: "network_compression_gzip", error: error)
+        case .success(let compressed):
+            return CompressedBody(body: compressed, compression: .gzip)
+        case .failure(let error):
+            self.errorBoundary.logException(tag: "network_compression_gzip", error: error)
         }
         #endif
 
@@ -311,9 +337,10 @@ class NetworkService {
         for data in dataArray {
             dispatchGroup.enter()
             let compressed = tryCompress(body: data, forUser: user)
-            makeAndSendRequest(.logEvent, body: compressed.body, compression: compressed.compression) { _, response, error in
-                if error != nil || response?.isOK != true
-                {
+            makeAndSendRequest(
+                .logEvent, body: compressed.body, compression: compressed.compression
+            ) { _, response, error in
+                if error != nil || response?.isOK != true {
                     failedRequests.append(data)
                 }
                 dispatchGroup.leave()
@@ -324,9 +351,10 @@ class NetworkService {
         }
     }
 
-    private func makeReqBody(_ dict: Dictionary<String, Any?>) -> Result<Data, Error> {
+    private func makeReqBody(_ dict: [String: Any?]) -> Result<Data, Error> {
         if JSONSerialization.isValidJSONObject(dict),
-           let data = try? JSONSerialization.data(withJSONObject: dict){
+            let data = try? JSONSerialization.data(withJSONObject: dict)
+        {
             return .success(data)
         }
 
@@ -335,8 +363,12 @@ class NetworkService {
 
     private func urlForEndpoint(_ endpoint: Endpoint) -> URL? {
         return switch endpoint {
-            case .initialize: self.statsigOptions.initializationURL ?? self.networkFallbackResolver.getActiveFallbackURL(endpoint: endpoint) ?? NetworkService.defaultInitializationURL
-            case .logEvent: self.statsigOptions.eventLoggingURL ?? self.networkFallbackResolver.getActiveFallbackURL(endpoint: endpoint) ?? NetworkService.defaultEventLoggingURL
+        case .initialize:
+            self.statsigOptions.initializationURL ?? self.networkFallbackResolver
+                .getActiveFallbackURL(endpoint: endpoint) ?? NetworkService.defaultInitializationURL
+        case .logEvent:
+            self.statsigOptions.eventLoggingURL ?? self.networkFallbackResolver
+                .getActiveFallbackURL(endpoint: endpoint) ?? NetworkService.defaultEventLoggingURL
         }
     }
 
@@ -347,8 +379,7 @@ class NetworkService {
         marker: NetworkMarker? = nil,
         completion: @escaping NetworkCompletionHandler,
         taskCapture: TaskCaptureHandler = nil
-    )
-    {
+    ) {
         guard let requestURL = urlForEndpoint(endpoint) else {
             completion(nil, nil, StatsigError.invalidRequestURL("\(endpoint)"))
             return
@@ -377,8 +408,8 @@ class NetworkService {
 
     private func endpointOverrideURL(endpoint: Endpoint) -> URL? {
         switch endpoint {
-            case .initialize: return self.statsigOptions.initializationURL
-            case .logEvent: return self.statsigOptions.eventLoggingURL
+        case .initialize: return self.statsigOptions.initializationURL
+        case .logEvent: return self.statsigOptions.eventLoggingURL
         }
     }
 
@@ -393,7 +424,6 @@ class NetworkService {
     ) {
         let currentAttempt = failedAttempts + 1
         marker?.start(attempt: currentAttempt)
-
 
         let task = self.statsigOptions.urlSession.dataTask(with: request) {
             [weak self] responseData, response, error in
@@ -414,10 +444,9 @@ class NetworkService {
                 return
             }
 
-
-            
             if let code = response?.status,
-                self.networkRetryErrorCodes.contains(code) {
+                self.networkRetryErrorCodes.contains(code)
+            {
 
                 self.sendRequest(
                     request,
@@ -432,10 +461,12 @@ class NetworkService {
                 && self.endpointOverrideURL(endpoint: endpoint) == nil
             {
                 // Fallback domains
-                self.networkFallbackResolver.tryFetchUpdatedFallbackInfo(endpoint: endpoint) { [weak self] fallbackUpdated in
+                self.networkFallbackResolver.tryFetchUpdatedFallbackInfo(endpoint: endpoint) {
+                    [weak self] fallbackUpdated in
                     if fallbackUpdated,
                         let self = self,
-                        let fallbackUrl = self.networkFallbackResolver.getActiveFallbackURL(endpoint: endpoint)
+                        let fallbackUrl = self.networkFallbackResolver.getActiveFallbackURL(
+                            endpoint: endpoint)
                     {
                         var newRequest = request
                         newRequest.url = fallbackUrl
@@ -466,8 +497,8 @@ class NetworkService {
 
     internal static func defaultURLForEndpoint(_ endpoint: Endpoint) -> URL? {
         return switch endpoint {
-            case .initialize: NetworkService.defaultInitializationURL
-            case .logEvent: NetworkService.defaultEventLoggingURL
+        case .initialize: NetworkService.defaultInitializationURL
+        case .logEvent: NetworkService.defaultEventLoggingURL
         }
     }
 }

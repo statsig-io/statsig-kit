@@ -1,6 +1,5 @@
-import Foundation
-
 import CommonCrypto
+import Foundation
 
 fileprivate let MaxCachedUserObjects = 10
 
@@ -22,7 +21,7 @@ public struct BootstrapMetadata {
     var generatorSDKInfo: [String: String]?
     var lcut: Int?
     var user: [String: Any]?
-    
+
     func toDictionary() -> [String: Any] {
         var dict = [String: Any]()
 
@@ -42,13 +41,13 @@ public struct BootstrapMetadata {
     }
 }
 
-internal struct SDKFlags: Decodable {    
+internal struct SDKFlags: Decodable {
     var enableLogEventCompression: Bool = false
 
     init() {}
 
     init(from payload: Any?) {
-        if let value = (payload as? [String : Any])?["enable_log_event_compression"] as? Bool {
+        if let value = (payload as? [String: Any])?["enable_log_event_compression"] as? Bool {
             self.enableLogEventCompression = value
         }
     }
@@ -99,10 +98,15 @@ struct StatsigValuesCache {
     init(_ sdkKey: String, _ user: StatsigUser, _ options: StatsigOptions) {
         self.options = options
         self.sdkKey = sdkKey
-        self.cacheByID = StatsigValuesCache.loadDictMigratingIfRequired(forKey: InternalStore.localStorageKey)
-        self.stickyDeviceExperiments = StatsigValuesCache.loadDictMigratingIfRequired(forKey: InternalStore.stickyDeviceExperimentsKey)
-        self.networkFallbackInfo = StatsigValuesCache.loadDictMigratingIfRequired(forKey: InternalStore.networkFallbackInfoKey)
-        self.cacheKeyMapping = StatsigUserDefaults.defaults.dictionarySafe(forKey: InternalStore.cacheKeyMappingKey) as? [String: String] ?? [:]
+        self.cacheByID = StatsigValuesCache.loadDictMigratingIfRequired(
+            forKey: InternalStore.localStorageKey)
+        self.stickyDeviceExperiments = StatsigValuesCache.loadDictMigratingIfRequired(
+            forKey: InternalStore.stickyDeviceExperimentsKey)
+        self.networkFallbackInfo = StatsigValuesCache.loadDictMigratingIfRequired(
+            forKey: InternalStore.networkFallbackInfoKey)
+        self.cacheKeyMapping =
+            StatsigUserDefaults.defaults.dictionarySafe(forKey: InternalStore.cacheKeyMappingKey)
+            as? [String: String] ?? [:]
 
         self.userCache = [:]
         self.userCacheKey = UserCacheKey.from(options, user, sdkKey)
@@ -114,11 +118,13 @@ struct StatsigValuesCache {
 
     func getGate(_ gateName: String) -> FeatureGate {
         guard let gates = gates else {
-            PrintHandler.log("[Statsig]: Failed to get feature gate with name \(gateName). Returning false as the default.")
+            PrintHandler.log(
+                "[Statsig]: Failed to get feature gate with name \(gateName). Returning false as the default."
+            )
             return createUnfoundGate(gateName)
         }
 
-        if let gateObj = gates[gateName] ?? gates[gateName.hashSpecName(hashUsed)]{
+        if let gateObj = gates[gateName] ?? gates[gateName.hashSpecName(hashUsed)] {
             return FeatureGate(
                 name: gateName,
                 gateObj: gateObj,
@@ -126,13 +132,17 @@ struct StatsigValuesCache {
             )
         }
 
-        PrintHandler.log("[Statsig]: The feature gate with name \(gateName) does not exist. Returning false as the default.")
+        PrintHandler.log(
+            "[Statsig]: The feature gate with name \(gateName) does not exist. Returning false as the default."
+        )
         return createUnfoundGate(gateName)
     }
 
     func getConfig(_ configName: String) -> DynamicConfig {
         guard let configs = configs else {
-            PrintHandler.log("[Statsig]: Failed to get config with name \(configName). Returning a dummy DynamicConfig that will only return default values.")
+            PrintHandler.log(
+                "[Statsig]: Failed to get config with name \(configName). Returning a dummy DynamicConfig that will only return default values."
+            )
             return createUnfoundDynamicConfig(configName)
         }
 
@@ -143,13 +153,16 @@ struct StatsigValuesCache {
                 evalDetails: getEvaluationDetails(.Recognized))
         }
 
-        PrintHandler.log("[Statsig]: \(configName) does not exist. Returning a dummy DynamicConfig that will only return default values.")
+        PrintHandler.log(
+            "[Statsig]: \(configName) does not exist. Returning a dummy DynamicConfig that will only return default values."
+        )
         return createUnfoundDynamicConfig(configName)
     }
 
     func getLayer(_ client: StatsigClient?, _ layerName: String) -> Layer {
         guard let layers = layers else {
-            PrintHandler.log("[Statsig]: Failed to get layer with name \(layerName). Returning an empty Layer.")
+            PrintHandler.log(
+                "[Statsig]: Failed to get layer with name \(layerName). Returning an empty Layer.")
             return createUnfoundLayer(client, layerName)
         }
 
@@ -157,18 +170,21 @@ struct StatsigValuesCache {
             return Layer(
                 client: client,
                 name: layerName,
-                configObj: configObj, 
+                configObj: configObj,
                 evalDetails: getEvaluationDetails(.Recognized)
             )
         }
 
-        PrintHandler.log("[Statsig]: The layer with name \(layerName) does not exist. Returning an empty Layer.")
+        PrintHandler.log(
+            "[Statsig]: The layer with name \(layerName) does not exist. Returning an empty Layer.")
         return createUnfoundLayer(client, layerName)
     }
-    
+
     func getParamStore(_ client: StatsigClient?, _ storeName: String) -> ParameterStore {
         guard let stores = paramStores else {
-            PrintHandler.log("[Statsig]: Failed to get parameter store with name \(storeName). Returning an empty ParameterStore.")
+            PrintHandler.log(
+                "[Statsig]: Failed to get parameter store with name \(storeName). Returning an empty ParameterStore."
+            )
             return createUnfoundParamStore(client, storeName)
         }
 
@@ -181,14 +197,17 @@ struct StatsigValuesCache {
             )
         }
 
-        PrintHandler.log("[Statsig]: The parameter store with name \(storeName) does not exist. Returning an empty ParameterStore.")
+        PrintHandler.log(
+            "[Statsig]: The parameter store with name \(storeName) does not exist. Returning an empty ParameterStore."
+        )
         return createUnfoundParamStore(client, storeName)
     }
 
     func getStickyExperiment(_ expName: String) -> [String: Any]? {
         let expNameHash = expName.hashSpecName(hashUsed)
         if let stickyExps = userCache[InternalStore.stickyExpKey] as? [String: [String: Any]],
-           let expObj = stickyExps[expNameHash] {
+            let expObj = stickyExps[expNameHash]
+        {
             return expObj
         } else if let expObj = stickyDeviceExperiments[expNameHash] {
             return expObj
@@ -205,7 +224,9 @@ struct StatsigValuesCache {
                 let infoURL = info["url"] as? String,
                 let url = URL(string: infoURL)
             {
-                fallbackInfo[endpoint] = FallbackInfoEntry(url: url, previous: previous, expiryTime: Date(timeIntervalSince1970: expiryTime))
+                fallbackInfo[endpoint] = FallbackInfoEntry(
+                    url: url, previous: previous,
+                    expiryTime: Date(timeIntervalSince1970: expiryTime))
             }
         }
         return fallbackInfo
@@ -214,7 +235,7 @@ struct StatsigValuesCache {
     mutating func saveNetworkFallbackInfo(_ fallbackInfo: FallbackInfo?) {
         guard let fallbackInfo = fallbackInfo, !fallbackInfo.isEmpty else {
             StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.networkFallbackInfoKey)
-            return;
+            return
         }
 
         var dict = [String: [String: Any]]()
@@ -225,7 +246,8 @@ struct StatsigValuesCache {
                 "previous": entry.previous,
             ]
         }
-        StatsigUserDefaults.defaults.setDictionarySafe(dict, forKey: InternalStore.networkFallbackInfoKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            dict, forKey: InternalStore.networkFallbackInfoKey)
     }
 
     func getEvaluationDetails(_ reason: EvaluationReason? = nil) -> EvaluationDetails {
@@ -238,20 +260,20 @@ struct StatsigValuesCache {
     }
 
     func getLastUpdatedTime(user: StatsigUser) -> UInt64 {
-        if (userCache[InternalStore.userHashKey] as? String == user.getFullUserHash()) {
+        if userCache[InternalStore.userHashKey] as? String == user.getFullUserHash() {
             let cachedValue = userCache[InternalStore.lcutKey]
             return cachedValue as? UInt64 ?? 0
         }
 
         return 0
     }
-    
+
     func getBootstrapMetadata() -> BootstrapMetadata? {
         return userCache[InternalStore.bootstrapMetadata] as? BootstrapMetadata
     }
 
     func getPreviousDerivedFields(user: StatsigUser) -> [String: String] {
-        if (userCache[InternalStore.userHashKey] as? String == user.getFullUserHash()) {
+        if userCache[InternalStore.userHashKey] as? String == user.getFullUserHash() {
             return userCache[InternalStore.derivedFieldsKey] as? [String: String] ?? [:]
         }
 
@@ -259,7 +281,7 @@ struct StatsigValuesCache {
     }
 
     func getFullChecksum(user: StatsigUser) -> String? {
-        if (userCache[InternalStore.userHashKey] as? String == user.getFullUserHash()) {
+        if userCache[InternalStore.userHashKey] as? String == user.getFullUserHash() {
             return userCache[InternalStore.fullChecksum] as? String ?? nil
         }
 
@@ -268,7 +290,7 @@ struct StatsigValuesCache {
 
     func getSDKFlags(user: StatsigUser) -> SDKFlags {
         if userCache[InternalStore.userHashKey] as? String == user.getFullUserHash() {
-            return sdkFlags ?? SDKFlags();
+            return sdkFlags ?? SDKFlags()
         }
 
         return SDKFlags()
@@ -280,8 +302,11 @@ struct StatsigValuesCache {
         setUserCacheKeyAndValues(newUser, withBootstrapValues: values)
     }
 
-    mutating func saveValues(_ values: [String: Any], _ cacheKey: UserCacheKey, _ userHash: String?) {
-        var cache = cacheKey.full == userCacheKey.full ? userCache : (getCacheValues(forCacheKey: cacheKey) ?? getDefaultValues())
+    mutating func saveValues(_ values: [String: Any], _ cacheKey: UserCacheKey, _ userHash: String?)
+    {
+        var cache =
+            cacheKey.full == userCacheKey.full
+            ? userCache : (getCacheValues(forCacheKey: cacheKey) ?? getDefaultValues())
 
         let hasUpdates = values["has_updates"] as? Bool == true
         if hasUpdates {
@@ -298,7 +323,7 @@ struct StatsigValuesCache {
             cache[InternalStore.sdkFlagsKey] = values[InternalStore.sdkFlagsKey]
         }
 
-        if (userCacheKey.full == cacheKey.full) {
+        if userCacheKey.full == cacheKey.full {
             // Now the values we serve came from network request
             source = hasUpdates ? .Network : .NetworkNotModified
             userCache = cache
@@ -310,7 +335,7 @@ struct StatsigValuesCache {
     }
 
     mutating func runCacheEviction() {
-        if (cacheByID.count <= MaxCachedUserObjects) {
+        if cacheByID.count <= MaxCachedUserObjects {
             return
         }
 
@@ -366,11 +391,12 @@ struct StatsigValuesCache {
 
         // Map v2 -> full cache
         if let cacheMappedKey = cacheKeyMapping[key.v2],
-            let cachedValues = cacheByID[cacheMappedKey]  {
-                return cachedValues
+            let cachedValues = cacheByID[cacheMappedKey]
+        {
+            return cachedValues
         }
 
-        return nil;
+        return nil
     }
 
     private func getDefaultValues() -> [String: Any] {
@@ -384,10 +410,14 @@ struct StatsigValuesCache {
 
     private mutating func saveToUserDefaults() {
         cacheByID[userCacheKey.full] = userCache
-        StatsigUserDefaults.defaults.setDictionarySafe(cacheByID, forKey: InternalStore.localStorageKey)
-        StatsigUserDefaults.defaults.setDictionarySafe(stickyDeviceExperiments, forKey: InternalStore.stickyDeviceExperimentsKey)
-        StatsigUserDefaults.defaults.setDictionarySafe(networkFallbackInfo, forKey: InternalStore.networkFallbackInfoKey)
-        StatsigUserDefaults.defaults.setDictionarySafe(cacheKeyMapping, forKey: InternalStore.cacheKeyMappingKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            cacheByID, forKey: InternalStore.localStorageKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            stickyDeviceExperiments, forKey: InternalStore.stickyDeviceExperimentsKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            networkFallbackInfo, forKey: InternalStore.networkFallbackInfoKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            cacheKeyMapping, forKey: InternalStore.cacheKeyMappingKey)
     }
 
     private mutating func setUserCacheKeyAndValues(
@@ -406,10 +436,11 @@ struct StatsigValuesCache {
             let bootstrapMetadata = extractBootstrapMetadata(from: bootstrapValues)
             userCache[InternalStore.bootstrapMetadata] = bootstrapMetadata
             receivedValuesAt = Time.now()
-            source = BootstrapValidator.isValid(user, bootstrapValues)
+            source =
+                BootstrapValidator.isValid(user, bootstrapValues)
                 ? .Bootstrap
                 : .InvalidBootstrap
-            
+
             return
         }
 
@@ -423,32 +454,37 @@ struct StatsigValuesCache {
         // Default values
         userCache = getDefaultValues()
     }
-    
-    private func extractBootstrapMetadata(from bootstrapValues: [String: Any]) -> BootstrapMetadata {
+
+    private func extractBootstrapMetadata(from bootstrapValues: [String: Any]) -> BootstrapMetadata
+    {
         var bootstrapMetadata = BootstrapMetadata()
-        
+
         if let generatorSDKInfo = bootstrapValues["sdkInfo"] as? [String: String] {
             bootstrapMetadata.generatorSDKInfo = generatorSDKInfo
         }
-        
+
         if let userMetadata = bootstrapValues["user"] as? [String: Any] {
             bootstrapMetadata.user = userMetadata
         }
-        
+
         if let lcut = bootstrapValues["time"] as? Int {
             bootstrapMetadata.lcut = lcut
         }
-        
+
         return bootstrapMetadata
     }
 
     private static func loadDictMigratingIfRequired(forKey key: String) -> [String: [String: Any]] {
-        if let dict = StatsigUserDefaults.defaults.dictionarySafe(forKey: key) as? [String: [String: Any]] {
+        if let dict = StatsigUserDefaults.defaults.dictionarySafe(forKey: key)
+            as? [String: [String: Any]]
+        {
             return dict
         }
 
         // Load and Migrate Legacy
-        if let dict = StatsigUserDefaults.defaults.dictionary(forKey: key) as? [String: [String: Any]] {
+        if let dict = StatsigUserDefaults.defaults.dictionary(forKey: key)
+            as? [String: [String: Any]]
+        {
             StatsigUserDefaults.defaults.setDictionarySafe(dict, forKey: key)
             return dict
         }
@@ -457,24 +493,31 @@ struct StatsigValuesCache {
     }
 
     private mutating func migrateLegacyStickyExperimentValues(_ currentUser: StatsigUser) {
-        let previousUserID = StatsigUserDefaults.defaults.string(forKey: InternalStore.DEPRECATED_stickyUserIDKey) ?? ""
-        let previousUserStickyExperiments = StatsigUserDefaults.defaults.dictionary(forKey: InternalStore.DEPRECATED_stickyUserExperimentsKey)
+        let previousUserID =
+            StatsigUserDefaults.defaults.string(forKey: InternalStore.DEPRECATED_stickyUserIDKey)
+            ?? ""
+        let previousUserStickyExperiments = StatsigUserDefaults.defaults.dictionary(
+            forKey: InternalStore.DEPRECATED_stickyUserExperimentsKey)
         if previousUserID == currentUser.userID, let oldStickyExps = previousUserStickyExperiments {
             userCache[InternalStore.stickyExpKey] = oldStickyExps
         }
 
-        let previousCache = StatsigUserDefaults.defaults.dictionary(forKey: InternalStore.DEPRECATED_localStorageKey)
+        let previousCache = StatsigUserDefaults.defaults.dictionary(
+            forKey: InternalStore.DEPRECATED_localStorageKey)
         if let previousCache = previousCache {
             if let gates = userCache[InternalStore.gatesKey] as? [String: Bool], gates.count == 0 {
                 userCache[InternalStore.gatesKey] = previousCache[InternalStore.gatesKey]
             }
-            if let configs = userCache[InternalStore.configsKey] as? [String: Any], configs.count == 0 {
+            if let configs = userCache[InternalStore.configsKey] as? [String: Any],
+                configs.count == 0
+            {
                 userCache[InternalStore.configsKey] = previousCache[InternalStore.configsKey]
             }
         }
 
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.DEPRECATED_localStorageKey)
-        StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.DEPRECATED_stickyUserExperimentsKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: InternalStore.DEPRECATED_stickyUserExperimentsKey)
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.DEPRECATED_stickyUserIDKey)
     }
 
@@ -518,11 +561,12 @@ struct StatsigValuesCache {
             evalDetails: getEvaluationDetails(.Unrecognized)
         )
     }
-    
-    private func createUnfoundParamStore(_ client: StatsigClient?, _ name: String) -> ParameterStore {
+
+    private func createUnfoundParamStore(_ client: StatsigClient?, _ name: String) -> ParameterStore
+    {
         ParameterStore(name: name, evaluationDetails: getEvaluationDetails(.Unrecognized))
     }
-    
+
     func getEvaluationSource() -> EvaluationSource {
         return source
     }
@@ -536,7 +580,8 @@ class InternalStore {
     static let networkFallbackInfoKey = "com.Statsig.InternalStore.networkFallbackInfoKey"
 
     static let DEPRECATED_localStorageKey = "com.Statsig.InternalStore.localStorageKey"
-    static let DEPRECATED_stickyUserExperimentsKey = "com.Statsig.InternalStore.stickyUserExperimentsKey"
+    static let DEPRECATED_stickyUserExperimentsKey =
+        "com.Statsig.InternalStore.stickyUserExperimentsKey"
     static let DEPRECATED_stickyUserIDKey = "com.Statsig.InternalStore.stickyUserIDKey"
 
     static let storeQueueLabel = "com.Statsig.storeQueue"
@@ -558,16 +603,21 @@ class InternalStore {
 
     var cache: StatsigValuesCache
     var localOverrides: [String: Any] = InternalStore.getEmptyOverrides()
-    let storeQueue = DispatchQueue(label: storeQueueLabel, qos: .userInitiated, attributes: .concurrent)
+    let storeQueue = DispatchQueue(
+        label: storeQueueLabel, qos: .userInitiated, attributes: .concurrent)
 
     init(_ sdkKey: String, _ user: StatsigUser, options: StatsigOptions) {
         Diagnostics.mark?.initialize.readCache.start()
         cache = StatsigValuesCache(sdkKey, user, options)
-        let savedOverrides = StatsigUserDefaults.defaults.dictionarySafe(forKey: InternalStore.localOverridesKey) ?? [:]
-        localOverrides = InternalStore.getEmptyOverrides().merging(savedOverrides) { (_, saved) in saved }
+        let savedOverrides =
+            StatsigUserDefaults.defaults.dictionarySafe(forKey: InternalStore.localOverridesKey)
+            ?? [:]
+        localOverrides = InternalStore.getEmptyOverrides().merging(savedOverrides) { (_, saved) in
+            saved
+        }
         Diagnostics.mark?.initialize.readCache.end(success: true)
     }
-    
+
     func getBootstrapMetadata() -> BootstrapMetadata? {
         storeQueue.sync {
             return cache.getBootstrapMetadata()
@@ -585,8 +635,10 @@ class InternalStore {
             self?.cache.saveNetworkFallbackInfo(fallbackInfo)
         }
     }
-    
-    func getInitializationValues(user: StatsigUser) -> (lastUpdateTime: UInt64, previousDerivedFields: [String: String], fullChecksum: String?) {
+
+    func getInitializationValues(user: StatsigUser) -> (
+        lastUpdateTime: UInt64, previousDerivedFields: [String: String], fullChecksum: String?
+    ) {
         storeQueue.sync {
             return (
                 lastUpdateTime: cache.getLastUpdatedTime(user: user),
@@ -604,7 +656,8 @@ class InternalStore {
 
     func checkGate(forName: String) -> FeatureGate {
         storeQueue.sync {
-            if let override = (localOverrides[InternalStore.gatesKey] as? [String: Bool])?[forName] {
+            if let override = (localOverrides[InternalStore.gatesKey] as? [String: Bool])?[forName]
+            {
                 return FeatureGate(
                     name: forName,
                     value: override,
@@ -618,7 +671,9 @@ class InternalStore {
 
     func getConfig(forName: String) -> DynamicConfig {
         storeQueue.sync {
-            if let override = (localOverrides[InternalStore.configsKey] as? [String: [String: Any]])?[forName] {
+            if let override =
+                (localOverrides[InternalStore.configsKey] as? [String: [String: Any]])?[forName]
+            {
                 return DynamicConfig(
                     configName: forName,
                     value: override,
@@ -646,9 +701,13 @@ class InternalStore {
             })
     }
 
-    func getLayer(client: StatsigClient?, forName layerName: String, keepDeviceValue: Bool) -> Layer {
+    func getLayer(client: StatsigClient?, forName layerName: String, keepDeviceValue: Bool) -> Layer
+    {
         let latestValue: Layer = storeQueue.sync {
-            if let override = (localOverrides[InternalStore.layerConfigsKey] as? [String: [String: Any]])?[layerName] {
+            if let override =
+                (localOverrides[InternalStore.layerConfigsKey] as? [String: [String: Any]])?[
+                    layerName]
+            {
                 return Layer(
                     client: nil,
                     name: layerName,
@@ -674,19 +733,24 @@ class InternalStore {
                 )
             })
     }
-    
+
     func getParamStore(client: StatsigClient?, forName storeName: String) -> ParameterStore {
         storeQueue.sync {
-            if let override = (localOverrides[InternalStore.paramStoresKey] as? [String: [String: Any]])?[storeName] {
+            if let override =
+                (localOverrides[InternalStore.paramStoresKey] as? [String: [String: Any]])?[
+                    storeName]
+            {
                 return ParameterStore(
                     name: storeName,
                     evaluationDetails: cache.getEvaluationDetails(.LocalOverride),
                     client: client,
-                    configuration: override.mapValues {[
-                        "ref_type": "static",
-                        "param_type": getTypeOfValue($0) ?? "unknown",
-                        "value": $0
-                    ]}
+                    configuration: override.mapValues {
+                        [
+                            "ref_type": "static",
+                            "param_type": getTypeOfValue($0) ?? "unknown",
+                            "value": $0,
+                        ]
+                    }
                 )
             }
             return cache.getParamStore(client, storeName)
@@ -726,9 +790,11 @@ class InternalStore {
             let cacheByID = self.cache.cacheByID
             let cacheKeyMapping = self.cache.cacheKeyMapping
 
-            DispatchQueue.global().async() {
-                StatsigUserDefaults.defaults.setDictionarySafe(cacheByID, forKey: InternalStore.localStorageKey)
-                StatsigUserDefaults.defaults.setDictionarySafe(cacheKeyMapping, forKey: InternalStore.cacheKeyMappingKey)
+            DispatchQueue.global().async {
+                StatsigUserDefaults.defaults.setDictionarySafe(
+                    cacheByID, forKey: InternalStore.localStorageKey)
+                StatsigUserDefaults.defaults.setDictionarySafe(
+                    cacheKeyMapping, forKey: InternalStore.cacheKeyMappingKey)
             }
 
             DispatchQueue.global().async { completion?() }
@@ -745,7 +811,8 @@ class InternalStore {
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.DEPRECATED_localStorageKey)
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.localStorageKey)
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.cacheKeyMappingKey)
-        StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.DEPRECATED_stickyUserExperimentsKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: InternalStore.DEPRECATED_stickyUserExperimentsKey)
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.stickyDeviceExperimentsKey)
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.networkFallbackInfoKey)
         StatsigUserDefaults.defaults.removeObject(forKey: InternalStore.DEPRECATED_stickyUserIDKey)
@@ -807,7 +874,8 @@ class InternalStore {
     }
 
     private func saveOverrides() {
-        StatsigUserDefaults.defaults.setDictionarySafe(localOverrides, forKey: InternalStore.localOverridesKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            localOverrides, forKey: InternalStore.localOverridesKey)
     }
 
     private static func getEmptyOverrides() -> [String: Any] {
@@ -815,7 +883,7 @@ class InternalStore {
             InternalStore.gatesKey: [:],
             InternalStore.configsKey: [:],
             InternalStore.layerConfigsKey: [:],
-            InternalStore.paramStoresKey: [:]
+            InternalStore.paramStoresKey: [:],
         ]
     }
 
@@ -825,40 +893,41 @@ class InternalStore {
         latestValue: T,
         keepDeviceValue: Bool,
         isLayer: Bool,
-        factory: (_ name: String, _ data: [String: Any]) -> T) -> T {
-            return storeQueue.sync {
-                if (!keepDeviceValue) {
-                    return latestValue
-                }
-
-                // If there is no sticky value, save latest as sticky and return latest.
-                guard let stickyValue = cache.getStickyExperiment(name) else {
-                    saveStickyExperimentIfNeededThreaded(name, latestValue)
-                    return latestValue
-                }
-
-                // Get the latest config value. Layers require a lookup by allocated_experiment_name.
-                var latestExperimentValue: ConfigProtocol? = nil
-                if isLayer {
-                    latestExperimentValue = cache.getConfig(stickyValue["allocated_experiment_name"] as? String ?? "")
-                } else {
-                    latestExperimentValue = latestValue
-                }
-
-
-                if (latestExperimentValue?.isExperimentActive == true) {
-                    return factory(name, stickyValue)
-                }
-
-                if (latestValue.isExperimentActive == true) {
-                    saveStickyExperimentIfNeededThreaded(name, latestValue)
-                } else {
-                    removeStickyExperimentThreaded(name)
-                }
-
+        factory: (_ name: String, _ data: [String: Any]) -> T
+    ) -> T {
+        return storeQueue.sync {
+            if !keepDeviceValue {
                 return latestValue
             }
+
+            // If there is no sticky value, save latest as sticky and return latest.
+            guard let stickyValue = cache.getStickyExperiment(name) else {
+                saveStickyExperimentIfNeededThreaded(name, latestValue)
+                return latestValue
+            }
+
+            // Get the latest config value. Layers require a lookup by allocated_experiment_name.
+            var latestExperimentValue: ConfigProtocol? = nil
+            if isLayer {
+                latestExperimentValue = cache.getConfig(
+                    stickyValue["allocated_experiment_name"] as? String ?? "")
+            } else {
+                latestExperimentValue = latestValue
+            }
+
+            if latestExperimentValue?.isExperimentActive == true {
+                return factory(name, stickyValue)
+            }
+
+            if latestValue.isExperimentActive == true {
+                saveStickyExperimentIfNeededThreaded(name, latestValue)
+            } else {
+                removeStickyExperimentThreaded(name)
+            }
+
+            return latestValue
         }
+    }
 
     private func removeStickyExperimentThreaded(_ name: String) {
         storeQueue.async(flags: .barrier) { [weak self] in
@@ -875,7 +944,7 @@ class InternalStore {
             self?.cache.saveStickyExperimentIfNeeded(name, config)
         }
     }
-    
+
     func getEvaluationSource() -> EvaluationSource {
         storeQueue.sync {
             return cache.getEvaluationSource()
@@ -928,4 +997,3 @@ extension Dictionary {
         }
     }
 }
-

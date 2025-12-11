@@ -8,7 +8,7 @@ class InitializeStepMarker: MarkerBase {
 
     func start() {
         super.start([
-            "step": step,
+            "step": step
         ])
     }
 

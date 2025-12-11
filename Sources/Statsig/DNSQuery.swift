@@ -36,7 +36,8 @@ internal func fetchTxtRecords(completion: @escaping (Result<[String], Error>) ->
             httpResponse.statusCode == 200,
             let data = data
         else {
-            completion(.failure(StatsigError.unexpectedError("Failed to fetch TXT records from DNS")))
+            completion(
+                .failure(StatsigError.unexpectedError("Failed to fetch TXT records from DNS")))
             return
         }
 

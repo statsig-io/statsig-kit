@@ -1,9 +1,8 @@
 import Foundation
-
-import XCTest
 import Nimble
 import OHHTTPStubs
 import Quick
+import XCTest
 
 @testable import Statsig
 

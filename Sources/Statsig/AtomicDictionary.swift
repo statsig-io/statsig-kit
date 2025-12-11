@@ -1,8 +1,7 @@
 import Foundation
 
-class AtomicDictionary<T>
-{
-    private var internalDictionary:Dictionary<String, T>
+class AtomicDictionary<T> {
+    private var internalDictionary: [String: T]
     private let queue: DispatchQueue
 
     static func fromData(_ data: Data, label: String) -> AtomicDictionary<T> {
@@ -21,7 +20,7 @@ class AtomicDictionary<T>
 
     subscript(key: String) -> T? {
         get {
-            var value : T?
+            var value: T?
             self.queue.sync {
                 value = self.internalDictionary[key]
             }
@@ -39,14 +38,13 @@ class AtomicDictionary<T>
             self.internalDictionary[key] = value
         }
     }
-    
+
     func removeValue(forKey key: String) {
         self.queue.async(flags: .barrier) {
             self.internalDictionary.removeValue(forKey: key)
         }
     }
-    
-    
+
     func count() -> Int {
         return self.queue.sync {
             return self.internalDictionary.count
@@ -65,7 +63,10 @@ class AtomicDictionary<T>
         self.queue.sync {
             let dict = self.internalDictionary
             if #available(iOS 11.0, tvOS 11.0, *) {
-                guard let data = try? NSKeyedArchiver.archivedData(withRootObject: dict, requiringSecureCoding: false) else {
+                guard
+                    let data = try? NSKeyedArchiver.archivedData(
+                        withRootObject: dict, requiringSecureCoding: false)
+                else {
                     PrintHandler.log("[Statsig]: Failed create Data from AtomicDictionary")
                     return nil
                 }
@@ -77,7 +78,7 @@ class AtomicDictionary<T>
         }
     }
 
-    private func dictSnapshotAsync(completion: @escaping (_: [String : T]) -> Void) {
+    private func dictSnapshotAsync(completion: @escaping (_: [String: T]) -> Void) {
         self.queue.async {
             let dict = self.internalDictionary
             DispatchQueue.global().async {
@@ -89,7 +90,10 @@ class AtomicDictionary<T>
     func toDataAsync(completion: @escaping (_: Data?) -> Void) {
         self.dictSnapshotAsync { dict in
             if #available(iOS 11.0, tvOS 11.0, *) {
-                guard let data = try? NSKeyedArchiver.archivedData(withRootObject: dict, requiringSecureCoding: false) else {
+                guard
+                    let data = try? NSKeyedArchiver.archivedData(
+                        withRootObject: dict, requiringSecureCoding: false)
+                else {
                     PrintHandler.log("[Statsig]: Failed create Data from AtomicDictionary")
                     completion(nil)
                     return
@@ -119,8 +123,6 @@ class AtomicDictionary<T>
     }
 }
 
-
-
 #if COCOAPODS && os(watchOS)
 
 fileprivate let allowedClasses: [AnyClass] = [
@@ -142,7 +144,7 @@ fileprivate func unarchiveData(_ data: Data) -> Any? {
 #else
 
 fileprivate func unarchiveData(_ data: Data) -> Any? {
-    return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) 
+    return try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data)
 }
 
 #endif

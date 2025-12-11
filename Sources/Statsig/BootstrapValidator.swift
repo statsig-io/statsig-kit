@@ -12,8 +12,8 @@ class BootstrapValidator {
 
         let userDict = self.copyObject(user.toDictionary(forLogging: false))
 
-        return BootstrapValidator.validate(evaluatedKeys, userDict) &&
-        BootstrapValidator.validate(userDict, evaluatedKeys)
+        return BootstrapValidator.validate(evaluatedKeys, userDict)
+            && BootstrapValidator.validate(userDict, evaluatedKeys)
     }
 
     private static func validate(
@@ -33,7 +33,9 @@ class BootstrapValidator {
                 return false
             }
 
-            if let valueDict = value as? [String: Any], let twoValueDict = twoValue as? [String: Any] {
+            if let valueDict = value as? [String: Any],
+                let twoValueDict = twoValue as? [String: Any]
+            {
                 if !validate(valueDict, twoValueDict) {
                     return false
                 }
@@ -51,7 +53,6 @@ class BootstrapValidator {
         return true
     }
 
-    
     private static func copyObject(_ obj: [String: Any?]?) -> [String: Any]? {
         guard let obj = obj else {
             return nil

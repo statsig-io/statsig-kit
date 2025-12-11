@@ -1,17 +1,17 @@
 internal enum DedupeKey: Hashable {
     case featureGate(
-        name: String, 
-        value: Bool, 
-        ruleID: String, 
+        name: String,
+        value: Bool,
+        ruleID: String,
         evaluation: EvaluationDetails.DedupeKey
     )
-    
+
     case dynamicConfig(
         configName: String,
         ruleID: String,
         evaluation: EvaluationDetails.DedupeKey
     )
-    
+
     case layerParameter(
         layerName: String,
         ruleID: String,
@@ -29,7 +29,7 @@ internal enum DedupeKey: Hashable {
             evaluation: featureGate.evaluationDetails.dedupeKey
         )
     }
-    
+
     init(dynamicConfig: DynamicConfig) {
         self = .dynamicConfig(
             configName: dynamicConfig.name,
@@ -37,7 +37,7 @@ internal enum DedupeKey: Hashable {
             evaluation: dynamicConfig.evaluationDetails.dedupeKey
         )
     }
-    
+
     init(layer: Layer, parameterName: String, isExplicit: Bool) {
         self = .layerParameter(
             layerName: layer.name,

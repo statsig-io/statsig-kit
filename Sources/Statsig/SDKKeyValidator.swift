@@ -6,7 +6,8 @@ class SDKKeyValidator {
         _ values: [String: Any]
     ) -> Bool {
         guard let sdkKey = sdkKey,
-              let keyUsedHash = values["hashed_sdk_key_used"] as? String else {
+            let keyUsedHash = values["hashed_sdk_key_used"] as? String
+        else {
             return true
         }
 

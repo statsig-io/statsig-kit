@@ -84,8 +84,9 @@ public final class StatsigOptionsObjC: NSObject {
 
     @available(*, deprecated, message: "Use dictionary init instead")
     @objc public init(environment: StatsigEnvironment, overrideStableID: String) {
-        self.optionsInternal = StatsigOptions(environment: environment,
-                                              overrideStableID: overrideStableID)
+        self.optionsInternal = StatsigOptions(
+            environment: environment,
+            overrideStableID: overrideStableID)
     }
 
     @available(*, deprecated, message: "Use dictionary init instead")
@@ -101,8 +102,7 @@ public final class StatsigOptionsObjC: NSObject {
         enableAutoValueUpdate: Bool,
         overrideStableID: String,
         enableCacheByFile: Bool
-    )
-    {
+    ) {
         self.optionsInternal = StatsigOptions(
             initTimeout: initTimeout,
             disableCurrentVCLogging: disableCurrentVCLogging,

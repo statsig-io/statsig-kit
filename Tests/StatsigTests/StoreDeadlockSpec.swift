@@ -1,9 +1,8 @@
 import Foundation
-
-import XCTest
 import Nimble
 import OHHTTPStubs
 import Quick
+import XCTest
 
 @testable import Statsig
 
@@ -24,27 +23,30 @@ class StoreDeadlockSpec: BaseSpec {
             beforeEach {
                 TestUtils.clearStorage()
                 NotificationCenter.default
-                        .addObserver(
-                            forName: UserDefaults.didChangeNotification,
-                            object: UserDefaults.standard, queue: .main) { _ in }
+                    .addObserver(
+                        forName: UserDefaults.didChangeNotification,
+                        object: UserDefaults.standard, queue: .main
+                    ) { _ in }
 
                 stub(condition: isHost(ApiHost)) { req in
-                    let delay = Statsig.isInitialized() ? Double.random(in: 0.1 ..< 0.8) : 0
+                    let delay = Statsig.isInitialized() ? Double.random(in: 0.1..<0.8) : 0
 
-                    return HTTPStubsResponse(jsonObject: [
-                        "feature_gates": [
-                            "a_gate".sha256(): [
-                                "value": true,
-                                "rule_id": "rule_id_1",
-                                "secondary_exposures": []
-                            ]
-                        ],
-                        "dynamic_configs": [:],
-                        "layer_configs": [:],
-                        "has_updates": true
-                    ], statusCode: 200, headers: nil).responseTime(delay)
+                    return HTTPStubsResponse(
+                        jsonObject: [
+                            "feature_gates": [
+                                "a_gate".sha256(): [
+                                    "value": true,
+                                    "rule_id": "rule_id_1",
+                                    "secondary_exposures": [],
+                                ]
+                            ],
+                            "dynamic_configs": [:],
+                            "layer_configs": [:],
+                            "has_updates": true,
+                        ], statusCode: 200, headers: nil
+                    ).responseTime(delay)
                 }
-                
+
                 stub(condition: isHost(LogEventHost)) { req in
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
@@ -53,7 +55,7 @@ class StoreDeadlockSpec: BaseSpec {
                     Statsig.initialize(sdkKey: "client-key") { err in done() }
                 }
 
-                if (queues.isEmpty) {
+                if queues.isEmpty {
                     for i in 0..<numberOfTasks {
                         queues.append(DispatchQueue(label: "com.statsig.task_\(i)"))
                     }
@@ -71,7 +73,7 @@ class StoreDeadlockSpec: BaseSpec {
                 for j in 0..<iterations {
                     let queue = queues[j % numberOfTasks]
 
-                    queue.async { 
+                    queue.async {
                         let user = StatsigUser(userID: "user_\(Int.random(in: 1...100))_\(j)")
 
                         Statsig.updateUserWithResult(user) { err in

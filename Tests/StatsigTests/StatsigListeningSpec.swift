@@ -1,12 +1,13 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
 
 func goodStub() {
     stub(condition: isHost(ApiHost)) { req in
@@ -96,7 +97,7 @@ class StatsigListeningSpec: BaseSpec {
         super.spec()
 
         let opts = StatsigOptions(disableDiagnostics: true)
-        
+
         beforeEach {
             TestUtils.clearStorage()
         }
@@ -144,8 +145,10 @@ class StatsigListeningSpec: BaseSpec {
                 Statsig.initialize(sdkKey: "client-key", options: opts)
                 Statsig.addListener(listener)
 
-                expect(listener.onInitializedError).toEventually(contain("An error occurred during fetching values for the user. 500"))
-                expect(listener.onInitializedWithResultError?.message).toEventually(contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onInitializedError).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onInitializedWithResultError?.message).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
             }
 
             it("responds without errors") {
@@ -228,7 +231,6 @@ class StatsigListeningSpec: BaseSpec {
                 let listener = TestListener()
                 Statsig.addListener(listener)
 
-
                 Statsig.initialize(sdkKey: "client-key", options: opts)
 
                 expect(listener.onInitializedCalled).toEventually(beTrue())
@@ -267,7 +269,7 @@ class StatsigListeningSpec: BaseSpec {
                 expect(listener.onUserUpdatedError).to(beNil())
                 expect(listener.onUserUpdatedWithResultError).to(beNil())
             }
-            
+
             it("triggers the listener with error") {
                 stub(condition: isHost("AutoUpdateSpec")) { req in
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 500, headers: nil)
@@ -278,8 +280,10 @@ class StatsigListeningSpec: BaseSpec {
 
                 expect(listener.onUserUpdatedCalled).toEventually(beTrue())
                 expect(listener.onUserUpdatedWithResultCalled).toEventually(beTrue())
-                expect(listener.onUserUpdatedError).toEventually(contain("An error occurred during fetching values for the user. 500"))
-                expect(listener.onUserUpdatedWithResultError?.message).toEventually(contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onUserUpdatedError).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onUserUpdatedWithResultError?.message).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
             }
         }
 
@@ -301,8 +305,10 @@ class StatsigListeningSpec: BaseSpec {
                 Statsig.addListener(listener)
                 Statsig.updateUserWithResult(StatsigUser())
 
-                expect(listener.onUserUpdatedError).toEventually(contain("An error occurred during fetching values for the user. 500"))
-                expect(listener.onUserUpdatedWithResultError?.message).toEventually(contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onUserUpdatedError).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onUserUpdatedWithResultError?.message).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
             }
 
             it("responds without errors") {
@@ -325,8 +331,10 @@ class StatsigListeningSpec: BaseSpec {
                 Statsig.addListener(listener)
                 Statsig.updateUserWithResult(StatsigUser())
 
-                expect(listener.onUserUpdatedError).toEventually(contain("An error occurred during fetching values for the user. 500"))
-                expect(listener.onUserUpdatedWithResultError?.message).toEventually(contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onUserUpdatedError).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
+                expect(listener.onUserUpdatedWithResultError?.message).toEventually(
+                    contain("An error occurred during fetching values for the user. 500"))
             }
 
             it("responds without errors with deprecated function") {

@@ -1,8 +1,8 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -25,14 +25,15 @@ class MockNetwork: NetworkService {
     override func sendEvents(
         forUser user: StatsigUser,
         uncompressedBody: Data,
-        completion: @escaping ((String?) -> Void)) {
-            let work = { [weak self] in
-                guard let it = self else { return }
-                completion(it.responseError)
-                it.timesCalled += 1
-            }
+        completion: @escaping ((String?) -> Void)
+    ) {
+        let work = { [weak self] in
+            guard let it = self else { return }
+            completion(it.responseError)
+            it.timesCalled += 1
+        }
 
-            responseIsAsync ? DispatchQueue.global().async(execute: work) : work()
+        responseIsAsync ? DispatchQueue.global().async(execute: work) : work()
     }
 }
 
@@ -57,7 +58,8 @@ class LogEventFailureSpec: BaseSpec {
                     network.responseError = "Nah uh uh uh"
                     network.responseData = "{}".data(using: .utf8)
 
-                    logger = EventLogger(sdkKey: sdkKey, user: user, networkService: network, userDefaults: defaults)
+                    logger = EventLogger(
+                        sdkKey: sdkKey, user: user, networkService: network, userDefaults: defaults)
                     logger.log(Event(user: user, name: "an_event", disableCurrentVCLogging: true))
                 }
 
@@ -86,7 +88,8 @@ class LogEventFailureSpec: BaseSpec {
                 var lastRequest: URLRequest? = nil
 
                 func createLogger() {
-                    logger = EventLogger(sdkKey: sdkKey, user: user, networkService: ns, userDefaults: defaults)
+                    logger = EventLogger(
+                        sdkKey: sdkKey, user: user, networkService: ns, userDefaults: defaults)
                     logger.retryFailedRequests(forUser: user)
                 }
 
@@ -116,19 +119,21 @@ class LogEventFailureSpec: BaseSpec {
 
                 func stubError() {
                     stub(condition: isHost(LogEventHost)) { request in
-                        requestCount += 1;
-                        lastRequest = request;
+                        requestCount += 1
+                        lastRequest = request
                         // Use a cancelled error to prevent the network retry logic
-                        return HTTPStubsResponse(error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
+                        return HTTPStubsResponse(
+                            error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
                     }
                 }
 
                 func stubOK() {
                     stub(condition: isHost(LogEventHost)) { request in
-                        requestCount += 1;
-                        lastRequest = request;
+                        requestCount += 1
+                        lastRequest = request
                         if let events = request.statsig_body?["events"] as? [[String: Any]] {
-                            originalEventRetryCount += events.filter({ $0["eventName"] as? String == "an_event" }).count
+                            originalEventRetryCount +=
+                                events.filter({ $0["eventName"] as? String == "an_event" }).count
                         }
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
@@ -137,7 +142,7 @@ class LogEventFailureSpec: BaseSpec {
                 it("an event failed multiple times isn't duplicated in the queue") {
                     waitUntil { done in logger.flush(completion: done) }
                     expect(logger.failedRequestQueue).toNot(beEmpty())
-                    
+
                     // Shutdown the current logger. Create a new one.
                     waitUntil { done in logger.stop(completion: done) }
                     createLogger()
@@ -158,7 +163,7 @@ class LogEventFailureSpec: BaseSpec {
                         }
                         // Check if body is the initial event
                         for event in events {
-                            if (event["eventName"] as? String == "an_event") {
+                            if event["eventName"] as? String == "an_event" {
                                 initialEventQueued += 1
                             }
                         }
@@ -168,16 +173,16 @@ class LogEventFailureSpec: BaseSpec {
 
                 it("persists failed events across SDK initializations") {
                     waitUntil { done in logger.flush(completion: done) }
-                    expect(logger.failedRequestQueue.count).to(equal(1)) // Initial event + new event
-                    
+                    expect(logger.failedRequestQueue.count).to(equal(1))  // Initial event + new event
+
                     // Shutdown the current logger
                     waitUntil { done in logger.stop(completion: done) }
-                    
+
                     // Verify events were persisted to UserDefaults
                     let storageKey = logger.storageKey
                     expect(defaults.array(forKey: storageKey)).toNot(beNil())
                     expect(defaults.array(forKey: storageKey)).toNot(beEmpty())
-                    
+
                     teardownNetwork()
                     stubError()
                     createLogger()
@@ -186,14 +191,14 @@ class LogEventFailureSpec: BaseSpec {
                     expect(logger.failedRequestQueue).toEventuallyNot(beNil())
                     expect(logger.failedRequestQueue).toEventuallyNot(beEmpty())
                 }
-                
+
                 it("retries failed requests on next initialization") {
                     waitUntil { done in logger.stop(completion: done) }
                     expect(requestCount).to(equal(1))
                     expect(logger.failedRequestQueue.count).to(equal(1))
                     expect(defaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
                     expect(defaults.array(forKey: logger.storageKey)).toEventuallyNot(beEmpty())
-                    
+
                     teardownNetwork()
                     stubOK()
                     createLogger()
@@ -234,13 +239,13 @@ class LogEventFailureSpec: BaseSpec {
 
                     teardownNetwork()
                     stub(condition: isHost(LogEventHost)) { request in
-                        requestCount += 1;
-                        if
-                            let events = request.statsig_body?["events"] as? [[String: Any]],
+                        requestCount += 1
+                        if let events = request.statsig_body?["events"] as? [[String: Any]],
                             events.contains(where: { $0["eventName"] as? String == "event_fail" })
-                         {
+                        {
                             // Request fails if it contains the "event_fail" event
-                            return HTTPStubsResponse(error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
+                            return HTTPStubsResponse(
+                                error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
                         }
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
@@ -249,7 +254,6 @@ class LogEventFailureSpec: BaseSpec {
                     // Should contain the "event_fail" request data
                     expect(logger.failedRequestQueue.count).toEventually(equal(1))
                 }
-
 
                 it("compresses the request data") {
                     waitUntil { done in logger.flush(completion: done) }

@@ -21,9 +21,10 @@ public class Statsig {
 
      SeeAlso: [Initialization Documentation](https://docs.statsig.com/client/iosClientSDK#step-3---initialize-the-sdk)
      */
-    public static func initialize(sdkKey: String, user: StatsigUser? = nil, options: StatsigOptions? = nil,
-                             completion: ResultCompletionBlock? = nil)
-    {
+    public static func initialize(
+        sdkKey: String, user: StatsigUser? = nil, options: StatsigOptions? = nil,
+        completion: ResultCompletionBlock? = nil
+    ) {
         guard initLock.try() else {
             completion?(StatsigClientError(.alreadyStarted))
             return
@@ -42,7 +43,8 @@ public class Statsig {
 
         func _initialize() {
             Diagnostics.mark?.initialize.createCache.end(success: true)
-            client = StatsigClient(sdkKey: sdkKey, user: user, options: options, completionWithResult: completion)
+            client = StatsigClient(
+                sdkKey: sdkKey, user: user, options: options, completionWithResult: completion)
             addPendingListeners()
         }
 
@@ -54,7 +56,8 @@ public class Statsig {
             }
         } else if let storageProvider = options?.storageProvider {
             Diagnostics.mark?.initialize.createCache.start(type: .provider)
-            StatsigUserDefaults.defaults = StorageProviderBasedUserDefaults(storageProvider: storageProvider)
+            StatsigUserDefaults.defaults = StorageProviderBasedUserDefaults(
+                storageProvider: storageProvider)
             _initialize()
         } else {
             Diagnostics.mark?.initialize.createCache.start(type: .user_defaults)
@@ -84,8 +87,7 @@ public class Statsig {
 
      SeeAlso [StatsigListening](https://docs.statsig.com/client/iosClientSDK#statsiglistening)
      */
-    public static func addListener(_ listener: StatsigListening)
-    {
+    public static func addListener(_ listener: StatsigListening) {
         guard let client = client else {
             pendingListeners.append(listener)
             return
@@ -138,7 +140,8 @@ public class Statsig {
 
      SeeAlso [Gate Documentation](https://docs.statsig.com/feature-gates/working-with)
      */
-    public static func getFeatureGateWithExposureLoggingDisabled(_ gateName: String) -> FeatureGate {
+    public static func getFeatureGateWithExposureLoggingDisabled(_ gateName: String) -> FeatureGate
+    {
         return checkGateImpl(gateName, withExposures: false, functionName: funcName())
     }
 
@@ -166,8 +169,12 @@ public class Statsig {
 
      SeeAlso [Experiments Documentation](https://docs.statsig.com/experiments-plus)
      */
-    public static func getExperiment(_ experimentName: String, keepDeviceValue: Bool = false) -> DynamicConfig {
-        return getExperimentImpl(experimentName, keepDeviceValue: keepDeviceValue, withExposures: true, functionName: funcName())
+    public static func getExperiment(_ experimentName: String, keepDeviceValue: Bool = false)
+        -> DynamicConfig
+    {
+        return getExperimentImpl(
+            experimentName, keepDeviceValue: keepDeviceValue, withExposures: true,
+            functionName: funcName())
     }
 
     /**
@@ -179,8 +186,12 @@ public class Statsig {
 
      SeeAlso [Experiments Documentation](https://docs.statsig.com/experiments-plus)
      */
-    public static func getExperimentWithExposureLoggingDisabled(_ experimentName: String, keepDeviceValue: Bool = false) -> DynamicConfig {
-        return getExperimentImpl(experimentName, keepDeviceValue: keepDeviceValue, withExposures: false, functionName: funcName())
+    public static func getExperimentWithExposureLoggingDisabled(
+        _ experimentName: String, keepDeviceValue: Bool = false
+    ) -> DynamicConfig {
+        return getExperimentImpl(
+            experimentName, keepDeviceValue: keepDeviceValue, withExposures: false,
+            functionName: funcName())
     }
 
     /**
@@ -189,9 +200,12 @@ public class Statsig {
      Parameters:
      - experimentName: The name of the experiment setup on console.statsig.com
      */
-    public static func manuallyLogExperimentExposure(_ experimentName: String, keepDeviceValue: Bool = false) {
+    public static func manuallyLogExperimentExposure(
+        _ experimentName: String, keepDeviceValue: Bool = false
+    ) {
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage("manuallyLogExperimentExposure")).")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage("manuallyLogExperimentExposure")).")
             return
         }
 
@@ -247,7 +261,9 @@ public class Statsig {
      SeeAlso [Layers Documentation](https://docs.statsig.com/layers)
      */
     public static func getLayer(_ layerName: String, keepDeviceValue: Bool = false) -> Layer {
-        return getLayerImpl(layerName, keepDeviceValue: keepDeviceValue, withExposures: true, functionName: funcName())
+        return getLayerImpl(
+            layerName, keepDeviceValue: keepDeviceValue, withExposures: true,
+            functionName: funcName())
     }
 
     /**
@@ -259,8 +275,12 @@ public class Statsig {
 
      SeeAlso [Layers Documentation](https://docs.statsig.com/layers)
      */
-    public static func getLayerWithExposureLoggingDisabled(_ layerName: String, keepDeviceValue: Bool = false) -> Layer {
-        return getLayerImpl(layerName, keepDeviceValue: keepDeviceValue, withExposures: false, functionName: funcName())
+    public static func getLayerWithExposureLoggingDisabled(
+        _ layerName: String, keepDeviceValue: Bool = false
+    ) -> Layer {
+        return getLayerImpl(
+            layerName, keepDeviceValue: keepDeviceValue, withExposures: false,
+            functionName: funcName())
     }
 
     /**
@@ -270,13 +290,17 @@ public class Statsig {
      - layerName: The name of the layer setup on console.statsig.com
      - parameterName: The name of the parameter that was checked.
      */
-    public static func manuallyLogLayerParameterExposure(_ layerName: String, _ parameterName: String, keepDeviceValue: Bool = false) {
+    public static func manuallyLogLayerParameterExposure(
+        _ layerName: String, _ parameterName: String, keepDeviceValue: Bool = false
+    ) {
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage("manuallyLogLayerParameterExposure")).")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage("manuallyLogLayerParameterExposure")).")
             return
         }
 
-        client.manuallyLogLayerParameterExposure(layerName, parameterName, keepDeviceValue: keepDeviceValue)
+        client.manuallyLogLayerParameterExposure(
+            layerName, parameterName, keepDeviceValue: keepDeviceValue)
     }
 
     /**
@@ -296,7 +320,7 @@ public class Statsig {
             functionName: funcName()
         )
     }
-    
+
     /**
      Get the values for the given parameter store. No exposure events will be fired.
 
@@ -358,7 +382,8 @@ public class Statsig {
             return
         }
 
-        client.logLayerParameterExposureForLayer(layer, parameterName: parameterName, isManualExposure: true)
+        client.logLayerParameterExposureForLayer(
+            layer, parameterName: parameterName, isManualExposure: true)
     }
 
     /**
@@ -380,7 +405,9 @@ public class Statsig {
      - value: A top level value for the event
      - metadata: Any extra values to be logged with the event
      */
-    public static func logEvent(_ withName: String, value: String, metadata: [String: String]? = nil) {
+    public static func logEvent(
+        _ withName: String, value: String, metadata: [String: String]? = nil
+    ) {
         client?.logEvent(withName, value: value, metadata: metadata)
     }
 
@@ -392,7 +419,9 @@ public class Statsig {
      - value: A top level value for the event
      - metadata: Any extra key/value pairs to be logged with the event
      */
-    public static func logEvent(_ withName: String, value: Double, metadata: [String: String]? = nil) {
+    public static func logEvent(
+        _ withName: String, value: Double, metadata: [String: String]? = nil
+    ) {
         client?.logEvent(withName, value: value, metadata: metadata)
     }
 
@@ -406,10 +435,14 @@ public class Statsig {
      - values: The updated values to be associated with the user.
      - completion: A callback block called when the new values/update operation have been received. May be called with a `StatsigClientError` object if the fetch fails.
      */
-    public static func updateUserWithResult(_ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil) {
+    public static func updateUserWithResult(
+        _ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil
+    ) {
         guard let client = client else {
             PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage("updateUser")).")
-            completion?(StatsigClientError(.clientUnstarted, message: "\(getUnstartedErrorMessage("updateUser"))."))
+            completion?(
+                StatsigClientError(
+                    .clientUnstarted, message: "\(getUnstartedErrorMessage("updateUser"))."))
             return
         }
 
@@ -465,17 +498,17 @@ public class Statsig {
 
         client.flush(completion: completion)
     }
-    
+
     /**
       Updates mutable-at-runtime options.
       */
-     public static func updateOptions(eventLoggingEnabled: Bool? = nil) {
-         guard let client = client else {
-             PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage()).")
-             return
-         }
-         client.updateOptions(eventLoggingEnabled: eventLoggingEnabled)
-     }
+    public static func updateOptions(eventLoggingEnabled: Bool? = nil) {
+        guard let client = client else {
+            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage()).")
+            return
+        }
+        client.updateOptions(eventLoggingEnabled: eventLoggingEnabled)
+    }
 
     /**
      The generated identifier that exists across users
@@ -490,7 +523,7 @@ public class Statsig {
     public static func getSessionID() -> String? {
         return client?.getSessionID()
     }
-    
+
     /**
      The  statsigMetadata included by the SDK on events
      */
@@ -592,48 +625,64 @@ public class Statsig {
     // MARK: - Private
     //
 
-    private static func checkGateImpl(_ gateName: String, withExposures: Bool, functionName: String) -> FeatureGate {
+    private static func checkGateImpl(_ gateName: String, withExposures: Bool, functionName: String)
+        -> FeatureGate
+    {
         var result: FeatureGate = FeatureGate(
             name: gateName,
             value: false,
             ruleID: "",
             evalDetails: .uninitialized())
-     
+
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning false as the default.")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning false as the default."
+            )
             return result
         }
 
-        result = withExposures
-        ? client.getFeatureGate(gateName)
-        : client.getFeatureGateWithExposureLoggingDisabled(gateName)
-        
+        result =
+            withExposures
+            ? client.getFeatureGate(gateName)
+            : client.getFeatureGateWithExposureLoggingDisabled(gateName)
+
         return result
     }
 
-    private static func getExperimentImpl(_ experimentName: String, keepDeviceValue: Bool, withExposures: Bool, functionName: String) -> DynamicConfig {
+    private static func getExperimentImpl(
+        _ experimentName: String, keepDeviceValue: Bool, withExposures: Bool, functionName: String
+    ) -> DynamicConfig {
         var result: DynamicConfig = getEmptyConfig(experimentName)
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning a dummy DynamicConfig that will only return default values.")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning a dummy DynamicConfig that will only return default values."
+            )
             return result
         }
 
-        result = withExposures
-        ? client.getExperiment(experimentName, keepDeviceValue: keepDeviceValue)
-        : client.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue: keepDeviceValue)
+        result =
+            withExposures
+            ? client.getExperiment(experimentName, keepDeviceValue: keepDeviceValue)
+            : client.getExperimentWithExposureLoggingDisabled(
+                experimentName, keepDeviceValue: keepDeviceValue)
         return result
     }
 
-    private static func getConfigImpl(_ configName: String, withExposures: Bool, functionName: String) -> DynamicConfig {
+    private static func getConfigImpl(
+        _ configName: String, withExposures: Bool, functionName: String
+    ) -> DynamicConfig {
         var result: DynamicConfig = getEmptyConfig(configName)
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning a dummy DynamicConfig that will only return default values.")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning a dummy DynamicConfig that will only return default values."
+            )
             return result
         }
 
-        result = withExposures
-        ? client.getConfig(configName)
-        : client.getConfigWithExposureLoggingDisabled(configName)
+        result =
+            withExposures
+            ? client.getConfig(configName)
+            : client.getConfigWithExposureLoggingDisabled(configName)
         return result
     }
 
@@ -645,16 +694,20 @@ public class Statsig {
     ) -> Layer {
         var result: Layer = Layer(client: nil, name: layerName, evalDetails: .uninitialized())
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning an empty Layer object")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning an empty Layer object"
+            )
             return result
         }
 
-        result = withExposures
-        ? client.getLayer(layerName, keepDeviceValue: keepDeviceValue)
-        : client.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue: keepDeviceValue)
+        result =
+            withExposures
+            ? client.getLayer(layerName, keepDeviceValue: keepDeviceValue)
+            : client.getLayerWithExposureLoggingDisabled(
+                layerName, keepDeviceValue: keepDeviceValue)
         return result
     }
-    
+
     private static func getParameterStoreImpl(
         _ storeName: String,
         withExposures: Bool,
@@ -665,11 +718,16 @@ public class Statsig {
             evaluationDetails: .uninitialized()
         )
         guard let client = client else {
-            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning a dummy ParameterStore that will only return default values.")
+            PrintHandler.log(
+                "[Statsig]: \(getUnstartedErrorMessage(functionName)). Returning a dummy ParameterStore that will only return default values."
+            )
             return result
         }
-        
-        result = withExposures ? client.getParameterStore(storeName) : client.getParameterStoreWithExposureLoggingDisabled(storeName)
+
+        result =
+            withExposures
+            ? client.getParameterStore(storeName)
+            : client.getParameterStoreWithExposureLoggingDisabled(storeName)
         return result
     }
 
@@ -707,9 +765,10 @@ public class Statsig {
      SeeAlso: [Initialization Documentation](https://docs.statsig.com/client/iosClientSDK#step-3---initialize-the-sdk)
      */
     @available(*, deprecated, message: "Use `Statsig.initialize` instead")
-    public static func start(sdkKey: String, user: StatsigUser? = nil, options: StatsigOptions? = nil,
-                             completion: completionBlock = nil)
-    {
+    public static func start(
+        sdkKey: String, user: StatsigUser? = nil, options: StatsigOptions? = nil,
+        completion: completionBlock = nil
+    ) {
         return initialize(sdkKey: sdkKey, user: user, options: options) { error in
             completion?(error?.message)
         }
@@ -726,12 +785,14 @@ public class Statsig {
      - completion: A callback block called when the new values/update operation have been received. May be called with an error message string if the fetch fails.
      */
     @available(*, deprecated, message: "Use `Statsig.updateUserWithResult` instead")
-    public static func updateUser(_ user: StatsigUser, values: [String: Any]? = nil, completion: completionBlock = nil) {
+    public static func updateUser(
+        _ user: StatsigUser, values: [String: Any]? = nil, completion: completionBlock = nil
+    ) {
         Statsig.updateUserWithResult(user, values: values) { error in
             completion?(error?.message)
         }
     }
-    
+
     /**
      Manually triggered the refreshing process for the current user
 
@@ -744,7 +805,7 @@ public class Statsig {
             completion?(error?.message)
         }
     }
-    
+
     public static func getEvaluationSource() -> EvaluationSource? {
         return client?.getEvaluationSource()
     }

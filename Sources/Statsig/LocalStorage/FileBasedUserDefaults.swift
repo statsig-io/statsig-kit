@@ -1,6 +1,6 @@
 import Foundation
 
-private let FileBasedUserDefaultsQueue = "com.Statsig.FileBasedUserDefaults"
+fileprivate let FileBasedUserDefaultsQueue = "com.Statsig.FileBasedUserDefaults"
 
 class FileBasedUserDefaults: DefaultsLike {
     private let cacheURL = FileManager

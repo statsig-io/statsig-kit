@@ -1,16 +1,17 @@
 import Foundation
-
 import Nimble
 import Quick
+
 @testable import Statsig
 
 class StatsigMetadataSpec: BaseSpec {
     override func spec() {
         super.spec()
-        
+
         describe("constructing from deviceEnvironment.get()") {
             let envData = DeviceEnvironment.get()
-            let metadata = StatsigMetadata.buildMetadataFromEnvironmentDict(deviceEnvironment: envData)
+            let metadata = StatsigMetadata.buildMetadataFromEnvironmentDict(
+                deviceEnvironment: envData)
             it("has all expected fields") {
                 expect(metadata.sdkVersion).to(equal(DeviceEnvironment.sdkVersion))
                 expect(metadata.sdkType).to(equal(DeviceEnvironment.sdkType))
@@ -26,4 +27,3 @@ class StatsigMetadataSpec: BaseSpec {
         }
     }
 }
-

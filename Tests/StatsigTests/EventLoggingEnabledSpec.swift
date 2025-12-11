@@ -1,12 +1,13 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
 
 class EventLoggingEnabledSpec: BaseSpec {
     override func spec() {
@@ -43,7 +44,10 @@ class EventLoggingEnabledSpec: BaseSpec {
                 Statsig.logEvent("default_event")
                 waitUntil { done in Statsig.flush(completion: done) }
 
-                expect(capturedEvents.contains(where: { $0["eventName"] as? String == "default_event" })).to(beTrue())
+                expect(
+                    capturedEvents.contains(where: { $0["eventName"] as? String == "default_event" }
+                    )
+                ).to(beTrue())
             }
 
             it("sends events when initialized with logging enabled") {
@@ -66,7 +70,9 @@ class EventLoggingEnabledSpec: BaseSpec {
                 Statsig.logEvent("test_event")
                 waitUntil { done in Statsig.flush(completion: done) }
 
-                expect(capturedEvents.contains(where: { $0["eventName"] as? String == "test_event" })).to(beTrue())
+                expect(
+                    capturedEvents.contains(where: { $0["eventName"] as? String == "test_event" })
+                ).to(beTrue())
             }
 
             it("does not send events when logging is disabled") {
@@ -122,10 +128,11 @@ class EventLoggingEnabledSpec: BaseSpec {
                 )
 
                 guard let logger = Statsig.client?.logger else {
-                    fail("Failed to obtain logger"); return
+                    fail("Failed to obtain logger")
+                    return
                 }
 
-                Statsig.logEvent("saved_event")                
+                Statsig.logEvent("saved_event")
                 waitUntil { done in Statsig.flush(completion: done) }
 
                 lock.lock()
@@ -166,7 +173,8 @@ class EventLoggingEnabledSpec: BaseSpec {
                 )
 
                 guard let logger = Statsig.client?.logger else {
-                    fail("Failed to obtain logger"); return
+                    fail("Failed to obtain logger")
+                    return
                 }
 
                 Statsig.logEvent("pre_enable_event")

@@ -1,4 +1,3 @@
-
 /**
  Typed bundle of StatsigMetadata for external consumption.
  */
@@ -15,8 +14,10 @@ public struct StatsigMetadata {
     public var language: String? = nil
     public var systemVersion: String? = nil
     public var systemName: String? = nil
-    
-    internal static func buildMetadataFromEnvironmentDict(deviceEnvironment: [String: String?]) -> StatsigMetadata {
+
+    internal static func buildMetadataFromEnvironmentDict(deviceEnvironment: [String: String?])
+        -> StatsigMetadata
+    {
         return StatsigMetadata(
             stableID: deviceEnvironment[STABLE_ID_KEY] as? String,
             sdkType: deviceEnvironment[SDK_TYPE_KEY] as? String,
@@ -32,7 +33,7 @@ public struct StatsigMetadata {
             systemName: deviceEnvironment[SYS_NAME_KEY] as? String
         )
     }
-    
+
     internal static let STABLE_ID_KEY = "stableID"
     internal static let SDK_TYPE_KEY = "sdkType"
     internal static let SDK_VERSION_KEY = "sdkVersion"
@@ -46,6 +47,3 @@ public struct StatsigMetadata {
     internal static let SYS_VERSION_KEY = "systemVersion"
     internal static let SYS_NAME_KEY = "systemName"
 }
-
-
-

@@ -13,15 +13,15 @@ fileprivate struct RefType {
 fileprivate struct ParamKeys {
     static let paramType = "param_type"
     static let refType = "ref_type"
-    
+
     // Gate
     static let gateName = "gate_name"
     static let passValue = "pass_value"
     static let failValue = "fail_value"
-    
+
     // Static Value
     static let value = "value"
-    
+
     // Dynamic Config / Experiment / Layer
     static let paramName = "param_name"
     static let configName = "config_name"
@@ -34,12 +34,12 @@ public struct ParameterStore: ConfigBase {
      The name used to retrieve this ParameterStore.
      */
     public let name: String
-    
+
     /**
      (For debug purposes) Why did Statsig return this ParameterStore
      */
     public let evaluationDetails: EvaluationDetails
-    
+
     internal let configuration: ParamStoreConfiguration
     weak internal var client: StatsigClient?
     internal var shouldExpose = true
@@ -47,7 +47,7 @@ public struct ParameterStore: ConfigBase {
     public var keys: [String: [String: Any]].Keys {
         return configuration.keys
     }
-    
+
     internal init(
         name: String,
         evaluationDetails: EvaluationDetails,
@@ -59,11 +59,11 @@ public struct ParameterStore: ConfigBase {
         self.client = client
         self.configuration = configuration as? ParamStoreConfiguration ?? ParamStoreConfiguration()
     }
-    
+
     /**
      Get the value for the given key. If the value cannot be found, or is found to have a different type than the defaultValue, the defaultValue will be returned.
      If a valid value is found, a layer exposure event will be fired.
-     
+
      Parameters:
      - forKey: The key of parameter being fetched
      - defaultValue: The fallback value if the key cannot be found
@@ -94,12 +94,13 @@ public struct ParameterStore: ConfigBase {
             return defaultValue
         }
 
-        let expectedType = if let defaultValue = defaultValue {
-            getTypeOf(defaultValue)
-        } else {
-            getTypeOf(type: T.self)
-        }
-        
+        let expectedType =
+            if let defaultValue = defaultValue {
+                getTypeOf(defaultValue)
+            } else {
+                getTypeOf(type: T.self)
+            }
+
         guard
             let client = client,
             let param = configuration[paramName],
@@ -109,35 +110,34 @@ public struct ParameterStore: ConfigBase {
         else {
             return defaultValue
         }
-        
+
         switch refType {
         case RefType.staticValue:
             return getMappedStaticValue(param)
-            
+
         case RefType.gate:
             return getMappedGateValue(client, param)
-            
+
         case RefType.dynamicConfig:
             return getMappedDynamicConfigValue(client, param, defaultValue)
-            
+
         case RefType.experiment:
             return getMappedExperimentValue(client, param, defaultValue)
-            
+
         case RefType.layer:
             return getMappedLayerValue(client, param, defaultValue)
-            
+
         default:
             return defaultValue
         }
     }
-    
+
     fileprivate func getMappedStaticValue<T>(
         _ param: [String: Any]
     ) -> T? {
         return param[ParamKeys.value] as? T
     }
-    
-    
+
     fileprivate func getMappedGateValue<T: StatsigDynamicConfigValue>(
         _ client: StatsigClient,
         _ param: [String: Any]
@@ -149,14 +149,14 @@ public struct ParameterStore: ConfigBase {
         else {
             return nil
         }
-        
-        let gate = shouldExpose
-        ? client.getFeatureGate(gateName)
-        : client.getFeatureGateWithExposureLoggingDisabled(gateName)
+
+        let gate =
+            shouldExpose
+            ? client.getFeatureGate(gateName)
+            : client.getFeatureGateWithExposureLoggingDisabled(gateName)
         return gate.value ? passValue : failValue
     }
-    
-    
+
     fileprivate func getMappedDynamicConfigValue<T: StatsigDynamicConfigValue>(
         _ client: StatsigClient,
         _ param: [String: Any],
@@ -168,14 +168,14 @@ public struct ParameterStore: ConfigBase {
         else {
             return defaultValue
         }
-        
-        let config = shouldExpose 
+
+        let config =
+            shouldExpose
             ? client.getConfig(configName)
             : client.getConfigWithExposureLoggingDisabled(configName)
         return config.getValueImpl(forKey: paramName, defaultValue: defaultValue)
     }
-    
-    
+
     fileprivate func getMappedExperimentValue<T: StatsigDynamicConfigValue>(
         _ client: StatsigClient,
         _ param: [String: Any],
@@ -187,14 +187,14 @@ public struct ParameterStore: ConfigBase {
         else {
             return defaultValue
         }
-        
-        let experiment = shouldExpose
+
+        let experiment =
+            shouldExpose
             ? client.getExperiment(experimentName)
             : client.getExperimentWithExposureLoggingDisabled(experimentName)
         return experiment.getValueImpl(forKey: paramName, defaultValue: defaultValue)
     }
-    
-    
+
     fileprivate func getMappedLayerValue<T: StatsigDynamicConfigValue>(
         _ client: StatsigClient,
         _ param: [String: Any],
@@ -207,10 +207,11 @@ public struct ParameterStore: ConfigBase {
             return defaultValue
         }
 
-        let layer = shouldExpose
+        let layer =
+            shouldExpose
             ? client.getLayer(layerName)
             : client.getLayerWithExposureLoggingDisabled(layerName)
         return layer.getValueImpl(forKey: paramName, defaultValue: defaultValue)
     }
-    
+
 }

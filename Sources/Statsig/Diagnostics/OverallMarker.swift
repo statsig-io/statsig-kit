@@ -22,13 +22,13 @@ class OverallMarker: MarkerBase {
 
         var args: [String: Any] = [
             "success": success,
-            "evaluationDetails": evaluationDetailsData
+            "evaluationDetails": evaluationDetailsData,
         ]
 
         if let message = errorMessage {
             args["error"] = [
                 "name": "Error",
-                "message": message
+                "message": message,
             ]
         }
 

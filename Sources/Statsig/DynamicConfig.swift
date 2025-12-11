@@ -111,8 +111,6 @@ public struct DynamicConfig: ConfigBase, ConfigProtocol {
         self.evaluationDetails = evalDetails
     }
 
-
-    
     /**
      Get the value for the given key, falling back to the defaultValue if it cannot be found or is of a different type.
 
@@ -138,18 +136,24 @@ public struct DynamicConfig: ConfigBase, ConfigProtocol {
         return getValueImpl(forKey: key)
     }
 
-    internal func getValueImpl<T: StatsigDynamicConfigValue>(forKey key: String, defaultValue: T? = nil) -> T? {
+    internal func getValueImpl<T: StatsigDynamicConfigValue>(
+        forKey key: String, defaultValue: T? = nil
+    ) -> T? {
         let returningLog = defaultValue == nil ? "nil" : "the defaultValue"
         guard let result = value[key] else {
-            PrintHandler.log("[Statsig]: \(key) does not exist in this Dynamic Config. Returning \(returningLog).")
+            PrintHandler.log(
+                "[Statsig]: \(key) does not exist in this Dynamic Config. Returning \(returningLog)."
+            )
             return defaultValue
         }
-    
+
         guard let result = result as? T else {
-            PrintHandler.log("[Statsig]: \(key) exists in this Dynamic Config, but requested type was incorrect (Requested = \(T.self), Actual = \(type(of: result))). Returning \(returningLog).")
+            PrintHandler.log(
+                "[Statsig]: \(key) exists in this Dynamic Config, but requested type was incorrect (Requested = \(T.self), Actual = \(type(of: result))). Returning \(returningLog)."
+            )
             return defaultValue
         }
-        
+
         return result
     }
 
@@ -186,8 +190,10 @@ extension DynamicConfig: Codable {
         self.value = dict ?? [:]
         self.ruleID = try container.decode(String.self, forKey: .ruleID)
         self.groupName = try container.decodeIfPresent(String.self, forKey: .groupName)
-        self.secondaryExposures = try container.decode([[String: String]].self, forKey: .secondaryExposures)
-        self.evaluationDetails = try container.decode(EvaluationDetails.self, forKey: .evaluationDetails)
+        self.secondaryExposures = try container.decode(
+            [[String: String]].self, forKey: .secondaryExposures)
+        self.evaluationDetails = try container.decode(
+            EvaluationDetails.self, forKey: .evaluationDetails)
         self.didPassRule = try container.decode(Bool.self, forKey: .didPassRule)
 
         self.hashedName = ""

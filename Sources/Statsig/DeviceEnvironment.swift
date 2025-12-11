@@ -24,7 +24,9 @@ struct DeviceEnvironment {
         }
         var sysinfo = utsname()
         uname(&sysinfo)
-        if let deviceModel = String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii) {
+        if let deviceModel = String(
+            bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii)
+        {
             return deviceModel.trimmingCharacters(in: .controlCharacters)
         } else {
             return PlatformCompatibility.deviceInfo.model
@@ -40,7 +42,9 @@ struct DeviceEnvironment {
             return overrideStableID
         }
 
-        if let storedStableID = StatsigUserDefaults.defaults.string(forKey: stableIDKey), storedStableID != "" {
+        if let storedStableID = StatsigUserDefaults.defaults.string(forKey: stableIDKey),
+            storedStableID != ""
+        {
             return storedStableID
         }
 
@@ -52,7 +56,7 @@ struct DeviceEnvironment {
     static func get(_ overrideStableID: String? = nil) -> [String: String?] {
         return instance.get(overrideStableID)
     }
-    
+
     static func getSDKMetadata(_ overrideStableID: String? = nil) -> [String: String?] {
         return instance.getSDKMetadata(overrideStableID)
     }
@@ -62,16 +66,16 @@ struct DeviceEnvironment {
             return val ?? ""
         }
     }
-    
+
     private func getSDKMetadata(_ overrideStableID: String? = nil) -> [String: String?] {
         lock.lock()
         defer { lock.unlock() }
-        
+
         return [
             StatsigMetadata.SDK_TYPE_KEY: DeviceEnvironment.sdkType,
             StatsigMetadata.SDK_VERSION_KEY: DeviceEnvironment.sdkVersion,
             StatsigMetadata.SESSION_ID_KEY: sessionID,
-            StatsigMetadata.STABLE_ID_KEY: getStableID(overrideStableID)
+            StatsigMetadata.STABLE_ID_KEY: getStableID(overrideStableID),
         ]
     }
 
@@ -91,7 +95,7 @@ struct DeviceEnvironment {
             StatsigMetadata.SESSION_ID_KEY: sessionID,
             StatsigMetadata.STABLE_ID_KEY: getStableID(overrideStableID),
             StatsigMetadata.SYS_VERSION_KEY: systemVersion,
-            StatsigMetadata.SYS_NAME_KEY: systemName
+            StatsigMetadata.SYS_NAME_KEY: systemName,
         ]
     }
 

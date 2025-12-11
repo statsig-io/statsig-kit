@@ -12,12 +12,12 @@ public struct FallbackInfoEntry {
 
 typealias FallbackInfo = [Endpoint: FallbackInfoEntry]
 
-let DEFAULT_TTL_SECONDS: TimeInterval = 7 * 24 * 60 * 60; // 7 days (in seconds)
-let COOLDOWN_TIME_SECONDS: TimeInterval = 4 * 60 * 60; // 4 hours (in seconds)
+let DEFAULT_TTL_SECONDS: TimeInterval = 7 * 24 * 60 * 60  // 7 days (in seconds)
+let COOLDOWN_TIME_SECONDS: TimeInterval = 4 * 60 * 60  // 4 hours (in seconds)
 
 let notDomainFailureCodes: [Int] = [
     NSURLErrorCancelled,
-    NSURLErrorNotConnectedToInternet
+    NSURLErrorNotConnectedToInternet,
 ]
 
 #if TEST
@@ -33,7 +33,7 @@ public class NetworkFallbackResolver {
     private var errorBoundary: ErrorBoundary
     private var fallbackInfo: FallbackInfo? = nil
 
-    private var dnsQueryCooldowns: [Endpoint: Date] = [:];
+    private var dnsQueryCooldowns: [Endpoint: Date] = [:]
 
     /**
      Function to get the current Date. Used for tests.
@@ -59,10 +59,10 @@ public class NetworkFallbackResolver {
     internal func getActiveFallbackURL(
         endpoint: Endpoint
     ) -> URL? {
-        var info = self.fallbackInfo;
-        if (info == nil) {
-            info = self.store.getNetworkFallbackInfo();
-            self.fallbackInfo = info;
+        var info = self.fallbackInfo
+        if info == nil {
+            info = self.store.getNetworkFallbackInfo()
+            self.fallbackInfo = info
         }
 
         guard let entry = info?[endpoint] else {
@@ -76,22 +76,21 @@ public class NetworkFallbackResolver {
             return nil
         }
 
-        self.fallbackInfo = info;
+        self.fallbackInfo = info
 
-        return entry.url;
+        return entry.url
     }
 
     func isDomainFailure(error: (any Error)?) -> Bool {
         if !NetworkFallbackResolver.fallbackEnabled {
-            return false;
+            return false
         }
         if let nsError = error as? NSError {
-            return (
-                nsError.domain == NSURLErrorDomain &&
-                !notDomainFailureCodes.contains(nsError.code)
-            );
+            return
+                (nsError.domain == NSURLErrorDomain
+                && !notDomainFailureCodes.contains(nsError.code))
         }
-        return false;
+        return false
     }
 
     func tryFetchUpdatedFallbackInfo(
@@ -100,7 +99,7 @@ public class NetworkFallbackResolver {
     ) {
         let now = NetworkFallbackResolver.now()
         if let cooldown = self.dnsQueryCooldowns[endpoint], now < cooldown {
-            return;
+            return
         }
 
         self.dnsQueryCooldowns[endpoint] = now.addingTimeInterval(COOLDOWN_TIME_SECONDS)
@@ -108,7 +107,7 @@ public class NetworkFallbackResolver {
         fetchTxtRecords { [weak self] result in
             guard let self = self else {
                 completion(false)
-                return;
+                return
             }
             completion(self.handleTxtQueryResult(endpoint: endpoint, result: result))
         }
@@ -116,29 +115,35 @@ public class NetworkFallbackResolver {
 
     private func handleTxtQueryResult(endpoint: Endpoint, result: Result<[String], Error>) -> Bool {
         let records: [String]
-        switch (result) {
-            case .failure(let error):
-                self.errorBoundary.logException(tag: "network_fallback_resolver", error: error)
-                return false
-            case .success(let value):
-                records = value
+        switch result {
+        case .failure(let error):
+            self.errorBoundary.logException(tag: "network_fallback_resolver", error: error)
+            return false
+        case .success(let value):
+            records = value
         }
 
         guard
             let defaultURL: URL = NetworkService.defaultURLForEndpoint(endpoint),
             let defaultURLComponents = URLComponents(url: defaultURL, resolvingAgainstBaseURL: true)
         else {
-            self.errorBoundary.logException(tag: "network_fallback_resolver", error: StatsigError.invalidRequestURL("\(endpoint)"))
-            return false;
+            self.errorBoundary.logException(
+                tag: "network_fallback_resolver",
+                error: StatsigError.invalidRequestURL("\(endpoint)"))
+            return false
         }
 
-        let urls = parseURLsFromRecords(records, endpoint: endpoint, defaultURLComponents: defaultURLComponents)
-        guard let newURL = pickNewFallbackUrl(currentFallbackInfo: self.fallbackInfo?[endpoint], urls: urls) else {
-            return false;
+        let urls = parseURLsFromRecords(
+            records, endpoint: endpoint, defaultURLComponents: defaultURLComponents)
+        guard
+            let newURL = pickNewFallbackUrl(
+                currentFallbackInfo: self.fallbackInfo?[endpoint], urls: urls)
+        else {
+            return false
         }
 
         updateFallbackInfoWithNewURL(endpoint: endpoint, newURL: newURL)
-        return true;
+        return true
     }
 
     private func updateFallbackInfoWithNewURL(endpoint: Endpoint, newURL: URL) {
@@ -162,11 +167,13 @@ public class NetworkFallbackResolver {
         self.store.saveNetworkFallbackInfo(self.fallbackInfo)
     }
 
-    private func parseURLsFromRecords(_ records: [String], endpoint: Endpoint, defaultURLComponents: URLComponents) -> [URL] {
+    private func parseURLsFromRecords(
+        _ records: [String], endpoint: Endpoint, defaultURLComponents: URLComponents
+    ) -> [URL] {
         var urls = [URL]()
         for record in records {
             let startsWith = "\(endpoint.dnsKey)="
-            if (!record.starts(with: startsWith)) {
+            if !record.starts(with: startsWith) {
                 continue
             }
 
@@ -174,9 +181,11 @@ public class NetworkFallbackResolver {
             var urlComponents = defaultURLComponents
             urlComponents.host = removingTrailingSlash(record[start...])
             if let url = urlComponents.url {
-                urls.append(url);
+                urls.append(url)
             } else {
-                self.errorBoundary.logException(tag: "parse_dns_txt", error: StatsigError.unexpectedError("Failed to parse URL from DNS TXT records"))
+                self.errorBoundary.logException(
+                    tag: "parse_dns_txt",
+                    error: StatsigError.unexpectedError("Failed to parse URL from DNS TXT records"))
             }
         }
         return urls
@@ -190,7 +199,9 @@ public class NetworkFallbackResolver {
             let loopURLString = loopUrl.absoluteString
             let urlString = removingTrailingSlash(loopURLString)
 
-            if !previouslyUsed.contains(urlString) && urlString != currentFallbackUrl, let url = URL(string: urlString) {
+            if !previouslyUsed.contains(urlString) && urlString != currentFallbackUrl,
+                let url = URL(string: urlString)
+            {
                 return url
             }
         }
@@ -200,10 +211,10 @@ public class NetworkFallbackResolver {
 }
 
 func getFallbackInfoStorageKey(sdkKey: String) -> String {
-  return "statsig.network_fallback.\(sdkKey.djb2())";
+    return "statsig.network_fallback.\(sdkKey.djb2())"
 }
 
-private func removingTrailingSlash<T>(_ str: T) -> String where T : StringProtocol {
+fileprivate func removingTrailingSlash<T>(_ str: T) -> String where T: StringProtocol {
     let end = str.index(str.endIndex, offsetBy: str.hasSuffix("/") ? -1 : 0)
     return String(str[..<end])
 }

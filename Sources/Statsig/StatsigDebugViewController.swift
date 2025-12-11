@@ -5,7 +5,9 @@ public typealias DebuggerCallback = (Bool) -> Void
 import UIKit
 import WebKit
 
-public class StatsigDebugViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler {
+public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
+    WKScriptMessageHandler
+{
     private let messageHandlerName = "statsigDebugMessageHandler"
 
     private var webView: WKWebView?
@@ -14,8 +16,12 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
     private var isReloadRequested: Bool = false
     private var callback: DebuggerCallback?
 
-    static func show(_ sdkKey: String, _ state: [String: Any?], _ callback: DebuggerCallback? = nil) {
-        guard let debugger = StatsigDebugViewController(sdkKey: sdkKey, state: state, callback: callback) else {
+    static func show(_ sdkKey: String, _ state: [String: Any?], _ callback: DebuggerCallback? = nil)
+    {
+        guard
+            let debugger = StatsigDebugViewController(
+                sdkKey: sdkKey, state: state, callback: callback)
+        else {
             return
         }
 
@@ -51,7 +57,10 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
             return nil
         }
 
-        guard let url = URL(string: "https://console.statsig.com/client_sdk_debugger_redirect?sdkKey=\(sdkKey)") else {
+        guard
+            let url = URL(
+                string: "https://console.statsig.com/client_sdk_debugger_redirect?sdkKey=\(sdkKey)")
+        else {
             PrintHandler.log("[Statsig] DebugView failed to create required URL")
             return nil
         }
@@ -76,11 +85,10 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
             let config = WKWebViewConfiguration()
             let userContentController = WKUserContentController()
 
-
-
-            let script = WKUserScript(source: "window.__StatsigClientState = \(json)",
-                                      injectionTime: .atDocumentStart,
-                                      forMainFrameOnly: false)
+            let script = WKUserScript(
+                source: "window.__StatsigClientState = \(json)",
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: false)
             userContentController.addUserScript(script)
 
             config.userContentController = userContentController
@@ -97,7 +105,8 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
         }
 
         // Add a close button to dismiss the modal view
-        let closeButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(closeButtonTapped))
+        let closeButton = UIBarButtonItem(
+            barButtonSystemItem: .done, target: self, action: #selector(closeButtonTapped))
         navigationItem.rightBarButtonItem = closeButton
 
     }
@@ -105,7 +114,7 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
     override public func viewWillDisappear(_ animated: Bool) {
         callback?(isReloadRequested)
     }
-    
+
     @objc func closeButtonTapped() {
         dismiss(animated: true, completion: nil)
     }
@@ -114,11 +123,11 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        if (message.name != messageHandlerName) {
+        if message.name != messageHandlerName {
             return
         }
 
-        if (message.body as? String == "RELOAD_REQUIRED") {
+        if message.body as? String == "RELOAD_REQUIRED" {
             isReloadRequested = true
         }
     }
@@ -127,7 +136,8 @@ public class StatsigDebugViewController: UIViewController, WKNavigationDelegate,
 
 #else
 public class StatsigDebugViewController {
-    static func show(_ sdkKey: String, _ state: [String: Any?], _ callback: DebuggerCallback? = nil) {
+    static func show(_ sdkKey: String, _ state: [String: Any?], _ callback: DebuggerCallback? = nil)
+    {
         PrintHandler.log("[Statsig] DebugView is currently only available on iOS")
     }
 

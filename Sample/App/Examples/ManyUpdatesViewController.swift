@@ -1,5 +1,5 @@
-import UIKit
 import Statsig
+import UIKit
 
 class ManyUpdatesViewController: UIViewController {
 
@@ -37,7 +37,7 @@ class ManyUpdatesViewController: UIViewController {
     @objc private func runUpdates() {
         let numberOfTasks = 10
 
-        if (queues.isEmpty) {
+        if queues.isEmpty {
             for i in 0..<numberOfTasks {
                 queues.append(DispatchQueue(label: "com.statsig.task_\(i)"))
             }
@@ -61,4 +61,3 @@ class ManyUpdatesViewController: UIViewController {
         StatsigUser(userID: "user_\(Int.random(in: 1...100))")
     }
 }
-

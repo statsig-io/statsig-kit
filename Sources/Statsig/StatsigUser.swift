@@ -43,7 +43,7 @@ public struct StatsigUser: Sendable {
      Any value you wish to use in evaluation, but not have logged with events can be stored in this field.
      */
     public let privateAttributes: [String: StatsigUserCustomTypeConvertible]?
-    
+
     /**
      Controls whether non-SDK-type SDK version metadata should be excluded or included.
      Setting this option to `true` will exclude metadata related to non-SDK-type SDK versions. By default, this option is set to `false`, meaning all metadata is included.
@@ -65,18 +65,19 @@ public struct StatsigUser: Sendable {
     var statsigEnvironment: [String: String] = [:]
     var deviceEnvironment: [String: String?]
 
-    public init(userID: String? = nil,
-                email: String? = nil,
-                ip: String? = nil,
-                country: String? = nil,
-                locale: String? = nil,
-                appVersion: String? = nil,
-                custom: [String: StatsigUserCustomTypeConvertible]? = nil,
-                privateAttributes: [String: StatsigUserCustomTypeConvertible]? = nil,
-                optOutNonSdkMetadata: Bool? = false,
-                customIDs: [String: String]? = nil,
-                userAgent: String? = nil)
-    {
+    public init(
+        userID: String? = nil,
+        email: String? = nil,
+        ip: String? = nil,
+        country: String? = nil,
+        locale: String? = nil,
+        appVersion: String? = nil,
+        custom: [String: StatsigUserCustomTypeConvertible]? = nil,
+        privateAttributes: [String: StatsigUserCustomTypeConvertible]? = nil,
+        optOutNonSdkMetadata: Bool? = false,
+        customIDs: [String: String]? = nil,
+        userAgent: String? = nil
+    ) {
         self.userID = userID
         self.email = email
         self.ip = ip
@@ -91,21 +92,27 @@ public struct StatsigUser: Sendable {
             self.custom = custom
         } else {
             if custom != nil {
-                PrintHandler.log("[Statsig]: The provided custom value is not added to the user because it is not a valid JSON object.")
+                PrintHandler.log(
+                    "[Statsig]: The provided custom value is not added to the user because it is not a valid JSON object."
+                )
             }
             self.custom = nil
         }
 
-        if let privateAttributes = privateAttributes, JSONSerialization.isValidJSONObject(privateAttributes) {
+        if let privateAttributes = privateAttributes,
+            JSONSerialization.isValidJSONObject(privateAttributes)
+        {
             self.privateAttributes = privateAttributes
         } else {
             if privateAttributes != nil {
-                PrintHandler.log("[Statsig]: The provided privateAttributes is not added to the user because it is not a valid JSON object.")
+                PrintHandler.log(
+                    "[Statsig]: The provided privateAttributes is not added to the user because it is not a valid JSON object."
+                )
             }
             self.privateAttributes = nil
         }
-        
-        if (self.optOutNonSdkMetadata ?? false) {
+
+        if self.optOutNonSdkMetadata ?? false {
             self.deviceEnvironment = DeviceEnvironment.getSDKMetadata()
         } else {
             self.deviceEnvironment = DeviceEnvironment.get()
@@ -113,7 +120,7 @@ public struct StatsigUser: Sendable {
     }
 
     mutating func setStableID(_ overrideStableID: String) {
-        if (self.optOutNonSdkMetadata ?? false) {
+        if self.optOutNonSdkMetadata ?? false {
             self.deviceEnvironment = DeviceEnvironment.getSDKMetadata(overrideStableID)
         } else {
             self.deviceEnvironment = DeviceEnvironment.get(overrideStableID)
@@ -202,12 +209,14 @@ extension StatsigUser {
         }
 
         if let value = self.custom?[field] ?? self.custom?[lowered],
-            let jsonValue = JsonValue(value) {
+            let jsonValue = JsonValue(value)
+        {
             return jsonValue
         }
 
         if let value = self.privateAttributes?[field] ?? self.privateAttributes?[lowered],
-            let jsonValue = JsonValue(value) {
+            let jsonValue = JsonValue(value)
+        {
             return jsonValue
         }
 

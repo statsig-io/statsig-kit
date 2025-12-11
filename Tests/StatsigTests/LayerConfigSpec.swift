@@ -1,12 +1,13 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
 
 fileprivate struct Data {
     static let GateKey = "gate"
@@ -45,11 +46,11 @@ fileprivate struct Data {
             "value": ["key": "device_based_value"],
             "is_user_in_experiment": true,
             "is_experiment_active": true,
-            "is_device_based": true
+            "is_device_based": true,
         ],
     ]
 
-    static let TestMixedConfigValue: [String : Any] = [
+    static let TestMixedConfigValue: [String: Any] = [
         "str": "string",
         "bool": true,
         "double": 3.14,
@@ -57,7 +58,13 @@ fileprivate struct Data {
         "strArray": ["1", "2"],
         "mixedArray": [1, "2"],
         "dict": ["key": "value"],
-        "mixedDict": ["keyStr": "string", "keyInt": 2, "keyArr": [1, 2], "keyDouble": 1.23, "keyDict": ["k": "v"]],
+        "mixedDict": [
+            "keyStr": "string",
+            "keyInt": 2,
+            "keyArr": [1, 2],
+            "keyDouble": 1.23,
+            "keyDict": ["k": "v"],
+        ],
     ]
 
     static let LayerConfigWithExperimentKey = "layer_with_exp"
@@ -73,7 +80,7 @@ fileprivate struct Data {
             "value": ["key": "value"],
             "is_user_in_experiment": true,
             "is_experiment_active": true,
-            "allocated_experiment_name": HashConfigKey
+            "allocated_experiment_name": HashConfigKey,
         ],
         HashLayerConfigWithoutExperimentKey: [
             "name": HashLayerConfigWithExperimentKey,
@@ -81,21 +88,21 @@ fileprivate struct Data {
             "value": ["key": "another_value"],
             "is_user_in_experiment": true,
             "is_experiment_active": true,
-        ]
+        ],
     ]
 
     static let CacheValues: [String: Any] = [
         "dynamic_configs": DynamicConfigs,
         "feature_gates": FeatureGates,
         "layer_configs": LayerConfigs,
-        "has_updates": true
+        "has_updates": true,
     ]
 
     static let StickyValues = [
         HashConfigKey: [
             "rule_id": "sticky",
             "value": ["key": "value_sticky"],
-        ],
+        ]
     ]
 }
 
@@ -103,7 +110,7 @@ class LayerConfigSpec: BaseSpec {
 
     override func spec() {
         super.spec()
-        
+
         describe("using getLayerConfig") {
             var client: StatsigClient!
             var store: InternalStore!
@@ -117,9 +124,11 @@ class LayerConfigSpec: BaseSpec {
 
                 waitUntil { done in
                     let opts = StatsigOptions(disableDiagnostics: true)
-                    client = StatsigClient(sdkKey: "", user: nil, options: opts, completion: { err in
-                        done()
-                    })
+                    client = StatsigClient(
+                        sdkKey: "", user: nil, options: opts,
+                        completion: { err in
+                            done()
+                        })
                 }
 
                 let options = StatsigOptions()
@@ -131,106 +140,143 @@ class LayerConfigSpec: BaseSpec {
             }
 
             it("returns the experiment values") {
-                let config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: false)
+                let config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: false)
                 expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("value"))
 
-                let another = store.getLayer(client: client, forName: Data.LayerConfigWithoutExperimentKey, keepDeviceValue: false)
-                expect(another.getValue(forKey: "key", defaultValue: "ERR")).to(equal("another_value"))
+                let another = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithoutExperimentKey,
+                    keepDeviceValue: false)
+                expect(another.getValue(forKey: "key", defaultValue: "ERR")).to(
+                    equal("another_value"))
             }
 
             it("should return a sticky value") {
-                var config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: true)
+                var config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: true)
                 expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("value"))
 
                 var updatedValues: [String: Any] = Data.CacheValues
-                updatedValues[jsonDict: "dynamic_configs"]?[jsonDict: Data.HashConfigKey]?["is_user_in_experiment"] = false
+                updatedValues[jsonDict: "dynamic_configs"]?[jsonDict: Data.HashConfigKey]?[
+                    "is_user_in_experiment"] = false
 
                 let user = StatsigUser(userID: "dloomb")
-                store = InternalStore("", user, options: StatsigOptions()) // reload the cache, and user is no longer in the experiment, but value should stick because experiment is active
+                store = InternalStore("", user, options: StatsigOptions())  // reload the cache, and user is no longer in the experiment, but value should stick because experiment is active
 
                 waitUntil { done in
-                    store.saveValues(updatedValues, store.cache.userCacheKey, user.getFullUserHash()) {
+                    store.saveValues(
+                        updatedValues, store.cache.userCacheKey, user.getFullUserHash()
+                    ) {
                         done()
                     }
                 }
 
-                config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: true)
+                config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: true)
                 expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("value"))
 
-                updatedValues[jsonDict: "layer_configs"]?[jsonDict: Data.HashLayerConfigWithExperimentKey] = [
-                    "name": Data.HashLayerConfigWithExperimentKey,
-                    "rule_id": "default",
-                    "value": ["key": "another_value"],
-                    "is_user_in_experiment": true,
-                    "is_experiment_active": true,
-                    "allocated_experiment_name": "completely_different_exp"
-                ]
+                updatedValues[jsonDict: "layer_configs"]?[
+                    jsonDict: Data.HashLayerConfigWithExperimentKey] = [
+                        "name": Data.HashLayerConfigWithExperimentKey,
+                        "rule_id": "default",
+                        "value": ["key": "another_value"],
+                        "is_user_in_experiment": true,
+                        "is_experiment_active": true,
+                        "allocated_experiment_name": "completely_different_exp",
+                    ]
 
                 // reload the cache, and user is allocated to a different experiment,
                 // but should still get same value because previous experiment is still active
                 store = InternalStore("", user, options: StatsigOptions())
 
-
                 waitUntil { done in
-                    store.saveValues(updatedValues, store.cache.userCacheKey, user.getFullUserHash()) {
+                    store.saveValues(
+                        updatedValues, store.cache.userCacheKey, user.getFullUserHash()
+                    ) {
                         done()
                     }
                 }
 
-                config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: true)
+                config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: true)
                 expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("value"))
 
-                updatedValues[jsonDict: "dynamic_configs"]?[jsonDict: Data.HashConfigKey]?["is_experiment_active"] = false
+                updatedValues[jsonDict: "dynamic_configs"]?[jsonDict: Data.HashConfigKey]?[
+                    "is_experiment_active"] = false
                 // reload the cache, and previous experiment is no longer active, so should get new value
                 store = InternalStore("", StatsigUser(userID: "dloomb"), options: StatsigOptions())
 
                 waitUntil { done in
-                    store.saveValues(updatedValues, store.cache.userCacheKey, user.getFullUserHash()) {
+                    store.saveValues(
+                        updatedValues, store.cache.userCacheKey, user.getFullUserHash()
+                    ) {
                         done()
                     }
                 }
 
-                config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: true)
-                expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("another_value"))
+                config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: true)
+                expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(
+                    equal("another_value"))
             }
 
             it("should wipe sticky value when keepDeviceValue is false") {
-                var config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: true)
+                var config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: true)
                 expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("value"))
 
                 var updatedValues: [String: Any] = Data.CacheValues
-                updatedValues[jsonDict: "layer_configs"]?[jsonDict: Data.HashLayerConfigWithExperimentKey] = [
-                    "name": Data.HashLayerConfigWithExperimentKey,
-                    "rule_id": "default",
-                    "value": ["key": "another_value"],
-                    "is_user_in_experiment": true,
-                    "is_experiment_active": true,
-                    "allocated_experiment_name": Data.AnotherConfigKey
-                ]
+                updatedValues[jsonDict: "layer_configs"]?[
+                    jsonDict: Data.HashLayerConfigWithExperimentKey] = [
+                        "name": Data.HashLayerConfigWithExperimentKey,
+                        "rule_id": "default",
+                        "value": ["key": "another_value"],
+                        "is_user_in_experiment": true,
+                        "is_experiment_active": true,
+                        "allocated_experiment_name": Data.AnotherConfigKey,
+                    ]
 
                 let user = StatsigUser(userID: "dloomb")
                 store = InternalStore("", user, options: StatsigOptions())
                 waitUntil { done in
-                    store.saveValues(updatedValues, store.cache.userCacheKey, user.getFullUserHash()) {
+                    store.saveValues(
+                        updatedValues, store.cache.userCacheKey, user.getFullUserHash()
+                    ) {
                         done()
                     }
                 }
-                config = store.getLayer(client: client, forName: Data.LayerConfigWithExperimentKey, keepDeviceValue: false)
-                expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(equal("another_value"))
+                config = store.getLayer(
+                    client: client, forName: Data.LayerConfigWithExperimentKey,
+                    keepDeviceValue: false)
+                expect(config.getValue(forKey: "key", defaultValue: "ERR")).to(
+                    equal("another_value"))
             }
 
-
             it("returns the default value for mismatched types") {
-                let layer = Layer(client: client, name: "a_layer", value: [
-                    "str": "string",
-                    "bool": true,
-                    "double": 3.14,
-                    "int": 3,
-                    "strArray": ["1", "2"],
-                    "mixedArray": [1, "2"],
-                    "dict": ["key": "value"],
-                    "mixedDict": ["keyStr": "string", "keyInt": 2, "keyArr": [1, 2], "keyDouble": 1.23, "keyDict": ["k": "v"]],
-                ], ruleID: "", groupName: nil, evalDetails: .init(source: .Cache))
+                let layer = Layer(
+                    client: client, name: "a_layer",
+                    value: [
+                        "str": "string",
+                        "bool": true,
+                        "double": 3.14,
+                        "int": 3,
+                        "strArray": ["1", "2"],
+                        "mixedArray": [1, "2"],
+                        "dict": ["key": "value"],
+                        "mixedDict": [
+                            "keyStr": "string",
+                            "keyInt": 2,
+                            "keyArr": [1, 2],
+                            "keyDouble": 1.23,
+                            "keyDict": ["k": "v"],
+                        ],
+                    ], ruleID: "", groupName: nil, evalDetails: .init(source: .Cache))
                 expect(layer.getValue(forKey: "str", defaultValue: 1)) == 1
                 expect(layer.getValue(forKey: "str", defaultValue: true)) == true
 
@@ -249,18 +295,24 @@ class LayerConfigSpec: BaseSpec {
 
                 expect(layer.getValue(forKey: "dict", defaultValue: ["key": 3])) == ["key": 3]
 
-                expect(layer.getValue(forKey: "mixedDict", defaultValue: ["key": "value"])) == ["key": "value"]
+                expect(layer.getValue(forKey: "mixedDict", defaultValue: ["key": "value"])) == [
+                    "key": "value"
+                ]
             }
 
             it("returns the default value for non-existent key") {
-                let layer = Layer(client: client, name: "a_layer", value: [:], ruleID: "", groupName: nil, evalDetails: .uninitialized())
+                let layer = Layer(
+                    client: client, name: "a_layer", value: [:], ruleID: "", groupName: nil,
+                    evalDetails: .uninitialized())
                 expect(layer.getValue(forKey: "wrong_key", defaultValue: 1)) == 1
                 expect(layer.getValue(forKey: "wrong_key", defaultValue: true)) == true
                 expect(layer.getValue(forKey: "wrong_key", defaultValue: "false")) == "false"
                 expect(layer.getValue(forKey: "wrong_key", defaultValue: 1.23)) == 1.23
                 expect(layer.getValue(forKey: "wrong_key", defaultValue: [1, 2, 3])) == [1, 2, 3]
                 expect(layer.getValue(forKey: "wrong_key", defaultValue: ["key": 3])) == ["key": 3]
-                expect(layer.getValue(forKey: "wrong_key", defaultValue: ["key": "value"])) == ["key": "value"]
+                expect(layer.getValue(forKey: "wrong_key", defaultValue: ["key": "value"])) == [
+                    "key": "value"
+                ]
             }
 
             describe("not using defaultValue") {
@@ -304,7 +356,7 @@ class LayerConfigSpec: BaseSpec {
                     let b = layer.getValue(forKey: "wrong_key") as String?
                     expect(b) == nil
                 }
-                
+
                 it("returns nil when the layer doesn't exist") {
                     let dummy = Layer(
                         client: client,
@@ -331,7 +383,8 @@ class LayerConfigSpec: BaseSpec {
 
                     expect(layer.evaluationDetails.source).to(equal(.Network))
 
-                    let mixedArray: [any StatsigDynamicConfigValue]? = layer.getValue(forKey: "mixedArray")
+                    let mixedArray: [any StatsigDynamicConfigValue]? = layer.getValue(
+                        forKey: "mixedArray")
                     expect(mixedArray?.count) == 2
                     expect(mixedArray?[0] as? Int) == 1
                     expect(mixedArray?[1] as? String) == "2"
@@ -340,7 +393,8 @@ class LayerConfigSpec: BaseSpec {
                     expect(dict?.count) == 1
                     expect(dict?["key"]) == "value"
 
-                    let mixedDict: [String: any StatsigDynamicConfigValue]? = layer.getValue(forKey: "mixedDict")
+                    let mixedDict: [String: any StatsigDynamicConfigValue]? = layer.getValue(
+                        forKey: "mixedDict")
                     expect(mixedDict?.count) == 5
                     expect(mixedDict?["keyStr"] as? String) == "string"
                     expect(mixedDict?["keyInt"] as? Int) == 2

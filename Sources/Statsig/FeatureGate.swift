@@ -13,7 +13,10 @@ public struct FeatureGate: ConfigBase, Codable {
         self.evaluationDetails = evalDetails
     }
 
-    internal init(name: String, value: Bool, ruleID: String, evalDetails: EvaluationDetails, secondaryExposures: [[String: String]]? = nil) {
+    internal init(
+        name: String, value: Bool, ruleID: String, evalDetails: EvaluationDetails,
+        secondaryExposures: [[String: String]]? = nil
+    ) {
         self.name = name
         self.value = value
         self.ruleID = ruleID

@@ -1,9 +1,9 @@
 import Foundation
 
 public struct EvaluationDetails: Codable {
-    public let source: EvaluationSource;
+    public let source: EvaluationSource
 
-    public var reason: EvaluationReason?;
+    public var reason: EvaluationReason?
     public var lcut: UInt64?
     public var receivedAt: UInt64?
     public var prefix: String?
@@ -51,13 +51,11 @@ public struct EvaluationDetails: Codable {
     }
 
     var dedupeKey: DedupeKey {
-        get {
-            DedupeKey(
-                prefix: prefix,
-                source: source,
-                reason: (source == .NoValues || source == .Uninitialized) ? nil : reason
-            )
-        }
+        DedupeKey(
+            prefix: prefix,
+            source: source,
+            reason: (source == .NoValues || source == .Uninitialized) ? nil : reason
+        )
     }
 
     internal struct DedupeKey: Hashable {

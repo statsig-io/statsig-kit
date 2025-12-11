@@ -40,7 +40,7 @@ public class StatsigClient {
         completion: ((_ error: String?) -> Void)? = nil
     ) {
         Diagnostics.boot(options)
-        Diagnostics.mark?.overall.start();
+        Diagnostics.mark?.overall.start()
 
         self.sdkKey = sdkKey
         let normalizedUser = StatsigClient.normalizeUser(user, options: options)
@@ -58,19 +58,20 @@ public class StatsigClient {
 
         subscribeToApplicationLifecycle()
 
-        let _onComplete: (StatsigClientError?) -> Void = { [weak self, completionWithResult, completion] error in
+        let _onComplete: (StatsigClientError?) -> Void = {
+            [weak self, completionWithResult, completion] error in
             guard let self = self else {
                 return
             }
 
-            if (self.statsigOptions.enableAutoValueUpdate) {
+            if self.statsigOptions.enableAutoValueUpdate {
                 self.scheduleRepeatingSync()
             }
 
             self.hasInitialized = true
             self.lastInitializeError = error
 
-            self.logger.retryFailedRequests(forUser: normalizedUser);
+            self.logger.retryFailedRequests(forUser: normalizedUser)
 
             Diagnostics.mark?.overall.end(
                 success: error == nil,
@@ -84,7 +85,7 @@ public class StatsigClient {
             completion?(error?.message)
         }
 
-        if (options?.initializeValues != nil) {
+        if options?.initializeValues != nil {
             _onComplete(nil)
         } else {
             fetchValuesFromNetwork(
@@ -119,7 +120,7 @@ public class StatsigClient {
      SeeAlso [StatsigListening](https://docs.statsig.com/client/iosClientSDK#statsiglistening)
      */
     public func addListener(_ listener: StatsigListening) {
-        if (hasInitialized) {
+        if hasInitialized {
             listener.onInitializedWithResult?(lastInitializeError)
             (listener as StatsigListeningInternal).onInitialized?(lastInitializeError?.message)
         }
@@ -134,12 +135,14 @@ public class StatsigClient {
      - user: The new user
      - completion: A callback block called when the new values have been received. May be called with a `StatsigClientError` object if the fetch fails.
      */
-    public func updateUserWithResult(_ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil) {
+    public func updateUserWithResult(
+        _ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil
+    ) {
         self.logger.clearExposuresDedupeDict()
 
         self.updateUserImpl(user, values: values, completion: completion)
     }
-    
+
     /**
      Manually triggered the refreshing process for the current user
 
@@ -181,7 +184,7 @@ public class StatsigClient {
      Currently it's only available for tests.
      */
     internal func flush(completion: @escaping (() -> Void)) {
-        logger.flush(completion: completion);
+        logger.flush(completion: completion)
     }
 
     /**
@@ -192,7 +195,7 @@ public class StatsigClient {
             self.logger.logQueue.async { [weak self] in
                 guard let self = self else { return }
                 statsigOptions.eventLoggingEnabled = eventLoggingEnabled
-                if (eventLoggingEnabled) {
+                if eventLoggingEnabled {
                     logger.retryFailedRequests(forUser: self.currentUser)
                 }
             }
@@ -212,12 +215,13 @@ public class StatsigClient {
     public func getSessionID() -> String? {
         return currentUser.deviceEnvironment[StatsigMetadata.SESSION_ID_KEY] as? String
     }
-    
+
     /**
      The statsigMetadata included by the SDK on events
      */
     public func getStatsigMetadata() -> StatsigMetadata {
-        return StatsigMetadata.buildMetadataFromEnvironmentDict(deviceEnvironment: currentUser.deviceEnvironment)
+        return StatsigMetadata.buildMetadataFromEnvironmentDict(
+            deviceEnvironment: currentUser.deviceEnvironment)
     }
 
     /**
@@ -235,12 +239,13 @@ public class StatsigClient {
             "derived_fields": self.store.cache.userCache["derived_fields"],
             "full_checksum": self.store.cache.userCache["full_checksum"],
             "sdk_flags": self.store.cache.userCache["sdk_flags"],
-            "has_updates" : true
+            "has_updates": true,
         ]
 
         if JSONSerialization.isValidJSONObject(dict),
-           let data = try? JSONSerialization.data(withJSONObject: dict),
-           let json = data.text {
+            let data = try? JSONSerialization.data(withJSONObject: dict),
+            let json = data.text
+        {
             values = json
         }
 
@@ -304,9 +309,11 @@ extension StatsigClient {
     private func getFeatureGateImpl(_ gateName: String, shouldExpose: Bool) -> FeatureGate {
         let original = store.checkGate(forName: gateName)
 
-        let gate = self.statsigOptions.overrideAdapter?.getGate(user: currentUser, name: gateName, original: original) ?? original;
+        let gate =
+            self.statsigOptions.overrideAdapter?.getGate(
+                user: currentUser, name: gateName, original: original) ?? original
 
-        if (shouldExpose) {
+        if shouldExpose {
             logGateExposureForGate(gateName, gate: gate, isManualExposure: false)
         } else {
             logger.incrementNonExposedCheck(gateName)
@@ -344,7 +351,9 @@ extension StatsigClient {
         logGateExposureForGate(gateName, gate: gate, isManualExposure: isManualExposure)
     }
 
-    private func logGateExposureForGate(_ gateName: String, gate: FeatureGate, isManualExposure: Bool) {
+    private func logGateExposureForGate(
+        _ gateName: String, gate: FeatureGate, isManualExposure: Bool
+    ) {
         let gateValue = gate.value
         let ruleID = gate.ruleID
         let dedupeKey = DedupeKey(featureGate: gate)
@@ -364,7 +373,6 @@ extension StatsigClient {
         )
     }
 }
-
 
 // MARK: Dynamic Configs
 extension StatsigClient {
@@ -395,13 +403,14 @@ extension StatsigClient {
     private func getConfigImpl(_ configName: String, shouldExpose: Bool) -> DynamicConfig {
         let original = store.getConfig(forName: configName)
 
-        let config = self.statsigOptions.overrideAdapter?.getDynamicConfig(
-            user: currentUser,
-            name: configName,
-            original: original
-        ) ?? original
+        let config =
+            self.statsigOptions.overrideAdapter?.getDynamicConfig(
+                user: currentUser,
+                name: configName,
+                original: original
+            ) ?? original
 
-        if (shouldExpose) {
+        if shouldExpose {
             logConfigExposureForConfig(configName, config: config, isManualExposure: false)
         } else {
             logger.incrementNonExposedCheck(configName)
@@ -438,7 +447,9 @@ extension StatsigClient {
         logConfigExposureForConfig(configName, config: config, isManualExposure: isManualExposure)
     }
 
-    private func logConfigExposureForConfig(_ configName: String, config: DynamicConfig, isManualExposure: Bool) {
+    private func logConfigExposureForConfig(
+        _ configName: String, config: DynamicConfig, isManualExposure: Bool
+    ) {
         let dedupeKey = DedupeKey(dynamicConfig: config)
 
         logger.log(
@@ -454,7 +465,6 @@ extension StatsigClient {
     }
 }
 
-
 // MARK: Experiments
 extension StatsigClient {
     /**
@@ -466,8 +476,11 @@ extension StatsigClient {
 
      SeeAlso [Experiments Documentation](https://docs.statsig.com/experiments-plus)
      */
-    public func getExperiment(_ experimentName: String, keepDeviceValue: Bool = false) -> DynamicConfig {
-        return getExperimentImpl(experimentName, keepDeviceValue: keepDeviceValue, shouldExpose: true)
+    public func getExperiment(_ experimentName: String, keepDeviceValue: Bool = false)
+        -> DynamicConfig
+    {
+        return getExperimentImpl(
+            experimentName, keepDeviceValue: keepDeviceValue, shouldExpose: true)
     }
 
     /**
@@ -479,20 +492,27 @@ extension StatsigClient {
 
      SeeAlso [Experiments Documentation](https://docs.statsig.com/experiments-plus)
      */
-    public func getExperimentWithExposureLoggingDisabled(_ experimentName: String, keepDeviceValue: Bool = false) -> DynamicConfig {
-        return getExperimentImpl(experimentName, keepDeviceValue: keepDeviceValue, shouldExpose: false)
+    public func getExperimentWithExposureLoggingDisabled(
+        _ experimentName: String, keepDeviceValue: Bool = false
+    ) -> DynamicConfig {
+        return getExperimentImpl(
+            experimentName, keepDeviceValue: keepDeviceValue, shouldExpose: false)
     }
 
-    private func getExperimentImpl(_ experimentName: String, keepDeviceValue: Bool, shouldExpose: Bool) -> DynamicConfig {
-        let original = store.getExperiment(forName: experimentName, keepDeviceValue: keepDeviceValue)
+    private func getExperimentImpl(
+        _ experimentName: String, keepDeviceValue: Bool, shouldExpose: Bool
+    ) -> DynamicConfig {
+        let original = store.getExperiment(
+            forName: experimentName, keepDeviceValue: keepDeviceValue)
 
-        let experiment = self.statsigOptions.overrideAdapter?.getExperiment(
-            user: currentUser,
-            name: experimentName,
-            original: original
-        ) ?? original
+        let experiment =
+            self.statsigOptions.overrideAdapter?.getExperiment(
+                user: currentUser,
+                name: experimentName,
+                original: original
+            ) ?? original
 
-        if (shouldExpose) {
+        if shouldExpose {
             logConfigExposureForConfig(experimentName, config: experiment, isManualExposure: false)
         } else {
             logger.incrementNonExposedCheck(experimentName)
@@ -509,17 +529,23 @@ extension StatsigClient {
      Parameters:
      - experimentName: The name of the experiment setup on console.statsig.com
      */
-    public func manuallyLogExperimentExposure(_ experimentName: String, keepDeviceValue: Bool = false) {
+    public func manuallyLogExperimentExposure(
+        _ experimentName: String, keepDeviceValue: Bool = false
+    ) {
         logExperimentExposure(experimentName, keepDeviceValue: keepDeviceValue)
     }
 
-    private func logExperimentExposure(_ experimentName: String, keepDeviceValue: Bool, experiment: DynamicConfig? = nil) {
+    private func logExperimentExposure(
+        _ experimentName: String, keepDeviceValue: Bool, experiment: DynamicConfig? = nil
+    ) {
         let isManualExposure = experiment == nil
-        let experiment = experiment ?? store.getExperiment(forName: experimentName, keepDeviceValue: keepDeviceValue)
-        logConfigExposureForConfig(experimentName, config: experiment, isManualExposure: isManualExposure)
+        let experiment =
+            experiment
+            ?? store.getExperiment(forName: experimentName, keepDeviceValue: keepDeviceValue)
+        logConfigExposureForConfig(
+            experimentName, config: experiment, isManualExposure: isManualExposure)
     }
 }
-
 
 // MARK: Layers
 extension StatsigClient {
@@ -545,22 +571,28 @@ extension StatsigClient {
 
      SeeAlso [Layers Documentation](https://docs.statsig.com/layers)
      */
-    public func getLayerWithExposureLoggingDisabled(_ layerName: String, keepDeviceValue: Bool = false) -> Layer {
+    public func getLayerWithExposureLoggingDisabled(
+        _ layerName: String, keepDeviceValue: Bool = false
+    ) -> Layer {
         return getLayerImpl(layerName, keepDeviceValue: keepDeviceValue, shouldExpose: false)
     }
 
-    private func getLayerImpl(_ layerName: String, keepDeviceValue: Bool, shouldExpose: Bool) -> Layer {
-        if (!shouldExpose) {
+    private func getLayerImpl(_ layerName: String, keepDeviceValue: Bool, shouldExpose: Bool)
+        -> Layer
+    {
+        if !shouldExpose {
             logger.incrementNonExposedCheck(layerName)
         }
-        let original = store.getLayer(client: shouldExpose ? self : nil, forName: layerName, keepDeviceValue: keepDeviceValue)
+        let original = store.getLayer(
+            client: shouldExpose ? self : nil, forName: layerName, keepDeviceValue: keepDeviceValue)
 
-        let layer = self.statsigOptions.overrideAdapter?.getLayer(
-            client: shouldExpose ? self : nil,
-            user: currentUser,
-            name: layerName,
-            original: original
-        ) ?? original
+        let layer =
+            self.statsigOptions.overrideAdapter?.getLayer(
+                client: shouldExpose ? self : nil,
+                user: currentUser,
+                name: layerName,
+                original: original
+            ) ?? original
         if let cb = statsigOptions.evaluationCallback {
             cb(.layer(layer))
         }
@@ -574,12 +606,17 @@ extension StatsigClient {
      - layerName: The name of the layer setup on console.statsig.com
      - parameterName: The name of the parameter that was checked.
      */
-    public func manuallyLogLayerParameterExposure(_ layerName: String, _ parameterName: String, keepDeviceValue: Bool = false) {
+    public func manuallyLogLayerParameterExposure(
+        _ layerName: String, _ parameterName: String, keepDeviceValue: Bool = false
+    ) {
         let layer = getLayer(layerName, keepDeviceValue: keepDeviceValue)
-        logLayerParameterExposureForLayer(layer, parameterName: parameterName, isManualExposure: true)
+        logLayerParameterExposureForLayer(
+            layer, parameterName: parameterName, isManualExposure: true)
     }
 
-    internal func logLayerParameterExposureForLayer(_ layer: Layer, parameterName: String, isManualExposure: Bool) {
+    internal func logLayerParameterExposureForLayer(
+        _ layer: Layer, parameterName: String, isManualExposure: Bool
+    ) {
         var exposures = layer.undelegatedSecondaryExposures
         var allocatedExperiment = ""
         let isExplicit = layer.explicitParameters.contains(parameterName)
@@ -589,8 +626,8 @@ extension StatsigClient {
         }
 
         let dedupeKey = DedupeKey(
-            layer: layer, 
-            parameterName: parameterName, 
+            layer: layer,
+            parameterName: parameterName,
             isExplicit: isExplicit
         )
 
@@ -617,33 +654,34 @@ extension StatsigClient {
     public func getParameterStore(_ storeName: String) -> ParameterStore {
         return getParameterStoreImpl(storeName, shouldExpose: true)
     }
-    
-    public func getParameterStoreWithExposureLoggingDisabled(_ storeName: String) -> ParameterStore {
+
+    public func getParameterStoreWithExposureLoggingDisabled(_ storeName: String) -> ParameterStore
+    {
         return getParameterStoreImpl(storeName, shouldExpose: false)
     }
-    
+
     private func getParameterStoreImpl(_ storeName: String, shouldExpose: Bool) -> ParameterStore {
         logger.incrementNonExposedCheck(storeName)
 
         let original = store.getParamStore(client: self, forName: storeName)
 
-        var store = self.statsigOptions.overrideAdapter?.getParameterStore(
-            client: self,
-            name: storeName,
-            original: original
-        ) ?? original
+        var store =
+            self.statsigOptions.overrideAdapter?.getParameterStore(
+                client: self,
+                name: storeName,
+                original: original
+            ) ?? original
 
         store.shouldExpose = shouldExpose
-        
+
         if let cb = statsigOptions.evaluationCallback {
             cb(.parameterStore(store))
         }
-        
+
         return store
     }
-    
-}
 
+}
 
 // MARK: Log Event
 extension StatsigClient {
@@ -682,8 +720,9 @@ extension StatsigClient {
         logEventImpl(withName, value: value, metadata: metadata)
     }
 
-
-    private func logEventImpl(_ withName: String, value: Any? = nil, metadata: [String: String]? = nil) {
+    private func logEventImpl(
+        _ withName: String, value: Any? = nil, metadata: [String: String]? = nil
+    ) {
         var eventName = withName
 
         if eventName.isEmpty {
@@ -691,11 +730,13 @@ extension StatsigClient {
             return
         }
         if !self.statsigOptions.disableEventNameTrimming && eventName.count > maxEventNameLength {
-            PrintHandler.log("[Statsig]: Event name is too long. Trimming to \(maxEventNameLength).")
+            PrintHandler.log(
+                "[Statsig]: Event name is too long. Trimming to \(maxEventNameLength).")
             eventName = String(eventName.prefix(maxEventNameLength))
         }
         if let metadata = metadata, !JSONSerialization.isValidJSONObject(metadata) {
-            PrintHandler.log("[Statsig]: metadata is not a valid JSON object. Event is logged without metadata.")
+            PrintHandler.log(
+                "[Statsig]: metadata is not a valid JSON object. Event is logged without metadata.")
             logger.log(
                 Event(
                     user: currentUser,
@@ -789,7 +830,6 @@ extension StatsigClient {
     }
 }
 
-
 // MARK: Debug View
 extension StatsigClient {
     /**
@@ -798,7 +838,8 @@ extension StatsigClient {
     public func openDebugView(_ callback: DebuggerCallback? = nil) {
         ensureMainThread { [weak self] in
             if let self = self {
-                StatsigDebugViewController.show(self.sdkKey, self.getDebugViewControllerState(), callback)
+                StatsigDebugViewController.show(
+                    self.sdkKey, self.getDebugViewControllerState(), callback)
             }
         }
     }
@@ -806,8 +847,11 @@ extension StatsigClient {
     /**
      Creates a view controller with the current internal state of the SDK.
      */
-    public func createDebugViewController(_ callback: DebuggerCallback? = nil) -> StatsigDebugViewController? {
-        return StatsigDebugViewController(sdkKey: self.sdkKey, state: self.getDebugViewControllerState(), callback: callback)
+    public func createDebugViewController(_ callback: DebuggerCallback? = nil)
+        -> StatsigDebugViewController?
+    {
+        return StatsigDebugViewController(
+            sdkKey: self.sdkKey, state: self.getDebugViewControllerState(), callback: callback)
     }
 
     private func getDebugViewControllerState() -> [String: Any?] {
@@ -818,11 +862,10 @@ extension StatsigClient {
             "gates": cache.gates,
             "configs": cache.configs,
             "layers": cache.layers,
-            "evalReason": reason
+            "evalReason": reason,
         ]
     }
 }
-
 
 // MARK: Misc Private
 extension StatsigClient {
@@ -849,11 +892,12 @@ extension StatsigClient {
         ) { [weak self] error in
             if let self = self {
                 if let error = error {
-                    self.logger.log(Event.statsigInternalEvent(
-                        user: user,
-                        name: "fetch_values_failed",
-                        value: nil,
-                        metadata: ["error": error.message]))
+                    self.logger.log(
+                        Event.statsigInternalEvent(
+                            user: user,
+                            name: "fetch_values_failed",
+                            value: nil,
+                            metadata: ["error": error.message]))
                 }
             }
 
@@ -868,8 +912,8 @@ extension StatsigClient {
             timeInterval: self.statsigOptions.autoValueUpdateIntervalSec,
             repeats: true,
             block: { [weak self] _ in
-            self?.syncValuesForCurrentUser()
-        })
+                self?.syncValuesForCurrentUser()
+            })
         syncTimer = timer
         RunLoop.current.add(timer, forMode: .common)
     }
@@ -881,12 +925,14 @@ extension StatsigClient {
             for: currentUser,
             lastSyncTimeForUser: initValues.lastUpdateTime,
             previousDerivedFields: initValues.previousDerivedFields,
-            fullChecksum: initValues.fullChecksum) { [weak self] error in
-                self?.notifyOnUserUpdatedListeners(error)
-            }
+            fullChecksum: initValues.fullChecksum
+        ) { [weak self] error in
+            self?.notifyOnUserUpdatedListeners(error)
+        }
     }
 
-    private static func normalizeUser(_ user: StatsigUser?, options: StatsigOptions?) -> StatsigUser {
+    private static func normalizeUser(_ user: StatsigUser?, options: StatsigOptions?) -> StatsigUser
+    {
         var normalized = user ?? StatsigUser()
         if let validationCallback = options?.userValidationCallback {
             normalized = validationCallback(normalized)
@@ -898,27 +944,29 @@ extension StatsigClient {
         return normalized
     }
 
-    private func updateUserImpl(_ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil) {
+    private func updateUserImpl(
+        _ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil
+    ) {
         let normalizedUser = StatsigClient.normalizeUser(user, options: statsigOptions)
         currentUser = normalizedUser
         store.updateUser(currentUser, values: values)
         logger.user = currentUser
-        
+
         if values != nil {
             completion?(nil)
             return
         }
-        
+
         ensureMainThread { [weak self] in
             self?.fetchValuesFromNetwork(user: normalizedUser) { [weak self, completion] error in
                 guard let self = self else {
                     return
                 }
-                
+
                 if self.statsigOptions.enableAutoValueUpdate {
                     self.scheduleRepeatingSync()
                 }
-                
+
                 self.notifyOnUserUpdatedListeners(error)
                 completion?(error)
             }
@@ -957,14 +1005,16 @@ extension StatsigClient {
      - completion: A callback block called when the new values have been received. May be called with an error message string if the fetch fails.
      */
     @available(*, deprecated, message: "Use `StatsigClient.updateUserWithResult` instead")
-    public func updateUser(_ user: StatsigUser, values: [String: Any]? = nil, completion: completionBlock = nil) {
+    public func updateUser(
+        _ user: StatsigUser, values: [String: Any]? = nil, completion: completionBlock = nil
+    ) {
         self.logger.clearExposuresDedupeDict()
 
-        self.updateUserImpl(user, values: values) { error in 
+        self.updateUserImpl(user, values: values) { error in
             completion?(error?.message)
         }
     }
-    
+
     /**
      Manually triggered the refreshing process for the current user
 
@@ -975,7 +1025,7 @@ extension StatsigClient {
     public func refreshCache(_ completion: completionBlock = nil) {
         self.updateUser(self.currentUser, completion: completion)
     }
-    
+
     public func getEvaluationSource() -> EvaluationSource {
         return store.getEvaluationSource()
     }

@@ -1,6 +1,5 @@
 import Foundation
 
-
 /**
  A protocol used to suppress deprecation warnings internally
  */
@@ -17,9 +16,9 @@ import Foundation
  `onInitializedWithResult` - Will be called when the initialize request is returned in `Statsig.initialize()`. A `StatsigClientError` object may be passed to this function if something went wrong with the network request.
 
  `onUserUpdatedWithResult` - Will be called when the network request for `Statsig.updateUserWithResult()` is returned. A `StatsigClientError` object may be passed to this function if something went wrong with the network request.
- 
+
  `onInitialized` (deprecated) - Will be called when the initialize request is returned in `Statsig.initialize()`. An error string may be passed to this function if something went wrong with the network request.
- 
+
  `onUserUpdated` (deprecated) - Will be called when the network request for `Statsig.updateUserWithResult()` is returned. An error string may be passed to this function if something went wrong with the network request.
 
  */

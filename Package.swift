@@ -8,14 +8,16 @@ let package = Package(
     products: [
         .library(
             name: "Statsig",
-            targets: ["Statsig"]),
+            targets: ["Statsig"])
     ],
     dependencies: [
-        .package(url: "https://github.com/AliSoftware/OHHTTPStubs.git", .upToNextMajor(from: "9.1.0")),
+        .package(
+            url: "https://github.com/AliSoftware/OHHTTPStubs.git", .upToNextMajor(from: "9.1.0")),
         .package(url: "https://github.com/Quick/Nimble.git", .upToNextMajor(from: "10.0.0")),
         .package(url: "https://github.com/Quick/Quick.git", .upToNextMajor(from: "5.0.0")),
         .package(url: "https://github.com/erikdoe/ocmock", .branch("master")),
-        .package(name: "Gzip", url: "https://github.com/1024jp/GzipSwift", .upToNextMajor(from: "5.1.1")),
+        .package(
+            name: "Gzip", url: "https://github.com/1024jp/GzipSwift", .upToNextMajor(from: "5.1.1")),
     ],
     targets: [
         .target(
@@ -25,11 +27,14 @@ let package = Package(
         ),
         .testTarget(
             name: "StatsigTests",
-            dependencies: ["Statsig", "Quick", "Nimble", "OHHTTPStubs", "Gzip", .product(name: "OHHTTPStubsSwift", package: "OHHTTPStubs")]
+            dependencies: [
+                "Statsig", "Quick", "Nimble", "OHHTTPStubs", "Gzip",
+                .product(name: "OHHTTPStubsSwift", package: "OHHTTPStubs"),
+            ]
         ),
         .testTarget(
             name: "StatsigObjcTests",
-            dependencies: [.target(name: "Statsig"),.product(name: "OCMock", package: "ocmock")],
+            dependencies: [.target(name: "Statsig"), .product(name: "OCMock", package: "ocmock")],
             resources: [.process("Resources")]
         ),
     ],

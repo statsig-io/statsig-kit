@@ -1,12 +1,13 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
 
 class NotAwaitingInitCallsSpec: BaseSpec {
     override func spec() {
@@ -16,27 +17,32 @@ class NotAwaitingInitCallsSpec: BaseSpec {
         let userA = StatsigUser(userID: "user-a", customIDs: ["workID": "employee-a"])
         let userB = StatsigUser(userID: "user-b", customIDs: ["workID": "employee-b"])
 
-
         describe("Not Awaiting Init Calls") {
 
             beforeEach {
-                NetworkService.defaultInitializationURL = URL(string: "http://NotAwaitingInitCallsSpec/v1/initialize")
+                NetworkService.defaultInitializationURL = URL(
+                    string: "http://NotAwaitingInitCallsSpec/v1/initialize")
 
                 TestUtils.clearStorage()
 
                 stub(condition: isHost("NotAwaitingInitCallsSpec")) { req in
-                    if ((req.url?.absoluteString.contains("/initialize") ?? false) == false) {
+                    if (req.url?.absoluteString.contains("/initialize") ?? false) == false {
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
 
                     let body = TestUtils.getBody(fromRequest: req)
                     let userId = body[jsonDict: "user"]?["userID"] as? String
-                    if (userId == "user-a") {
-                        return HTTPStubsResponse(jsonObject: TestUtils.makeInitializeResponse("user_a_value"), statusCode: 200, headers: nil)
+                    if userId == "user-a" {
+                        return HTTPStubsResponse(
+                            jsonObject: TestUtils.makeInitializeResponse("user_a_value"),
+                            statusCode: 200, headers: nil)
                     }
 
-                    if (userId == "user-b") {
-                        return HTTPStubsResponse(jsonObject: TestUtils.makeInitializeResponse("user_b_value"), statusCode: 200, headers: nil).responseTime(0.1)
+                    if userId == "user-b" {
+                        return HTTPStubsResponse(
+                            jsonObject: TestUtils.makeInitializeResponse("user_b_value"),
+                            statusCode: 200, headers: nil
+                        ).responseTime(0.1)
                     }
 
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 500, headers: nil)

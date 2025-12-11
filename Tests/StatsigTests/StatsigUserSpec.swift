@@ -1,12 +1,13 @@
 import Foundation
 import Nimble
 import Quick
+
 @testable import Statsig
 
 class StatsigUserSpec: BaseSpec {
     override func spec() {
         super.spec()
-        
+
         let validJSONObject: [String: StatsigUserCustomTypeConvertible] =
             ["company": "Statsig", "YOE": 10.5, "alias": ["abby", "bob", "charlie"]]
 
@@ -22,10 +23,10 @@ class StatsigUserSpec: BaseSpec {
                 expect(validEmptyUser.deviceEnvironment).toNot(beNil())
                 expect(validEmptyUser.customIDs).to(beNil())
             }
-            
+
             it("only return sdk related medatada if opt out non sdk metadata") {
                 let validUserOptOutNonSdkMetadata = StatsigUser(optOutNonSdkMetadata: true)
-                
+
                 let deviceEnvironment = validUserOptOutNonSdkMetadata.deviceEnvironment
                 expect(deviceEnvironment[StatsigMetadata.SDK_VERSION_KEY]).toNot(beNil())
                 expect(deviceEnvironment[StatsigMetadata.SDK_TYPE_KEY]) == "ios-client"
@@ -55,7 +56,8 @@ class StatsigUserSpec: BaseSpec {
             }
 
             it("drops private attributes for logging") {
-                let userWithPrivateAttributes = StatsigUser(userID: "12345", privateAttributes: validJSONObject)
+                let userWithPrivateAttributes = StatsigUser(
+                    userID: "12345", privateAttributes: validJSONObject)
                 let user = StatsigUser(userID: "12345")
 
                 let userWithPrivateDict = userWithPrivateAttributes.toDictionary(forLogging: true)
@@ -66,7 +68,8 @@ class StatsigUserSpec: BaseSpec {
             it("keeps customIDs in the json") {
                 let user = StatsigUser(userID: "12345", customIDs: ["company_id": "998877"])
                 let json = user.toDictionary(forLogging: false)
-                expect(NSDictionary(dictionary: json["customIDs"] as! [String: String])).to(equal(NSDictionary(dictionary: ["company_id": "998877"])))
+                expect(NSDictionary(dictionary: json["customIDs"] as! [String: String])).to(
+                    equal(NSDictionary(dictionary: ["company_id": "998877"])))
             }
         }
     }

@@ -1,12 +1,13 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
 
 class StatsigOptionsSpec: BaseSpec {
     override func spec() {
@@ -16,16 +17,15 @@ class StatsigOptionsSpec: BaseSpec {
             it("can be constructed via the constructor") {
                 let opts = StatsigOptions(
                     initTimeout: 1.23,
-                    disableCurrentVCLogging:  true,
-                    environment:  StatsigEnvironment(tier: "test"),
-                    enableAutoValueUpdate:  true,
-                    overrideStableID:  "an-override-id",
-                    enableCacheByFile:  true,
-                    initializeValues:  ["foo": 1],
-                    disableDiagnostics:  true,
-                    disableHashing:  true
+                    disableCurrentVCLogging: true,
+                    environment: StatsigEnvironment(tier: "test"),
+                    enableAutoValueUpdate: true,
+                    overrideStableID: "an-override-id",
+                    enableCacheByFile: true,
+                    initializeValues: ["foo": 1],
+                    disableDiagnostics: true,
+                    disableHashing: true
                 )
-
 
                 expect(opts.initTimeout).to(equal(1.23))
                 expect(opts.disableCurrentVCLogging).to(beTrue())
@@ -44,13 +44,12 @@ class StatsigOptionsSpec: BaseSpec {
                 opts.initTimeout = 1.23
                 opts.disableCurrentVCLogging = true
                 opts.environment = ["tier": "test"]
-                opts.enableAutoValueUpdate =  true
+                opts.enableAutoValueUpdate = true
                 opts.overrideStableID = "an-override-id"
-                opts.enableCacheByFile =  true
-                opts.initializeValues =  ["foo": 1]
-                opts.disableDiagnostics =  true
-                opts.disableHashing =  true
-
+                opts.enableCacheByFile = true
+                opts.initializeValues = ["foo": 1]
+                opts.disableDiagnostics = true
+                opts.disableHashing = true
 
                 expect(opts.initTimeout).to(equal(1.23))
                 expect(opts.disableCurrentVCLogging).to(beTrue())
@@ -89,10 +88,12 @@ class StatsigOptionsSpec: BaseSpec {
                     userValidationCallback: { $0 },
                     customCacheKey: { (_, _) in "cache_key" },
                     storageProvider: MockStorageProvider(),
-                    urlSession: URLSession.init(configuration: .background(withIdentifier: "ErrorBoundarySpec")),
+                    urlSession: URLSession.init(
+                        configuration: .background(withIdentifier: "ErrorBoundarySpec")),
                     disableEventNameTrimming: true,
                     overrideAdapter: OnDeviceEvalAdapter(
-                        stringPayload: "{\"feature_gates\":[],\"dynamic_configs\":[],\"layer_configs\":[],\"time\":0}"
+                        stringPayload:
+                            "{\"feature_gates\":[],\"dynamic_configs\":[],\"layer_configs\":[],\"time\":0}"
                     )
                 )
 
@@ -120,15 +121,16 @@ class StatsigOptionsSpec: BaseSpec {
                         "getDictionaryForLogging",
                         "api",
                         "eventLoggingApi",
-                        "printHandler"
+                        "printHandler",
                     ]
 
                     let dict = options.getDictionaryForLogging()
 
                     let mirror = Mirror(reflecting: options)
-                    let mirrorKeys = Set(mirror.children
-                        .compactMap { $0.label?.replacingPrefix("_") }
-                        .filter { !ignoredKeys.contains($0) })
+                    let mirrorKeys = Set(
+                        mirror.children
+                            .compactMap { $0.label?.replacingPrefix("_") }
+                            .filter { !ignoredKeys.contains($0) })
                     let dictKeys = Set(dict.keys)
                     expect(dictKeys).to(equal(mirrorKeys))
                 }
@@ -137,9 +139,9 @@ class StatsigOptionsSpec: BaseSpec {
     }
 }
 
-fileprivate extension String {
-    func replacingPrefix(_ prefix: String) -> String {
-        if (self.starts(with: prefix)) {
+extension String {
+    fileprivate func replacingPrefix(_ prefix: String) -> String {
+        if self.starts(with: prefix) {
             return String(self.dropFirst(prefix.count))
         }
         return self

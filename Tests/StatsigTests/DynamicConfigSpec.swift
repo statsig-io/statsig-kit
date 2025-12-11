@@ -1,7 +1,8 @@
 import Nimble
 import Quick
-@testable import Statsig
 import XCTest
+
+@testable import Statsig
 
 class DynamicConfigSpec: BaseSpec {
     static let TestMixedConfig: [String: Any] =
@@ -17,24 +18,29 @@ class DynamicConfigSpec: BaseSpec {
                     "strArray": ["1", "2"],
                     "mixedArray": [1, "2"],
                     "dict": ["key": "value"],
-                    "mixedDict": ["keyStr": "string", "keyInt": 2, "keyArr": [1, 2], "keyDouble": 1.23, "keyDict": ["k": "v"]],
+                    "mixedDict": [
+                        "keyStr": "string", "keyInt": 2, "keyArr": [1, 2], "keyDouble": 1.23,
+                        "keyDict": ["k": "v"],
+                    ],
                 ],
             "is_experiment_active": true,
             "is_user_in_experiment": true,
         ]
     override func spec() {
         super.spec()
-        
+
         describe("dummy config works as expected") {
             it("only returns the default values") {
                 let dc = DynamicConfig(configName: "dummy", evalDetails: .init(source: .Network))
-                
+
                 expect(dc.getValue(forKey: "str", defaultValue: "1")) == "1"
                 expect(dc.getValue(forKey: "bool", defaultValue: true)) == true
                 expect(dc.getValue(forKey: "double", defaultValue: 1.1)) == 1.1
                 expect(dc.getValue(forKey: "int", defaultValue: 3)) == 3
                 expect(dc.getValue(forKey: "strArray", defaultValue: ["1", "2"])) == ["1", "2"]
-                expect(dc.getValue(forKey: "dict", defaultValue: ["key": "value"])) == ["key": "value"]
+                expect(dc.getValue(forKey: "dict", defaultValue: ["key": "value"])) == [
+                    "key": "value"
+                ]
                 expect(dc.evaluationDetails.source).to(equal(.Network))
             }
         }
@@ -97,7 +103,9 @@ class DynamicConfigSpec: BaseSpec {
 
                 expect(dc.getValue(forKey: "dict", defaultValue: ["key": 3])) == ["key": 3]
 
-                expect(dc.getValue(forKey: "mixedDict", defaultValue: ["key": "value"])) == ["key": "value"]
+                expect(dc.getValue(forKey: "mixedDict", defaultValue: ["key": "value"])) == [
+                    "key": "value"
+                ]
             }
 
             it("returns the default value for non-existent key") {
@@ -107,7 +115,9 @@ class DynamicConfigSpec: BaseSpec {
                 expect(dc.getValue(forKey: "wrong_key", defaultValue: 1.23)) == 1.23
                 expect(dc.getValue(forKey: "wrong_key", defaultValue: [1, 2, 3])) == [1, 2, 3]
                 expect(dc.getValue(forKey: "wrong_key", defaultValue: ["key": 3])) == ["key": 3]
-                expect(dc.getValue(forKey: "wrong_key", defaultValue: ["key": "value"])) == ["key": "value"]
+                expect(dc.getValue(forKey: "wrong_key", defaultValue: ["key": "value"])) == [
+                    "key": "value"
+                ]
             }
         }
 
@@ -149,7 +159,7 @@ class DynamicConfigSpec: BaseSpec {
                 let b = dc.getValue(forKey: "wrong_key") as String?
                 expect(b) == nil
             }
-            
+
             it("returns nil when the config doesn't exist") {
                 let dummy = DynamicConfig(configName: "dummy", evalDetails: .init(source: .Network))
 
@@ -179,7 +189,8 @@ class DynamicConfigSpec: BaseSpec {
                 expect(dict?.count) == 1
                 expect(dict?["key"]) == "value"
 
-                let mixedDict: [String: any StatsigDynamicConfigValue]?  = dc.getValue(forKey: "mixedDict")
+                let mixedDict: [String: any StatsigDynamicConfigValue]? = dc.getValue(
+                    forKey: "mixedDict")
                 expect(mixedDict?.count) == 5
                 expect(mixedDict?["keyStr"] as? String) == "string"
                 expect(mixedDict?["keyInt"] as? Int) == 2

@@ -1,6 +1,5 @@
 import Foundation
 
-
 class Event {
     let name: String
     let value: Any?
@@ -53,7 +52,7 @@ class Event {
         value: Any? = nil,
         metadata: [String: Any]? = nil,
         secondaryExposures: [[String: String]]? = nil,
-        disableCurrentVCLogging: Bool = true // for internal events, default to not log the VC, other than for exposures
+        disableCurrentVCLogging: Bool = true  // for internal events, default to not log the VC, other than for exposures
     ) -> Event {
         return Event(
             user: user,
@@ -78,9 +77,9 @@ class Event {
         var metadata: [String: Any] = [
             "gate": gateName,
             "gateValue": String(gateValue),
-            "ruleID": ruleID
+            "ruleID": ruleID,
         ]
-        
+
         if let bootstrapMetadata = bootstrapMetadata {
             metadata["bootstrapMetadata"] = bootstrapMetadata.toDictionary()
         }
@@ -104,20 +103,20 @@ class Event {
         bootstrapMetadata: BootstrapMetadata?,
         disableCurrentVCLogging: Bool
     ) -> Event {
-        let ruleID = config.ruleID;
-        let secondaryExposures = config.secondaryExposures;
-        let evalDetails = config.evaluationDetails;
+        let ruleID = config.ruleID
+        let secondaryExposures = config.secondaryExposures
+        let evalDetails = config.evaluationDetails
 
         var metadata: [String: Any] = [
             "config": configName,
             "ruleID": ruleID,
         ]
-        
+
         if let bootstrapMetadata = bootstrapMetadata {
             metadata["bootstrapMetadata"] = bootstrapMetadata.toDictionary()
         }
 
-        metadata["rulePassed"] = config.didPassRule ? "true" : "false";
+        metadata["rulePassed"] = config.didPassRule ? "true" : "false"
 
         evalDetails.addToDictionary(&metadata)
 
@@ -143,14 +142,14 @@ class Event {
         evalDetails: EvaluationDetails,
         bootstrapMetadata: BootstrapMetadata?
     ) -> Event {
-        var metadata: [String : Any] = [
+        var metadata: [String: Any] = [
             "config": configName,
             "ruleID": ruleID,
             "allocatedExperiment": allocatedExperimentName,
             "parameterName": parameterName,
-            "isExplicitParameter": "\(isExplicitParameter)"
+            "isExplicitParameter": "\(isExplicitParameter)",
         ]
-        
+
         if let bootstrapMetadata = bootstrapMetadata {
             metadata["bootstrapMetadata"] = bootstrapMetadata.toDictionary()
         }
@@ -186,5 +185,3 @@ class Event {
         ].compactMapValues { $0 }
     }
 }
-
-

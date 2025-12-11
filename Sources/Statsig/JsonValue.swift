@@ -16,13 +16,14 @@ public enum JsonValue: Decodable, Equatable {
         }
 
         else if let value = value as? [Any] {
-            self = .array(value.map{ v in
-                guard let jv = JsonValue(v) else {
-                    PrintHandler.log("[Statsig] Failed to convert value to JsonValue \(v)")
-                    return .null
-                }
-                return jv
-            })
+            self = .array(
+                value.map { v in
+                    guard let jv = JsonValue(v) else {
+                        PrintHandler.log("[Statsig] Failed to convert value to JsonValue \(v)")
+                        return .null
+                    }
+                    return jv
+                })
         }
 
         else if let value = value as? String {
@@ -46,14 +47,17 @@ public enum JsonValue: Decodable, Equatable {
         }
 
         else if let value = value as? [String: Any?],
-            JSONSerialization.isValidJSONObject(value) {
-            self = .dictionary(value.mapValues { (v: Any?) -> JsonValue in
-                guard let jv = JsonValue(v) else {
-                    PrintHandler.log("[Statsig] Failed to convert value to JsonValue \(v.debugDescription)")
-                    return .null
-                }
-                return jv
-            })
+            JSONSerialization.isValidJSONObject(value)
+        {
+            self = .dictionary(
+                value.mapValues { (v: Any?) -> JsonValue in
+                    guard let jv = JsonValue(v) else {
+                        PrintHandler.log(
+                            "[Statsig] Failed to convert value to JsonValue \(v.debugDescription)")
+                        return .null
+                    }
+                    return jv
+                })
         }
 
         else {
@@ -146,16 +150,17 @@ extension JsonValue {
         }
 
         let encoder = JSONEncoder()
-        
+
         guard let data = try? encoder.encode(dictionary) else {
             return nil
         }
 
-        let json = try? JSONSerialization.jsonObject(
-            with: data,
-            options: []
-        ) as? [String: Any]
-        
+        let json =
+            try? JSONSerialization.jsonObject(
+                with: data,
+                options: []
+            ) as? [String: Any]
+
         return SerializedDictionaryResult(dictionary: json, raw: data)
     }
 
@@ -198,7 +203,7 @@ extension JsonValue {
 
         case .double(let value):
             return value
-            
+
         case .string(let value):
             return Double(value)
 

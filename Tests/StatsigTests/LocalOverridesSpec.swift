@@ -1,8 +1,8 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -14,7 +14,7 @@ typealias Map = [String: AnyHashable]
 class LocalOverridesSpec: BaseSpec {
     override func spec() {
         super.spec()
-        
+
         describe("LocalOverrides") {
             beforeEach {
                 TestUtils.clearStorage()
@@ -23,7 +23,7 @@ class LocalOverridesSpec: BaseSpec {
                     "feature_gates": [],
                     "dynamic_configs": [],
                     "layer_configs": [],
-                    "has_updates": true
+                    "has_updates": true,
                 ])
             }
 
@@ -45,16 +45,18 @@ class LocalOverridesSpec: BaseSpec {
                 }
             }
 
-            describe("config overrides")  {
+            describe("config overrides") {
                 it("returns overridden config values") {
                     Statsig.overrideConfig("overridden_config", value: ["key": "value"])
-                    expect(Statsig.getConfig("overridden_config").value as? Map).to(equal(["key": "value"] as Map))
+                    expect(Statsig.getConfig("overridden_config").value as? Map).to(
+                        equal(["key": "value"] as Map))
                 }
 
                 it("clears overridden config values") {
                     Statsig.overrideConfig("overridden_config", value: ["key": "value"])
                     Statsig.removeOverride("overridden_config")
-                    expect(Statsig.getConfig("overridden_config").value as? Map).to(equal([:] as? Map))
+                    expect(Statsig.getConfig("overridden_config").value as? Map).to(
+                        equal([:] as? Map))
                 }
             }
 
@@ -70,21 +72,26 @@ class LocalOverridesSpec: BaseSpec {
                     Statsig.removeOverride("overridden_layer")
 
                     let layer = Statsig.getLayer("overridden_layer")
-                    expect(layer.getValue(forKey: "key", defaultValue: "default")).to(equal("default"))
+                    expect(layer.getValue(forKey: "key", defaultValue: "default")).to(
+                        equal("default"))
                 }
             }
 
-            describe("parameter store overrides")  {
+            describe("parameter store overrides") {
                 it("returns overridden parameter store values") {
                     Statsig.overrideParamStore("overridden_param_store", value: ["key": "value"])
                     let store = Statsig.getParameterStore("overridden_param_store")
-                    expect(store.getValue(forKey: "key", defaultValue: "default")).to(equal("value"))
+                    expect(store.getValue(forKey: "key", defaultValue: "default")).to(
+                        equal("value"))
                 }
 
                 it("clears overridden parameter store values") {
                     Statsig.overrideParamStore("overridden_param_store", value: ["key": "value"])
                     Statsig.removeOverride("overridden_param_store")
-                    expect(Statsig.getParameterStore("overridden_param_store").getValue(forKey: "key", defaultValue: "default")).to(equal("default"))
+                    expect(
+                        Statsig.getParameterStore("overridden_param_store").getValue(
+                            forKey: "key", defaultValue: "default")
+                    ).to(equal("default"))
                 }
             }
 
@@ -97,9 +104,11 @@ class LocalOverridesSpec: BaseSpec {
                     Statsig.removeAllOverrides()
 
                     expect(Statsig.checkGate("overridden_gate")).to(beFalse())
-                    expect(Statsig.getConfig("overridden_config").value as? Map).to(equal([:] as? Map))
+                    expect(Statsig.getConfig("overridden_config").value as? Map).to(
+                        equal([:] as? Map))
                     let layer = Statsig.getLayer("overridden_layer")
-                    expect(layer.getValue(forKey: "key", defaultValue: "default")).to(equal("default"))
+                    expect(layer.getValue(forKey: "key", defaultValue: "default")).to(
+                        equal("default"))
                 }
             }
         }

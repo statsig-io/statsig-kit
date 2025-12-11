@@ -1,8 +1,8 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -18,12 +18,12 @@ class InitializeSinceTimeSpec: BaseSpec {
         ],
         "dynamic_configs": [
             "a_config".sha256(): [
-                "value": ["a_bool": true],
+                "value": ["a_bool": true]
             ]
         ],
         "layer_configs": [],
         "time": 123,
-        "has_updates": true
+        "has_updates": true,
     ]
 
     private func shutdownStatsig() {
@@ -33,7 +33,7 @@ class InitializeSinceTimeSpec: BaseSpec {
 
     override func spec() {
         super.spec()
-        
+
         describe("InitializeSinceTime") {
             beforeEach {
                 TestUtils.clearStorage()
@@ -70,7 +70,8 @@ class InitializeSinceTimeSpec: BaseSpec {
                 _ = TestUtils.startWithResponseAndWait(self.response)
                 self.shutdownStatsig()
 
-                _ = TestUtils.startWithResponseAndWait(["has_updates": false], "client-api-key", nil, 204)
+                _ = TestUtils.startWithResponseAndWait(
+                    ["has_updates": false], "client-api-key", nil, 204)
                 expect(Statsig.checkGate("a_gate")).to(beTrue())
             }
 
@@ -78,7 +79,8 @@ class InitializeSinceTimeSpec: BaseSpec {
                 _ = TestUtils.startWithResponseAndWait(self.response)
                 self.shutdownStatsig()
 
-                _ = TestUtils.startWithResponseAndWait(["has_updates": false], "client-api-key", nil, 200)
+                _ = TestUtils.startWithResponseAndWait(
+                    ["has_updates": false], "client-api-key", nil, 200)
                 expect(Statsig.checkGate("a_gate")).to(beTrue())
             }
 
@@ -86,9 +88,13 @@ class InitializeSinceTimeSpec: BaseSpec {
                 _ = TestUtils.startWithResponseAndWait(self.response)
                 self.shutdownStatsig()
 
-                let secondResponse = self.response.merging(["feature_gates": ["b_gate".sha256(): [
-                    "value": true
-                ]]]) { $1 }
+                let secondResponse = self.response.merging([
+                    "feature_gates": [
+                        "b_gate".sha256(): [
+                            "value": true
+                        ]
+                    ]
+                ]) { $1 }
                 _ = TestUtils.startWithResponseAndWait(secondResponse)
                 expect(Statsig.checkGate("a_gate")).to(beFalse())
                 expect(Statsig.checkGate("b_gate")).to(beTrue())
@@ -96,23 +102,29 @@ class InitializeSinceTimeSpec: BaseSpec {
 
             it("invalidates the cache key when a user object changes") {
                 let firstUser = StatsigUser(userID: "a-user", email: "a-user@gmail.com")
-                let firstRequest = TestUtils.startWithResponseAndWait(self.response, "client-api-key", firstUser)
+                let firstRequest = TestUtils.startWithResponseAndWait(
+                    self.response, "client-api-key", firstUser)
                 let firstBody = firstRequest?.statsig_body as! [String: AnyHashable]
 
                 let secondUser = StatsigUser(userID: "a-user", email: "a-user@live.com")
-                let secondRequest = TestUtils.startWithResponseAndWait(self.response, "client-api-key", secondUser)
+                let secondRequest = TestUtils.startWithResponseAndWait(
+                    self.response, "client-api-key", secondUser)
                 let secondBody = secondRequest?.statsig_body as! [String: AnyHashable]
 
                 expect(firstBody["sinceTime"]).to(equal(0))
                 expect(secondBody["sinceTime"])
-                    .to(equal(0), description: "Should fail to find a cached sinceTime because the email changed")
+                    .to(
+                        equal(0),
+                        description:
+                            "Should fail to find a cached sinceTime because the email changed")
             }
 
             it("sets the init reason to NetworkNotModified") {
                 _ = TestUtils.startWithResponseAndWait(self.response)
                 self.shutdownStatsig()
 
-                _ = TestUtils.startWithResponseAndWait(["has_updates": false], "client-api-key", nil, 200)
+                _ = TestUtils.startWithResponseAndWait(
+                    ["has_updates": false], "client-api-key", nil, 200)
 
                 let config = Statsig.getConfig("a_config")
                 expect(config.evaluationDetails.reason).to(equal(.Recognized))

@@ -1,14 +1,13 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
 
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
 
 class UserCacheKeyMigrationSpec: BaseSpec {
 
@@ -41,7 +40,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
                             "layer_configs": [:],
                             "time": 123,
                             "has_updates": true,
-                            "hash_used": "none"
+                            "hash_used": "none",
                         ],
                         key,
                         user
@@ -67,14 +66,14 @@ class UserCacheKeyMigrationSpec: BaseSpec {
                                         "value": true,
                                         "rule_id": "a_rule_id",
                                         "id_type": "userID",
-                                        "secondary_exposures": []
+                                        "secondary_exposures": [],
                                     ]
                                 ],
                                 "dynamic_configs": [:],
                                 "layer_configs": [:],
                                 "time": 123,
                                 "has_updates": true,
-                                "hash_used": "none"
+                                "hash_used": "none",
                             ]
                         ]
                     ])
@@ -105,14 +104,14 @@ class UserCacheKeyMigrationSpec: BaseSpec {
                                         "value": true,
                                         "rule_id": "a_rule_id",
                                         "id_type": "userID",
-                                        "secondary_exposures": []
+                                        "secondary_exposures": [],
                                     ]
                                 ],
                                 "dynamic_configs": [:],
                                 "layer_configs": [:],
                                 "time": 123,
                                 "has_updates": true,
-                                "hash_used": "none"
+                                "hash_used": "none",
                             ]
                         ]
                     ])
@@ -121,7 +120,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
 
                     _ = TestUtils.startWithResponseAndWait(["has_updates": false], key, user)
                 }
-                
+
                 it("saves values as full user hash and removes v2") {
                     let keys = defaults.getUserCaches().allKeys as? [String]
                     expect(keys).to(equal([cacheKey.full]))
@@ -143,14 +142,14 @@ class UserCacheKeyMigrationSpec: BaseSpec {
                                         "value": true,
                                         "rule_id": "a_rule_id",
                                         "id_type": "userID",
-                                        "secondary_exposures": []
+                                        "secondary_exposures": [],
                                     ]
                                 ],
                                 "dynamic_configs": [:],
                                 "layer_configs": [:],
                                 "time": 123,
                                 "has_updates": true,
-                                "hash_used": "none"
+                                "hash_used": "none",
                             ]
                         ]
                     ])
@@ -159,7 +158,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
 
                     _ = TestUtils.startWithResponseAndWait(["has_updates": false], key, user)
                 }
-                
+
                 it("saves values as full user hash") {
                     let keys = defaults.getUserCaches().allKeys as? [String]
                     expect(keys).to(equal([cacheKey.full]))

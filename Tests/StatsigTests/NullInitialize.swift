@@ -1,15 +1,14 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+import SwiftUI
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
-import SwiftUI
 
 class NullInitializeSpec: BaseSpec {
     static let mockUserValues: [String: Any] = [
@@ -21,23 +20,24 @@ class NullInitializeSpec: BaseSpec {
                 "value":
                     [
                         "str": "string",
-                        "null": nil
-                    ]
-            ]
+                        "null": nil,
+                    ],
+            ],
         ],
         "layer_configs": [],
-        "has_updates": true
+        "has_updates": true,
     ]
 
     override func spec() {
         super.spec()
-        
+
         describe("Nil and Statsig") {
             beforeEach {
                 TestUtils.clearStorage()
 
                 stub(condition: isHost(ApiHost)) { _ in
-                    HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
+                    HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
                 }
             }
 
@@ -70,7 +70,7 @@ class NullInitializeSpec: BaseSpec {
                     let opts = StatsigOptions(disableDiagnostics: true)
                     Statsig.initialize(sdkKey: "client-api-key", options: opts) { _ in
 
-                        let dict = ["foo": nil] as [String : Any?]
+                        let dict = ["foo": nil] as [String: Any?]
                         Statsig.overrideConfig("config", value: dict as [String: Any])
 
                         Statsig.initialize(sdkKey: "client-api-key") { _ in

@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import Statsig
 
 class SpiedEventLogger: EventLogger {

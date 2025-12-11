@@ -1,18 +1,16 @@
 import Foundation
-
-import UIKit
 import Statsig
 import SwiftUI
+import UIKit
 
 let Examples: [(String, UIViewController)] = [
-    ( "Basic (Swift)", BasicViewController() ),
-    ( "Basic (ObjC)", BasicViewControllerObjC() ),
-    ( "Perf (ObjC)", PerfViewControllerObjC() ),
-    ( "Many Gates (SwiftUI)", ManyGatesSwiftUIViewController() ),
-    ( "Many Updates (Swift)", ManyUpdatesViewController() ),
-    ( "Open Debug View", ShowDebugViewController())
+    ("Basic (Swift)", BasicViewController()),
+    ("Basic (ObjC)", BasicViewControllerObjC()),
+    ("Perf (ObjC)", PerfViewControllerObjC()),
+    ("Many Gates (SwiftUI)", ManyGatesSwiftUIViewController()),
+    ("Many Updates (Swift)", ManyUpdatesViewController()),
+    ("Open Debug View", ShowDebugViewController()),
 ]
-
 
 class ExampleDirectoryEntryCell: UICollectionViewCell {
     let label: UILabel
@@ -61,10 +59,11 @@ extension ExampleDirectoryViewController: UICollectionViewDataSource {
         _ collectionView: UICollectionView,
         cellForItemAt indexPath: IndexPath
     ) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: "Cell",
-            for: indexPath
-        ) as! ExampleDirectoryEntryCell
+        let cell =
+            collectionView.dequeueReusableCell(
+                withReuseIdentifier: "Cell",
+                for: indexPath
+            ) as! ExampleDirectoryEntryCell
 
         let (key, _) = Examples[indexPath.item]
 

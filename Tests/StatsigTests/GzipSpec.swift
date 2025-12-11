@@ -1,15 +1,14 @@
 import Foundation
-
+import Gzip
 import Nimble
 import OHHTTPStubs
 import Quick
-import Gzip
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
 
 class GzipSpec: BaseSpec {
     override func spec() {
@@ -22,7 +21,7 @@ class GzipSpec: BaseSpec {
 
                 guard let data = payload.data(using: .utf8) else {
                     fail("Failed to create data from string")
-                    return;
+                    return
                 }
 
                 // Use internal gzip compression
@@ -39,7 +38,7 @@ class GzipSpec: BaseSpec {
 
             it("compresses multiple chunks") {
 
-                let largeData = Data.random(length: 1024 * 1024) // ~20 chunks
+                let largeData = Data.random(length: 1024 * 1024)  // ~20 chunks
 
                 // Use internal gzip compression
                 let compressedInternal = try gzipped(largeData).get()
@@ -52,12 +51,12 @@ class GzipSpec: BaseSpec {
 
             it("compresses empty data") {
 
-                let empty = Data() // ~20 chunks
+                let empty = Data()  // ~20 chunks
 
                 // Use internal gzip compression
                 let compressedInternal = try gzipped(empty).get()
 
-                expect(compressedInternal.count).to(equal(0));
+                expect(compressedInternal.count).to(equal(0))
 
                 // Use library gunzip decompression
                 let decompressed = try compressedInternal.gunzipped()
@@ -68,12 +67,12 @@ class GzipSpec: BaseSpec {
     }
 }
 
-fileprivate extension Data {
+extension Data {
     /// Returns random data
     ///
     /// - Parameter length: Length of the data in bytes.
     /// - Returns: Generated data of the specified length.
-    static func random(length: Int) -> Data {
-        return Data((0 ..< length).map { _ in UInt8.random(in: UInt8.min ... UInt8.max) })
+    fileprivate static func random(length: Int) -> Data {
+        return Data((0..<length).map { _ in UInt8.random(in: UInt8.min...UInt8.max) })
     }
 }

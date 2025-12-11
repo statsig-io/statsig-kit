@@ -10,7 +10,7 @@ class NetworkMarker: MarkerBase {
     func start(attempt: Int) {
         super.start([
             "step": step,
-            "attempt": attempt
+            "attempt": attempt,
         ])
     }
 
@@ -54,7 +54,7 @@ class NetworkMarker: MarkerBase {
 
         var args = [
             "name": name,
-            "message": message
+            "message": message,
         ]
 
         if let code = code {

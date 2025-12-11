@@ -2,11 +2,11 @@ import Nimble
 import OHHTTPStubs
 import Quick
 
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
 
 class CompletionCallbackRaceSpec: BaseSpec {
     override func spec() {
@@ -20,7 +20,8 @@ class CompletionCallbackRaceSpec: BaseSpec {
         describe("CompletionCallbackRace") {
             beforeEach {
                 stub(condition: isPath("/v1/initialize")) { request in
-                    return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil).responseTime(0.01)
+                    return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                        .responseTime(0.01)
                 }
             }
 
@@ -29,7 +30,8 @@ class CompletionCallbackRaceSpec: BaseSpec {
                     var errorCode: StatsigClientErrorCode?
                     var calls = 0
                     waitUntil { done in
-                        client = StatsigClient(sdkKey: "client-key", user: user, options: opts) { error in
+                        client = StatsigClient(sdkKey: "client-key", user: user, options: opts) {
+                            error in
                             errorCode = error?.code
                             calls += 1
                             done()

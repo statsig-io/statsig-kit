@@ -23,22 +23,32 @@ public final class StatsigObjC: NSObject {
         Statsig.initialize(sdkKey: withSDKKey, completion: completion)
     }
 
-    @objc public static func initialize(withSDKKey: String, user: StatsigUserObjC, completion: ResultCompletionBlock?) {
+    @objc public static func initialize(
+        withSDKKey: String, user: StatsigUserObjC, completion: ResultCompletionBlock?
+    ) {
         Statsig.initialize(sdkKey: withSDKKey, user: user.user, completion: completion)
     }
 
-    @objc public static func initialize(withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC) {
+    @objc public static func initialize(
+        withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC
+    ) {
         Statsig.initialize(sdkKey: withSDKKey, user: user.user, options: options.optionsInternal)
     }
 
-    @objc public static func initialize(withSDKKey: String, options: StatsigOptionsObjC, completion: ResultCompletionBlock?) {
-        Statsig.initialize(sdkKey: withSDKKey, options: options.optionsInternal, completion: completion)
+    @objc public static func initialize(
+        withSDKKey: String, options: StatsigOptionsObjC, completion: ResultCompletionBlock?
+    ) {
+        Statsig.initialize(
+            sdkKey: withSDKKey, options: options.optionsInternal, completion: completion)
     }
 
-    @objc public static func initialize(withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC,
-                                   completion: ResultCompletionBlock?)
-    {
-        Statsig.initialize(sdkKey: withSDKKey, user: user.user, options: options.optionsInternal, completion: completion)
+    @objc public static func initialize(
+        withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC,
+        completion: ResultCompletionBlock?
+    ) {
+        Statsig.initialize(
+            sdkKey: withSDKKey, user: user.user, options: options.optionsInternal,
+            completion: completion)
     }
 
     //
@@ -49,7 +59,9 @@ public final class StatsigObjC: NSObject {
         Statsig.updateUserWithResult(newUser.user, completion: nil)
     }
 
-    @objc public static func updateUserWithResult(newUser: StatsigUserObjC, completion: ResultCompletionBlock?) {
+    @objc public static func updateUserWithResult(
+        newUser: StatsigUserObjC, completion: ResultCompletionBlock?
+    ) {
         Statsig.updateUserWithResult(newUser.user, completion: completion)
     }
 
@@ -85,8 +97,11 @@ public final class StatsigObjC: NSObject {
         return Statsig.checkGateWithExposureLoggingDisabled(gateName)
     }
 
-    @objc public static func getFeatureGateWithExposureLoggingDisabled(_ gateName: String) -> FeatureGateObjC {
-        return FeatureGateObjC(withGate: Statsig.getFeatureGateWithExposureLoggingDisabled(gateName))
+    @objc public static func getFeatureGateWithExposureLoggingDisabled(_ gateName: String)
+        -> FeatureGateObjC
+    {
+        return FeatureGateObjC(
+            withGate: Statsig.getFeatureGateWithExposureLoggingDisabled(gateName))
     }
 
     //
@@ -97,10 +112,12 @@ public final class StatsigObjC: NSObject {
         return DynamicConfigObjC(withConfig: Statsig.getConfig(forName))
     }
 
-    @objc public static func getConfigWithExposureLoggingDisabled(_ configName: String) -> DynamicConfigObjC {
-        return DynamicConfigObjC(withConfig: Statsig.getConfigWithExposureLoggingDisabled(configName))
+    @objc public static func getConfigWithExposureLoggingDisabled(_ configName: String)
+        -> DynamicConfigObjC
+    {
+        return DynamicConfigObjC(
+            withConfig: Statsig.getConfigWithExposureLoggingDisabled(configName))
     }
-
 
     //
     // MARK: - Get Experiment
@@ -110,18 +127,26 @@ public final class StatsigObjC: NSObject {
         return getExperiment(forName: forName, keepDeviceValue: false)
     }
 
-    @objc public static func getExperiment(forName: String, keepDeviceValue: Bool) -> DynamicConfigObjC {
-        return DynamicConfigObjC(withConfig: Statsig.getExperiment(forName, keepDeviceValue: keepDeviceValue))
+    @objc public static func getExperiment(forName: String, keepDeviceValue: Bool)
+        -> DynamicConfigObjC
+    {
+        return DynamicConfigObjC(
+            withConfig: Statsig.getExperiment(forName, keepDeviceValue: keepDeviceValue))
     }
 
-    @objc public static func getExperimentWithExposureLoggingDisabled(_ experimentName: String) -> DynamicConfigObjC {
+    @objc public static func getExperimentWithExposureLoggingDisabled(_ experimentName: String)
+        -> DynamicConfigObjC
+    {
         return getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue: false)
     }
 
-    @objc public static func getExperimentWithExposureLoggingDisabled(_ experimentName: String, keepDeviceValue: Bool) -> DynamicConfigObjC {
-        return DynamicConfigObjC(withConfig: Statsig.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue: keepDeviceValue))
+    @objc public static func getExperimentWithExposureLoggingDisabled(
+        _ experimentName: String, keepDeviceValue: Bool
+    ) -> DynamicConfigObjC {
+        return DynamicConfigObjC(
+            withConfig: Statsig.getExperimentWithExposureLoggingDisabled(
+                experimentName, keepDeviceValue: keepDeviceValue))
     }
-
 
     //
     // MARK: - Get Layer
@@ -139,20 +164,27 @@ public final class StatsigObjC: NSObject {
         return getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue: false)
     }
 
-    @objc public static func getLayerWithExposureLoggingDisabled(_ layerName: String, keepDeviceValue: Bool) -> LayerObjC {
-        return LayerObjC(Statsig.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue: keepDeviceValue))
+    @objc public static func getLayerWithExposureLoggingDisabled(
+        _ layerName: String, keepDeviceValue: Bool
+    ) -> LayerObjC {
+        return LayerObjC(
+            Statsig.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue: keepDeviceValue)
+        )
     }
-    
+
     //
     // MARK: - Get Parameter Store
     //
-    
+
     @objc public static func getParameterStoreForName(_ storeName: String) -> ParameterStoreObjC {
         return ParameterStoreObjC(withParameterStore: Statsig.getParameterStore(storeName))
     }
-    
-    @objc public static func getParameterStoreWithExposureLoggingDisabled(_ storeName: String) -> ParameterStoreObjC {
-        return ParameterStoreObjC(withParameterStore: Statsig.getParameterStoreWithExposureLoggingDisabled(storeName))
+
+    @objc public static func getParameterStoreWithExposureLoggingDisabled(_ storeName: String)
+        -> ParameterStoreObjC
+    {
+        return ParameterStoreObjC(
+            withParameterStore: Statsig.getParameterStoreWithExposureLoggingDisabled(storeName))
     }
 
     //
@@ -171,16 +203,24 @@ public final class StatsigObjC: NSObject {
         manuallyLogExperimentExposure(experimentName, keepDeviceValue: false)
     }
 
-    @objc public static func manuallyLogExperimentExposure(_ experimentName: String, keepDeviceValue: Bool) {
+    @objc public static func manuallyLogExperimentExposure(
+        _ experimentName: String, keepDeviceValue: Bool
+    ) {
         Statsig.manuallyLogExperimentExposure(experimentName, keepDeviceValue: keepDeviceValue)
     }
 
-    @objc public static func manuallyLogLayerParameterExposure(_ layerName: String, parameterName: String) {
-        manuallyLogLayerParameterExposure(layerName, parameterName: parameterName, keepDeviceValue: false)
+    @objc public static func manuallyLogLayerParameterExposure(
+        _ layerName: String, parameterName: String
+    ) {
+        manuallyLogLayerParameterExposure(
+            layerName, parameterName: parameterName, keepDeviceValue: false)
     }
 
-    @objc public static func manuallyLogLayerParameterExposure(_ layerName: String, parameterName: String, keepDeviceValue: Bool) {
-        Statsig.manuallyLogLayerParameterExposure(layerName, parameterName, keepDeviceValue: keepDeviceValue)
+    @objc public static func manuallyLogLayerParameterExposure(
+        _ layerName: String, parameterName: String, keepDeviceValue: Bool
+    ) {
+        Statsig.manuallyLogLayerParameterExposure(
+            layerName, parameterName, keepDeviceValue: keepDeviceValue)
     }
 
     //
@@ -195,7 +235,8 @@ public final class StatsigObjC: NSObject {
         Statsig.manuallyLogExposure(config.config)
     }
 
-    @objc public static func manuallyLogExposureWithLayer(_ layer: LayerObjC, parameterName: String) {
+    @objc public static func manuallyLogExposureWithLayer(_ layer: LayerObjC, parameterName: String)
+    {
         Statsig.manuallyLogExposure(layer.layer, parameterName: parameterName)
     }
 
@@ -219,14 +260,17 @@ public final class StatsigObjC: NSObject {
         Statsig.logEvent(withName, metadata: metadata)
     }
 
-    @objc public static func logEvent(_ withName: String, stringValue: String, metadata: [String: String]) {
+    @objc public static func logEvent(
+        _ withName: String, stringValue: String, metadata: [String: String]
+    ) {
         Statsig.logEvent(withName, value: stringValue, metadata: metadata)
     }
 
-    @objc public static func logEvent(_ withName: String, doubleValue: Double, metadata: [String: String]) {
+    @objc public static func logEvent(
+        _ withName: String, doubleValue: Double, metadata: [String: String]
+    ) {
         Statsig.logEvent(withName, value: doubleValue, metadata: metadata)
     }
-
 
     //
     // MARK: - Overrides
@@ -243,7 +287,7 @@ public final class StatsigObjC: NSObject {
     @objc public static func overrideLayer(_ layerName: String, value: [String: Any]) {
         Statsig.overrideLayer(layerName, value: value)
     }
-    
+
     @objc public static func overrideParameterStore(_ storeName: String, value: [String: Any]) {
         Statsig.overrideParamStore(storeName, value: value)
     }
@@ -272,7 +316,6 @@ public final class StatsigObjC: NSObject {
         return Statsig.isInitialized()
     }
 
-
     //
     // MARK: - Misc
     //
@@ -294,48 +337,50 @@ public final class StatsigObjC: NSObject {
         Statsig.start(sdkKey: withSDKKey)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
     @objc public static func start(withSDKKey: String, user: StatsigUserObjC) {
         Statsig.start(sdkKey: withSDKKey, user: user.user)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
     @objc public static func start(withSDKKey: String, options: StatsigOptionsObjC) {
         Statsig.start(sdkKey: withSDKKey, options: options.optionsInternal)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
     @objc public static func start(withSDKKey: String, completion: completionBlock) {
         Statsig.start(sdkKey: withSDKKey, completion: completion)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
-    @objc public static func start(withSDKKey: String, user: StatsigUserObjC, completion: completionBlock) {
+    @objc public static func start(
+        withSDKKey: String, user: StatsigUserObjC, completion: completionBlock
+    ) {
         Statsig.start(sdkKey: withSDKKey, user: user.user, completion: completion)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
-    @objc public static func start(withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC) {
+    @objc public static func start(
+        withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC
+    ) {
         Statsig.start(sdkKey: withSDKKey, user: user.user, options: options.optionsInternal)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
-    @objc public static func start(withSDKKey: String, options: StatsigOptionsObjC, completion: completionBlock) {
+    @objc public static func start(
+        withSDKKey: String, options: StatsigOptionsObjC, completion: completionBlock
+    ) {
         Statsig.start(sdkKey: withSDKKey, options: options.optionsInternal, completion: completion)
     }
 
-    
     @available(*, deprecated, message: "Implement `initialize` instead")
-    @objc public static func start(withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC,
-                                   completion: completionBlock)
-    {
-        Statsig.start(sdkKey: withSDKKey, user: user.user, options: options.optionsInternal, completion: completion)
+    @objc public static func start(
+        withSDKKey: String, user: StatsigUserObjC, options: StatsigOptionsObjC,
+        completion: completionBlock
+    ) {
+        Statsig.start(
+            sdkKey: withSDKKey, user: user.user, options: options.optionsInternal,
+            completion: completion)
     }
 
     @available(*, deprecated, message: "Implement `updateUserWithResult` instead")

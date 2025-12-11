@@ -15,7 +15,7 @@ class CreateCacheMarker: InitializeStepMarker {
     func start(type: CacheType) {
         super.start([
             "step": self.step,
-            "cache_type": type
+            "cache_type": type,
         ])
     }
 }

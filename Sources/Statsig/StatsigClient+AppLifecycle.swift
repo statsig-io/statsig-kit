@@ -3,7 +3,7 @@ import Foundation
 extension StatsigClient {
     internal func subscribeToApplicationLifecycle() {
         let center = NotificationCenter.default
-        
+
         center.addObserver(
             self,
             selector: #selector(appWillBackground),
@@ -37,7 +37,7 @@ extension StatsigClient {
                 return
             }
 
-            if (self.statsigOptions.shutdownOnBackground) {
+            if self.statsigOptions.shutdownOnBackground {
                 self.logger.stop()
             } else {
                 self.logger.flush()

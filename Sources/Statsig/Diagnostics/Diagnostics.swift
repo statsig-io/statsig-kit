@@ -11,7 +11,7 @@ class Diagnostics {
     private static var disableCoreAPI = false
 
     static var mark: MarkersContainer? {
-        get { return instance }
+        return instance
     }
 
     static func boot(_ options: StatsigOptions?) {
@@ -38,7 +38,6 @@ class Diagnostics {
         if disableCoreAPI && context == MarkerContext.apiCall {
             return
         }
-        
 
         instance.clearMarkers(forContext: context)
 

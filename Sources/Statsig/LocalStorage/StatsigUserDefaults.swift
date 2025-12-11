@@ -18,7 +18,7 @@ protocol DefaultsLike {
 extension UserDefaults: DefaultsLike {
     func setDictionarySafe(_ dict: [String: Any], forKey key: String) {
         guard JSONSerialization.isValidJSONObject(dict),
-              let json = try? JSONSerialization.data(withJSONObject: dict)
+            let json = try? JSONSerialization.data(withJSONObject: dict)
         else {
             PrintHandler.log("[Statsig]: Failed to save to cache")
             return

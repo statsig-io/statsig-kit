@@ -8,7 +8,7 @@ public class OnDeviceEvalAdapter: OverrideAdapter {
 
     private var evaluator: Evaluator
 
-    internal init(lcut: UInt64, specs: SpecMap, paramStores: [String : ParamStoreSpec]?) {
+    internal init(lcut: UInt64, specs: SpecMap, paramStores: [String: ParamStoreSpec]?) {
         self.evaluator = Evaluator(lcut: lcut, specs: specs, paramStores: paramStores)
     }
 
@@ -23,28 +23,28 @@ public class OnDeviceEvalAdapter: OverrideAdapter {
     private convenience init?(parseResult: Result<SpecsResponse, Error>) {
         let dcsResponse: SpecsResponse
         switch parseResult {
-            case .failure(let error):
-                PrintHandler.log("[Statsig] OnDeviceEvalAdapter failed to parse specs: \(error)")
-                return nil
-            case .success(let value):
-                dcsResponse = value
+        case .failure(let error):
+            PrintHandler.log("[Statsig] OnDeviceEvalAdapter failed to parse specs: \(error)")
+            return nil
+        case .success(let value):
+            dcsResponse = value
         }
 
         let specs: SpecMap = [
             .gate: createMapFromList(list: dcsResponse.featureGates, key: \.name),
             .config: createMapFromList(list: dcsResponse.dynamicConfigs, key: \.name),
-            .layer: createMapFromList(list: dcsResponse.layerConfigs, key: \.name)
+            .layer: createMapFromList(list: dcsResponse.layerConfigs, key: \.name),
         ]
 
         self.init(lcut: dcsResponse.time, specs: specs, paramStores: dcsResponse.paramStores)
     }
 
-    func getGate(user: StatsigUser, name: String, original: FeatureGate) -> FeatureGate?
-    {
+    func getGate(user: StatsigUser, name: String, original: FeatureGate) -> FeatureGate? {
         return decideConfigBase(original, evaluator.getGate(user, name))
     }
 
-    func getDynamicConfig(user: StatsigUser, name: String, original: DynamicConfig) -> DynamicConfig?
+    func getDynamicConfig(user: StatsigUser, name: String, original: DynamicConfig)
+        -> DynamicConfig?
     {
         return decideConfigBase(original, evaluator.getDynamicConfig(user, name))
     }
@@ -53,17 +53,23 @@ public class OnDeviceEvalAdapter: OverrideAdapter {
         return decideConfigBase(original, evaluator.getExperiment(user, name))
     }
 
-    func getLayer(client: StatsigClient?, user: StatsigUser, name: String, original: Layer) -> Layer? {
+    func getLayer(client: StatsigClient?, user: StatsigUser, name: String, original: Layer)
+        -> Layer?
+    {
         return decideConfigBase(original, evaluator.getLayer(client, user, name))
     }
 
-    func getParameterStore(client: StatsigClient?, name: String, original: ParameterStore) -> ParameterStore? {
+    func getParameterStore(client: StatsigClient?, name: String, original: ParameterStore)
+        -> ParameterStore?
+    {
         return decideConfigBase(original, evaluator.getParameterStore(name, client))
     }
 
-    private func decideConfigBase<T>(_ originalConfig: T, _ overriddenConfig: T?) -> T? where T : ConfigBase {
+    private func decideConfigBase<T>(_ originalConfig: T, _ overriddenConfig: T?) -> T?
+    where T: ConfigBase {
         guard let overriddenConfig = overriddenConfig,
-            let overriddenConfigLcut = overriddenConfig.evaluationDetails.lcut else {
+            let overriddenConfigLcut = overriddenConfig.evaluationDetails.lcut
+        else {
             return nil
         }
 

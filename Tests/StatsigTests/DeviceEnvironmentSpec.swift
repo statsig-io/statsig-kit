@@ -1,15 +1,16 @@
 import Foundation
-
 import Nimble
 import Quick
+
 @testable import Statsig
 
 class DeviceEnvironmentSpec: BaseSpec {
     override func spec() {
         super.spec()
-        
+
         describe("getting the environment info about current device") {
-            StatsigUserDefaults.defaults.removeObject(forKey: "com.Statsig.InternalStore.stableIDKey")
+            StatsigUserDefaults.defaults.removeObject(
+                forKey: "com.Statsig.InternalStore.stableIDKey")
             let env1 = DeviceEnvironment.get()
             let env2 = DeviceEnvironment.get()
             let env3 = DeviceEnvironment.get("12345")
@@ -36,10 +37,13 @@ class DeviceEnvironmentSpec: BaseSpec {
             }
 
             it("has the same stable ID if no override, otherwise override is used") {
-                expect(env1[StatsigMetadata.STABLE_ID_KEY]).to(equal(env2[StatsigMetadata.STABLE_ID_KEY]))
-                expect(env1[StatsigMetadata.STABLE_ID_KEY]).toNot(equal(env3[StatsigMetadata.STABLE_ID_KEY]))
+                expect(env1[StatsigMetadata.STABLE_ID_KEY])
+                    .to(equal(env2[StatsigMetadata.STABLE_ID_KEY]))
+                expect(env1[StatsigMetadata.STABLE_ID_KEY])
+                    .toNot(equal(env3[StatsigMetadata.STABLE_ID_KEY]))
                 expect(env3[StatsigMetadata.STABLE_ID_KEY]).to(equal("12345"))
-                expect(env3[StatsigMetadata.STABLE_ID_KEY]).to(equal(env4[StatsigMetadata.STABLE_ID_KEY]))
+                expect(env3[StatsigMetadata.STABLE_ID_KEY])
+                    .to(equal(env4[StatsigMetadata.STABLE_ID_KEY]))
             }
         }
     }

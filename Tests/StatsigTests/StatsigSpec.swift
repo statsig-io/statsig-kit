@@ -1,15 +1,14 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+import SwiftUI
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-
-@testable import Statsig
-import SwiftUI
 
 class StatsigSpec: BaseSpec {
     static let mockUserValues: [String: Any] = [
@@ -19,9 +18,9 @@ class StatsigSpec: BaseSpec {
                 "rule_id": "rule_id_1",
                 "secondary_exposures": [
                     ["gate": "employee", "gateValue": "true", "ruleID": "rule_id_employee"]
-                ]
+                ],
             ],
-            "gate_name_2".sha256(): ["value": true, "rule_id": "rule_id_2"]
+            "gate_name_2".sha256(): ["value": true, "rule_id": "rule_id_2"],
         ],
         "dynamic_configs": [
             "config".sha256(): DynamicConfigSpec.TestMixedConfig
@@ -29,13 +28,13 @@ class StatsigSpec: BaseSpec {
         "layer_configs": [
             "allocated_layer".sha256(): DynamicConfigSpec
                 .TestMixedConfig
-                .merging(["allocated_experiment_name":"config".sha256()]) { (_, new) in new },
+                .merging(["allocated_experiment_name": "config".sha256()]) { (_, new) in new },
             "unallocated_layer".sha256(): DynamicConfigSpec
-                .TestMixedConfig
+                .TestMixedConfig,
         ],
-        "has_updates": true
+        "has_updates": true,
     ]
-    
+
     static let configKey = "config"
     static let hashConfigKey = configKey.sha256()
     static let mockUpdatedUserValues: [String: Any] = [
@@ -45,7 +44,7 @@ class StatsigSpec: BaseSpec {
                 "value": ["key": "new_value"],
                 "is_user_in_experiment": true,
                 "is_experiment_active": true,
-            ],
+            ]
         ],
         "feature_gates": [
             "new_gate_name_1".sha256(): [
@@ -53,11 +52,11 @@ class StatsigSpec: BaseSpec {
                 "rule_id": "rule_id_1",
                 "secondary_exposures": [
                     ["gate": "employee", "gateValue": "true", "ruleID": "rule_id_employee"]
-                ]
+                ],
             ],
-            "new_gate_name_2".sha256(): ["value": true, "rule_id": "rule_id_2"]
+            "new_gate_name_2".sha256(): ["value": true, "rule_id": "rule_id_2"],
         ],
-        "has_updates": true
+        "has_updates": true,
     ]
 
     override func spec() {
@@ -108,12 +107,14 @@ class StatsigSpec: BaseSpec {
                 stub(condition: isHost("api.statsig.enableAutoValueUpdateTest")) { request in
                     requestCount += 1
 
-                    let httpBody = try! JSONSerialization.jsonObject(
-                        with: request.ohhttpStubs_httpBody!,
-                        options: []) as! [String: Any]
+                    let httpBody =
+                        try! JSONSerialization.jsonObject(
+                            with: request.ohhttpStubs_httpBody!,
+                            options: []) as! [String: Any]
                     lastSyncTime = httpBody["lastSyncTimeForUser"] as? Double ?? 0
 
-                    return HTTPStubsResponse(jsonObject: ["time": now * 1000], statusCode: 200, headers: nil)
+                    return HTTPStubsResponse(
+                        jsonObject: ["time": now * 1000], statusCode: 200, headers: nil)
                 }
 
                 let opts = StatsigOptions(
@@ -121,7 +122,8 @@ class StatsigSpec: BaseSpec {
                     autoValueUpdateIntervalSec: 0.1,
                     disableDiagnostics: true
                 )
-                NetworkService.defaultInitializationURL = URL(string: "http://api.statsig.enableAutoValueUpdateTest/v1/initialize")
+                NetworkService.defaultInitializationURL = URL(
+                    string: "http://api.statsig.enableAutoValueUpdateTest/v1/initialize")
                 Statsig.initialize(sdkKey: "client-api-key", options: opts)
 
                 // first request, "lastSyncTimeForUser" field should not be present in the request body
@@ -129,7 +131,9 @@ class StatsigSpec: BaseSpec {
                 expect(lastSyncTime).to(equal(0))
             }
 
-            it("makes 2 network requests in 0.1 seconds and updates internal store's updatedTime correctly each time when enableAutoValueUpdate is TRUE") {
+            it(
+                "makes 2 network requests in 0.1 seconds and updates internal store's updatedTime correctly each time when enableAutoValueUpdate is TRUE"
+            ) {
                 var requestCount = 0
                 var lastSyncTime: UInt64 = 0
                 let dummyLcut = Time.now()
@@ -139,7 +143,8 @@ class StatsigSpec: BaseSpec {
                     autoValueUpdateIntervalSec: 0.1,
                     disableDiagnostics: true
                 )
-                NetworkService.defaultInitializationURL = URL(string: "http://StatsigSpec.enableAutoValueUpdateEQtrue/v1/initialize")
+                NetworkService.defaultInitializationURL = URL(
+                    string: "http://StatsigSpec.enableAutoValueUpdateEQtrue/v1/initialize")
 
                 var requestExpectation = self.expectation(description: "Request Made Once")
                 stub(condition: isHost("StatsigSpec.enableAutoValueUpdateEQtrue")) { request in
@@ -149,7 +154,9 @@ class StatsigSpec: BaseSpec {
                     lastSyncTime = httpBody["lastSyncTimeForUser"] as? UInt64 ?? 0
 
                     requestExpectation.fulfill()
-                    return HTTPStubsResponse(jsonObject: ["time": dummyLcut, "has_updates": true], statusCode: 200, headers: nil)
+                    return HTTPStubsResponse(
+                        jsonObject: ["time": dummyLcut, "has_updates": true], statusCode: 200,
+                        headers: nil)
                 }
 
                 Statsig.initialize(sdkKey: "client-api-key", options: opts)
@@ -166,105 +173,123 @@ class StatsigSpec: BaseSpec {
                 expect(requestCount).to(equal(2))
                 expect(lastSyncTime).to(equal(dummyLcut))
             }
-            
+
             it("values are updated when update user with values called") {
-                _ = TestUtils.startWithResponseAndWait(StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
-                
+                _ = TestUtils.startWithResponseAndWait(
+                    StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
+
                 var config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal(""))
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beFalse())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beFalse())
-                
+
                 waitUntil { done in
-                    Statsig.updateUserWithResult(StatsigUser(userID: "whd", customIDs: ["companyID": "statsig"]), values: StatsigSpec.mockUpdatedUserValues) { _ in
+                    Statsig.updateUserWithResult(
+                        StatsigUser(userID: "whd", customIDs: ["companyID": "statsig"]),
+                        values: StatsigSpec.mockUpdatedUserValues
+                    ) { _ in
                         done()
                     }
                 }
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beTrue())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beTrue())
-                
+
                 config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal("new_value"))
             }
-            
-            it("values are updated when update user with values called with the deprecated method") {
-                _ = TestUtils.startWithResponseAndWait(StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
-                
+
+            it("values are updated when update user with values called with the deprecated method")
+            {
+                _ = TestUtils.startWithResponseAndWait(
+                    StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
+
                 var config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal(""))
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beFalse())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beFalse())
-                
+
                 waitUntil { done in
-                    Statsig.updateUser(StatsigUser(userID: "whd", customIDs: ["companyID": "statsig"]), values: StatsigSpec.mockUpdatedUserValues) { _ in
+                    Statsig.updateUser(
+                        StatsigUser(userID: "whd", customIDs: ["companyID": "statsig"]),
+                        values: StatsigSpec.mockUpdatedUserValues
+                    ) { _ in
                         done()
                     }
                 }
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beTrue())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beTrue())
-                
+
                 config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal("new_value"))
             }
-            
+
             it("values are updated for the current user if manual refresh triggered") {
-                _ = TestUtils.startWithResponseAndWait(StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
-    
+                _ = TestUtils.startWithResponseAndWait(
+                    StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
+
                 var config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal(""))
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beFalse())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beFalse())
-                
+
                 stub(condition: isHost(ApiHost)) { request in
-                    return HTTPStubsResponse(jsonObject: StatsigSpec.mockUpdatedUserValues, statusCode: 200, headers: nil)
+                    return HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUpdatedUserValues, statusCode: 200, headers: nil
+                    )
                 }
-                
+
                 waitUntil { done in
-                    Statsig.refreshCacheWithResult() { _ in
+                    Statsig.refreshCacheWithResult { _ in
                         done()
                     }
                 }
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beTrue())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beTrue())
-                
+
                 config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal("new_value"))
             }
-            
-            it("values are updated for the current user if manual refresh triggered with the deprecated method") {
-                _ = TestUtils.startWithResponseAndWait(StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
-    
+
+            it(
+                "values are updated for the current user if manual refresh triggered with the deprecated method"
+            ) {
+                _ = TestUtils.startWithResponseAndWait(
+                    StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "whd"))
+
                 var config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal(""))
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beFalse())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beFalse())
-                
+
                 stub(condition: isHost(ApiHost)) { request in
-                    return HTTPStubsResponse(jsonObject: StatsigSpec.mockUpdatedUserValues, statusCode: 200, headers: nil)
+                    return HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUpdatedUserValues, statusCode: 200, headers: nil
+                    )
                 }
-                
+
                 waitUntil { done in
-                    Statsig.refreshCache() { _ in
+                    Statsig.refreshCache { _ in
                         done()
                     }
                 }
-                
+
                 expect(Statsig.checkGate("new_gate_name_1")).to(beTrue())
                 expect(Statsig.checkGate("new_gate_name_2")).to(beTrue())
-                
+
                 config = Statsig.getConfig(StatsigSpec.configKey)
                 expect(config.getValue(forKey: "key", defaultValue: "")).to(equal("new_value"))
             }
 
             it("works with local cache with different user cache keys") {
-                _ = TestUtils.startWithResponseAndWait(StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "jkw"))
+                _ = TestUtils.startWithResponseAndWait(
+                    StatsigSpec.mockUserValues, "client-api-key", StatsigUser(userID: "jkw"))
 
                 let gateName = "gate_name_2"
 
@@ -277,7 +302,9 @@ class StatsigSpec: BaseSpec {
                 }
 
                 waitUntil { done in
-                    Statsig.updateUserWithResult(StatsigUser(userID: "jkw", customIDs: ["companyID": "statsig"])) { _ in
+                    Statsig.updateUserWithResult(
+                        StatsigUser(userID: "jkw", customIDs: ["companyID": "statsig"])
+                    ) { _ in
                         done()
                     }
                 }
@@ -312,7 +339,6 @@ class StatsigSpec: BaseSpec {
                 let exp = Statsig.getExperiment(configName)
                 let nonExistentDC = Statsig.getConfig(nonExistentConfigName)
 
-
                 expect(gate1).to(beFalse())
                 expect(gate2).to(beTrue())
                 expect(featureGate1.value).to(beFalse())
@@ -322,9 +348,10 @@ class StatsigSpec: BaseSpec {
                 expect(featureGate1.evaluationDetails.source).to(equal(EvaluationSource.Network))
                 expect(nonExistentGate).to(beFalse())
 
-                let expectedConfig = NSDictionary(dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any])
-                expect(NSDictionary(dictionary:dc.value)).to(equal(expectedConfig))
-                expect(NSDictionary(dictionary:exp.value)).to(equal(expectedConfig))
+                let expectedConfig = NSDictionary(
+                    dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any])
+                expect(NSDictionary(dictionary: dc.value)).to(equal(expectedConfig))
+                expect(NSDictionary(dictionary: exp.value)).to(equal(expectedConfig))
                 expect(NSDictionary(dictionary: nonExistentDC.value)).to(equal(NSDictionary()))
 
                 expect(dc.evaluationDetails.reason).to(equal(.Recognized))
@@ -342,10 +369,17 @@ class StatsigSpec: BaseSpec {
                 expect(Statsig.checkGate("gate_fake")).to(beTrue())
 
                 Statsig.overrideConfig(configName, value: ["param": "value"])
-                expect(Statsig.getConfig(configName).getValue(forKey: "param", defaultValue: "wrong")).to(equal("value"))
-                expect(Statsig.getExperiment(configName).getValue(forKey: "param", defaultValue: "wrong")).to(equal("value"))
-                expect(Statsig.getConfig(configName).evaluationDetails.reason).to(equal(.LocalOverride))
-                expect(Statsig.getExperiment(configName).evaluationDetails.reason).to(equal(.LocalOverride))
+                expect(
+                    Statsig.getConfig(configName).getValue(forKey: "param", defaultValue: "wrong")
+                ).to(equal("value"))
+                expect(
+                    Statsig.getExperiment(configName).getValue(
+                        forKey: "param", defaultValue: "wrong")
+                ).to(equal("value"))
+                expect(Statsig.getConfig(configName).evaluationDetails.reason).to(
+                    equal(.LocalOverride))
+                expect(Statsig.getExperiment(configName).evaluationDetails.reason).to(
+                    equal(.LocalOverride))
 
                 var overrides = Statsig.getAllOverrides()
                 expect(overrides?.gates.keys.count).to(equal(2))
@@ -353,15 +387,20 @@ class StatsigSpec: BaseSpec {
                 expect(overrides?.gates["gate_fake"]).to(beTrue())
 
                 expect(overrides?.configs.keys.count).to(equal(1))
-                expect(NSDictionary(dictionary: overrides!.configs[configName]!)).to(equal(NSDictionary(dictionary: ["param": "value"])))
+                expect(NSDictionary(dictionary: overrides!.configs[configName]!)).to(
+                    equal(NSDictionary(dictionary: ["param": "value"])))
 
                 Statsig.removeOverride(gateName1)
                 expect(Statsig.checkGate(gateName1)).to(beFalse())
 
                 Statsig.removeOverride(configName)
                 expect(NSDictionary(dictionary: Statsig.getConfig(configName).value)).to(
-                    equal(NSDictionary(dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any])))
-                expect(Statsig.getConfig(configName).evaluationDetails.reason).to(equal(.Recognized))
+                    equal(
+                        NSDictionary(
+                            dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any]
+                        )))
+                expect(Statsig.getConfig(configName).evaluationDetails.reason).to(
+                    equal(.Recognized))
 
                 overrides = Statsig.getAllOverrides()
                 expect(overrides?.gates.keys.count).to(equal(1))
@@ -381,7 +420,7 @@ class StatsigSpec: BaseSpec {
                         "exp".sha256(): [
                             "value": ["key": "exp_v1"],
                             "is_user_in_experiment": true,
-                            "is_experiment_active": true
+                            "is_experiment_active": true,
                         ]
                     ],
                     "layer_configs": [
@@ -389,10 +428,10 @@ class StatsigSpec: BaseSpec {
                             "value": ["key": "layer_v1"],
                             "is_user_in_experiment": true,
                             "is_experiment_active": true,
-                            "allocated_experiment_name": "exp".sha256()
+                            "allocated_experiment_name": "exp".sha256(),
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ]
 
                 _ = TestUtils.startWithResponseAndWait(response)
@@ -414,7 +453,7 @@ class StatsigSpec: BaseSpec {
                         "exp".sha256(): [
                             "value": ["key": "exp_v2"],
                             "is_user_in_experiment": false,
-                            "is_experiment_active": true
+                            "is_experiment_active": true,
                         ]
                     ],
                     "layer_configs": [
@@ -422,10 +461,10 @@ class StatsigSpec: BaseSpec {
                             "value": ["key": "layer_v2"],
                             "is_user_in_experiment": false,
                             "is_experiment_active": true,
-                            "allocated_experiment_name": "exp".sha256()
+                            "allocated_experiment_name": "exp".sha256(),
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ]
 
                 _ = TestUtils.startWithResponseAndWait(response)
@@ -447,23 +486,23 @@ class StatsigSpec: BaseSpec {
                         "exp".sha256(): [
                             "value": ["key": "exp_v3"],
                             "is_user_in_experiment": false,
-                            "is_experiment_active": false
+                            "is_experiment_active": false,
                         ],
                         "new_exp".sha256(): [
                             "value": ["key": "new_exp_v3"],
                             "is_user_in_experiment": true,
                             "is_experiment_active": true,
-                        ]
+                        ],
                     ],
                     "layer_configs": [
                         "layer".sha256(): [
                             "value": ["key": "layer_v3"],
                             "is_user_in_experiment": true,
                             "is_experiment_active": true,
-                            "allocated_experiment_name": "new_exp".sha256()
+                            "allocated_experiment_name": "new_exp".sha256(),
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ]
 
                 _ = TestUtils.startWithResponseAndWait(response)
@@ -485,23 +524,23 @@ class StatsigSpec: BaseSpec {
                         "exp".sha256(): [
                             "value": ["key": "exp_v4"],
                             "is_user_in_experiment": false,
-                            "is_experiment_active": true
+                            "is_experiment_active": true,
                         ],
                         "new_exp".sha256(): [
                             "value": ["key": "new_exp_v4"],
                             "is_user_in_experiment": false,
                             "is_experiment_active": true,
-                        ]
+                        ],
                     ],
                     "layer_configs": [
                         "layer".sha256(): [
                             "value": ["key": "layer_v4"],
                             "is_user_in_experiment": false,
                             "is_experiment_active": true,
-                            "allocated_experiment_name": "new_exp".sha256()
+                            "allocated_experiment_name": "new_exp".sha256(),
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ]
 
                 _ = TestUtils.startWithResponseAndWait(response)
@@ -523,18 +562,18 @@ class StatsigSpec: BaseSpec {
                         "exp".sha256(): [
                             "value": ["key": "exp_v5"],
                             "is_user_in_experiment": true,
-                            "is_experiment_active": false
-                        ],
+                            "is_experiment_active": false,
+                        ]
                     ],
                     "layer_configs": [
                         "layer".sha256(): [
                             "value": ["key": "layer_v5"],
                             "is_user_in_experiment": true,
                             "is_experiment_active": false,
-                            "allocated_experiment_name": "exp".sha256()
+                            "allocated_experiment_name": "exp".sha256(),
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ]
 
                 _ = TestUtils.startWithResponseAndWait(response)
@@ -558,18 +597,18 @@ class StatsigSpec: BaseSpec {
                         "exp".sha256(): [
                             "value": ["key": "exp_v6"],
                             "is_user_in_experiment": true,
-                            "is_experiment_active": true
-                        ],
+                            "is_experiment_active": true,
+                        ]
                     ],
                     "layer_configs": [
                         "layer".sha256(): [
                             "value": ["key": "layer_v6"],
                             "is_user_in_experiment": true,
                             "is_experiment_active": true,
-                            "allocated_experiment_name": "exp".sha256()
+                            "allocated_experiment_name": "exp".sha256(),
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ]
 
                 _ = TestUtils.startWithResponseAndWait(response)
@@ -585,10 +624,14 @@ class StatsigSpec: BaseSpec {
                 Statsig.shutdown()
             }
 
-            it("times out if the request took too long and responds early with default values, when there is no local cache") {
+            it(
+                "times out if the request took too long and responds early with default values, when there is no local cache"
+            ) {
                 stub(condition: isHost(ApiHost)) { _ in
-                    HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
-                        .responseTime(0.2)
+                    HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil
+                    )
+                    .responseTime(0.2)
                 }
 
                 var errorCode: StatsigClientErrorCode?
@@ -598,7 +641,10 @@ class StatsigSpec: BaseSpec {
                 var timeDiff = 0.0
 
                 let initTimeoutExpect = self.expectation(description: "Init Timeout")
-                Statsig.initialize(sdkKey: "client-api-key", options: StatsigOptions(initTimeout: 0.1, disableDiagnostics: true)) { err in
+                Statsig.initialize(
+                    sdkKey: "client-api-key",
+                    options: StatsigOptions(initTimeout: 0.1, disableDiagnostics: true)
+                ) { err in
                     errorCode = err?.code
                     gate = Statsig.checkGate(gateName2)
                     dc = Statsig.getConfig(configName)
@@ -614,7 +660,6 @@ class StatsigSpec: BaseSpec {
                 expect(NSDictionary(dictionary: dc!.value)).to(equal(NSDictionary(dictionary: [:])))
                 expect(dc!.evaluationDetails.reason).to(equal(.Unrecognized))
                 expect(timeDiff).to(beCloseTo(0.1, within: 0.05))
-
 
                 waitUntil { done in
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -632,7 +677,8 @@ class StatsigSpec: BaseSpec {
 
             it("times out and returns value from local cache") {
                 stub(condition: isHost(ApiHost)) { _ in
-                    HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
+                    HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
                 }
 
                 var gate: Bool?
@@ -642,14 +688,21 @@ class StatsigSpec: BaseSpec {
                 var nonExistentDC: DynamicConfig?
 
                 // First call initialize() to fetch and store values in local storage
-                Statsig.initialize(sdkKey: "client-api-key", options: StatsigOptions(disableDiagnostics: true)) { _ in
+                Statsig.initialize(
+                    sdkKey: "client-api-key", options: StatsigOptions(disableDiagnostics: true)
+                ) { _ in
                     // shutdown client to call initialize() again, and makes response slow so we can test early timeout with cached return
                     Statsig.shutdown()
                     stub(condition: isHost(ApiHost)) { _ in
-                        HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil).responseTime(3)
+                        HTTPStubsResponse(
+                            jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil
+                        ).responseTime(3)
                     }
 
-                    Statsig.initialize(sdkKey: "client-api-key", options: StatsigOptions(initTimeout: 0.1, disableDiagnostics: true)) { _ in
+                    Statsig.initialize(
+                        sdkKey: "client-api-key",
+                        options: StatsigOptions(initTimeout: 0.1, disableDiagnostics: true)
+                    ) { _ in
                         gate = Statsig.checkGate(gateName2)
                         nonExistentGate = Statsig.checkGate(nonExistentGateName)
                         dc = Statsig.getConfig(configName)
@@ -664,26 +717,30 @@ class StatsigSpec: BaseSpec {
                 expect(dc?.evaluationDetails.reason).toEventually(equal(.Recognized))
                 expect(exp).toEventuallyNot(beNil())
                 expect(exp?.evaluationDetails.reason).toEventually(equal(.Recognized))
-                expect(NSDictionary(dictionary: nonExistentDC!.value)).toEventually(equal(NSDictionary(dictionary: [:])))
+                expect(NSDictionary(dictionary: nonExistentDC!.value)).toEventually(
+                    equal(NSDictionary(dictionary: [:])))
                 expect(nonExistentDC?.evaluationDetails.reason).toEventually(equal(.Unrecognized))
             }
 
             it("correctly shuts down") {
                 stub(condition: isPath("/v1/initialize")) { _ in
-                    HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
+                    HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
                 }
 
                 var events: [[String: Any]] = []
                 var statsigMetadata: [String: String?] = [:]
                 stub(condition: isPath("/v1/rgstr")) { request in
-                    let actualRequestHttpBody = try! JSONSerialization.jsonObject(
-                        with: request.ohhttpStubs_httpBody!,
-                        options: []) as! [String: Any]
+                    let actualRequestHttpBody =
+                        try! JSONSerialization.jsonObject(
+                            with: request.ohhttpStubs_httpBody!,
+                            options: []) as! [String: Any]
                     events = (actualRequestHttpBody["events"] as! [[String: Any]]).filter({ item in
                         return item["eventName"] as? String != "statsig::diagnostics"
                     })
                     statsigMetadata = actualRequestHttpBody["statsigMetadata"] as! [String: String?]
-                    return HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
+                    return HTTPStubsResponse(
+                        jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
                 }
 
                 var gate: Bool?
@@ -691,19 +748,21 @@ class StatsigSpec: BaseSpec {
                 var exp: DynamicConfig?
                 var stableID: String?
                 waitUntil { done in
-                    Statsig.initialize(sdkKey: "client-api-key",
-                                  user: StatsigUser(userID: "123", email: "123@statsig.com"),
-                                  options: StatsigOptions(overrideStableID: "custom_stable_id", disableDiagnostics: true))
-                    { err in
+                    Statsig.initialize(
+                        sdkKey: "client-api-key",
+                        user: StatsigUser(userID: "123", email: "123@statsig.com"),
+                        options: StatsigOptions(
+                            overrideStableID: "custom_stable_id", disableDiagnostics: true)
+                    ) { err in
                         expect(err).to(beNil())
 
                         // Event 0
                         gate = Statsig.checkGate(gateName2)
-                        _ = Statsig.checkGate(gateName2) // should not create an exposure, deduped
+                        _ = Statsig.checkGate(gateName2)  // should not create an exposure, deduped
 
                         // Event 1
                         exp = Statsig.getExperiment(configName)
-                        config = Statsig.getConfig(configName) // should not create an exposure, deduped
+                        config = Statsig.getConfig(configName)  // should not create an exposure, deduped
                         stableID = Statsig.getStableID()
 
                         // Event 2
@@ -715,9 +774,11 @@ class StatsigSpec: BaseSpec {
                         // Event 4
                         Statsig.logEvent("test_event_3", metadata: ["key": "value3"])
 
-                        Statsig.updateUserWithResult(StatsigUser(userID: "123", email: "123@statsig.com")) { error in
+                        Statsig.updateUserWithResult(
+                            StatsigUser(userID: "123", email: "123@statsig.com")
+                        ) { error in
                             // Event 5
-                            _ = Statsig.checkGate(gateName2) // should create an exposure, no longer dedupe after updating user
+                            _ = Statsig.checkGate(gateName2)  // should create an exposure, no longer dedupe after updating user
                             Statsig.shutdown()
                             done()
                         }
@@ -727,12 +788,16 @@ class StatsigSpec: BaseSpec {
                 expect(gate).to(beTrue())
                 expect(NSDictionary(dictionary: config!.value)).to(
                     equal(
-                        NSDictionary(dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any])
+                        NSDictionary(
+                            dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any]
+                        )
                     )
                 )
                 expect(NSDictionary(dictionary: exp!.value)).to(
                     equal(
-                        NSDictionary(dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any])
+                        NSDictionary(
+                            dictionary: DynamicConfigSpec.TestMixedConfig["value"] as! [String: Any]
+                        )
                     )
                 )
 
@@ -744,22 +809,23 @@ class StatsigSpec: BaseSpec {
                 var secondaryExposures = event["secondaryExposures"] as! [[String: String]]?
                 var value = event["value"]
 
-                expect(event["eventName"] as? String).to(equal(Event.statsigPrefix + Event.gateExposureEventName))
+                expect(event["eventName"] as? String).to(
+                    equal(Event.statsigPrefix + Event.gateExposureEventName))
                 expect(user["userID"] as? String).to(equal("123"))
                 expect(user["email"] as? String).to(equal("123@statsig.com"))
-                expect(NSDictionary(dictionary: metadata!)).to(equal(
-                    NSDictionary(dictionary: [
-                        "gate": "gate_name_2",
-                        "gateValue": "true",
-                        "ruleID": "rule_id_2",
-                        "reason": "Network:Recognized",
-                        "lcut": "0",
-                        "receivedAt": metadata!["receivedAt"]!
-                    ]))
+                expect(NSDictionary(dictionary: metadata!)).to(
+                    equal(
+                        NSDictionary(dictionary: [
+                            "gate": "gate_name_2",
+                            "gateValue": "true",
+                            "ruleID": "rule_id_2",
+                            "reason": "Network:Recognized",
+                            "lcut": "0",
+                            "receivedAt": metadata!["receivedAt"]!,
+                        ]))
                 )
                 expect(secondaryExposures).to(equal([]))
                 expect(value).to(beNil())
-
 
                 event = events[1]
                 user = event["user"] as! [String: Any]
@@ -767,22 +833,23 @@ class StatsigSpec: BaseSpec {
                 secondaryExposures = event["secondaryExposures"] as! [[String: String]]?
                 value = event["value"]
 
-                expect(event["eventName"] as? String).to(equal(Event.statsigPrefix + Event.configExposureEventName))
+                expect(event["eventName"] as? String).to(
+                    equal(Event.statsigPrefix + Event.configExposureEventName))
                 expect(user["userID"] as? String).to(equal("123"))
                 expect(user["email"] as? String).to(equal("123@statsig.com"))
-                expect(NSDictionary(dictionary: metadata!)).to(equal(
-                    NSDictionary(dictionary: [
-                        "config": "config",
-                        "ruleID": "default",
-                        "reason": "Network:Recognized",
-                        "lcut": "0",
-                        "receivedAt": metadata!["receivedAt"]!,
-                        "rulePassed": "false"
-                    ]))
+                expect(NSDictionary(dictionary: metadata!)).to(
+                    equal(
+                        NSDictionary(dictionary: [
+                            "config": "config",
+                            "ruleID": "default",
+                            "reason": "Network:Recognized",
+                            "lcut": "0",
+                            "receivedAt": metadata!["receivedAt"]!,
+                            "rulePassed": "false",
+                        ]))
                 )
                 expect(secondaryExposures).to(equal([]))
                 expect(value).to(beNil())
-
 
                 event = events[2]
                 user = event["user"] as! [String: Any]
@@ -793,10 +860,10 @@ class StatsigSpec: BaseSpec {
                 expect(event["eventName"] as? String).to(equal("test_event"))
                 expect(user["userID"] as? String).to(equal("123"))
                 expect(user["email"] as? String).to(equal("123@statsig.com"))
-                expect(NSDictionary(dictionary: metadata!)).to(equal(NSDictionary(dictionary: ["key": "value1"])))
+                expect(NSDictionary(dictionary: metadata!)).to(
+                    equal(NSDictionary(dictionary: ["key": "value1"])))
                 expect(secondaryExposures).to(beNil())
                 expect(value as? Int).to(equal(1))
-
 
                 event = events[3]
                 user = event["user"] as! [String: Any]
@@ -807,10 +874,10 @@ class StatsigSpec: BaseSpec {
                 expect(event["eventName"] as? String).to(equal("test_event_2"))
                 expect(user["userID"] as? String).to(equal("123"))
                 expect(user["email"] as? String).to(equal("123@statsig.com"))
-                expect(NSDictionary(dictionary: metadata!)).to(equal(NSDictionary(dictionary: ["key": "value2"])))
+                expect(NSDictionary(dictionary: metadata!)).to(
+                    equal(NSDictionary(dictionary: ["key": "value2"])))
                 expect(secondaryExposures).to(beNil())
                 expect(value as? String).to(equal("1"))
-
 
                 event = events[4]
                 user = event["user"] as! [String: Any]
@@ -821,7 +888,8 @@ class StatsigSpec: BaseSpec {
                 expect(event["eventName"] as? String).to(equal("test_event_3"))
                 expect(user["userID"] as? String).to(equal("123"))
                 expect(user["email"] as? String).to(equal("123@statsig.com"))
-                expect(NSDictionary(dictionary: metadata!)).to(equal(NSDictionary(dictionary: ["key": "value3"])))
+                expect(NSDictionary(dictionary: metadata!)).to(
+                    equal(NSDictionary(dictionary: ["key": "value3"])))
                 expect(secondaryExposures).to(beNil())
                 expect(value).to(beNil())
 
@@ -831,22 +899,23 @@ class StatsigSpec: BaseSpec {
                 secondaryExposures = event["secondaryExposures"] as! [[String: String]]?
                 value = event["value"]
 
-                expect(event["eventName"] as? String).to(equal(Event.statsigPrefix + Event.gateExposureEventName))
+                expect(event["eventName"] as? String).to(
+                    equal(Event.statsigPrefix + Event.gateExposureEventName))
                 expect(user["userID"] as? String).to(equal("123"))
                 expect(user["email"] as? String).to(equal("123@statsig.com"))
-                expect(NSDictionary(dictionary: metadata!)).to(equal(
-                    NSDictionary(dictionary: [
-                        "gate": "gate_name_2",
-                        "gateValue": "true",
-                        "ruleID": "rule_id_2",
-                        "reason": "Network:Recognized",
-                        "lcut": "0",
-                        "receivedAt": metadata!["receivedAt"]!
-                    ]))
+                expect(NSDictionary(dictionary: metadata!)).to(
+                    equal(
+                        NSDictionary(dictionary: [
+                            "gate": "gate_name_2",
+                            "gateValue": "true",
+                            "ruleID": "rule_id_2",
+                            "reason": "Network:Recognized",
+                            "lcut": "0",
+                            "receivedAt": metadata!["receivedAt"]!,
+                        ]))
                 )
                 expect(secondaryExposures).to(equal([]))
                 expect(value).to(beNil())
-
 
                 // validate stable ID
                 expect(statsigMetadata[StatsigMetadata.STABLE_ID_KEY]).to(equal("custom_stable_id"))
@@ -854,7 +923,7 @@ class StatsigSpec: BaseSpec {
             }
 
             it("correctly initializes when using the deprecated Statsig.start") {
-                var initialized = false;
+                var initialized = false
                 stub(condition: isHost(ApiHost)) { req in
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
@@ -866,15 +935,16 @@ class StatsigSpec: BaseSpec {
 
                 expect(initialized).toEventually(beTrue())
             }
-            
+
             it("fully populates StatsigMetadata") {
-                _ = TestUtils
+                _ =
+                    TestUtils
                     .startWithResponseAndWait(
                         StatsigSpec.mockUserValues,
                         "client-api-key",
                         StatsigUser(userID: "whd")
                     )
-                
+
                 let statsigMetadata = Statsig.getStatsigMetadata() ?? StatsigMetadata()
                 expect(statsigMetadata).notTo(beNil())
                 expect(statsigMetadata.stableID).notTo(beNil())
@@ -890,9 +960,10 @@ class StatsigSpec: BaseSpec {
                 expect(statsigMetadata.systemVersion).notTo(beNil())
                 expect(statsigMetadata.systemName).notTo(beNil())
             }
-            
+
             it("does not fully populate StatsigMetadata for optOut user") {
-                _ = TestUtils
+                _ =
+                    TestUtils
                     .startWithResponseAndWait(
                         StatsigSpec.mockUserValues,
                         "client-api-key",
@@ -900,13 +971,13 @@ class StatsigSpec: BaseSpec {
                     )
                 let statsigMetadata = Statsig.getStatsigMetadata() ?? StatsigMetadata()
                 expect(statsigMetadata).notTo(beNil())
-                
+
                 // Expect these fields
                 expect(statsigMetadata.stableID).notTo(beNil())
                 expect(statsigMetadata.sdkType).notTo(beNil())
                 expect(statsigMetadata.sdkVersion).notTo(beNil())
                 expect(statsigMetadata.sessionID).notTo(beNil())
-                
+
                 // These fields should be nil
                 expect(statsigMetadata.appIdentifier).to(beNil())
                 expect(statsigMetadata.appVersion).to(beNil())

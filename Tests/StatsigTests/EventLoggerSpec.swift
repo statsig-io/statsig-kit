@@ -1,31 +1,33 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
 
-@testable import Statsig
-
 class EventLoggerSpec: BaseSpec {
 
     override func spec() {
         super.spec()
-        
+
         describe("using EventLogger") {
             let sdkKey = "client-api-key"
             let opts = StatsigOptions()
-            
+
             let store = InternalStore(sdkKey, StatsigUser(userID: "jkw"), options: opts)
-            
+
             let ns = NetworkService(sdkKey: sdkKey, options: opts, store: store)
             let user = StatsigUser(userID: "jkw")
-            let event1 = Event(user: user, name: "test_event1", value: 1, disableCurrentVCLogging: false)
-            let event2 = Event(user: user, name: "test_event2", value: 2, disableCurrentVCLogging: false)
-            let event3 = Event(user: user, name: "test_event3", value: "3", disableCurrentVCLogging: false)
+            let event1 = Event(
+                user: user, name: "test_event1", value: 1, disableCurrentVCLogging: false)
+            let event2 = Event(
+                user: user, name: "test_event2", value: 2, disableCurrentVCLogging: false)
+            let event3 = Event(
+                user: user, name: "test_event3", value: "3", disableCurrentVCLogging: false)
             afterEach {
                 HTTPStubs.removeAllStubs()
                 EventLogger.deleteLocalStorage(sdkKey: "client-key")
@@ -37,13 +39,16 @@ class EventLoggerSpec: BaseSpec {
                 var actualRequestHttpBody: [String: Any]?
                 stub(condition: isHost(LogEventHost)) { request in
                     actualRequest = request
-                    actualRequestHttpBody = try! JSONSerialization.jsonObject(
-                        with: request.ohhttpStubs_httpBody!,
-                        options: []) as! [String: Any]
+                    actualRequestHttpBody =
+                        try! JSONSerialization.jsonObject(
+                            with: request.ohhttpStubs_httpBody!,
+                            options: []) as! [String: Any]
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
 
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                let logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns,
+                    userDefaults: MockDefaults())
                 logger.start(flushInterval: 1)
                 logger.log(event1)
                 logger.log(event2)
@@ -55,11 +60,17 @@ class EventLoggerSpec: BaseSpec {
                     }
                 }
 
-                expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
+                expect(actualRequestHttpBody?.keys)
+                    .toEventually(
+                        contain("user", "events", "statsigMetadata"))
                 expect((actualRequestHttpBody?["events"] as? [Any])?.count).toEventually(equal(3))
-                expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"]).toEventually(equal(sdkKey))
+                expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"])
+                    .toEventually(
+                        equal(sdkKey))
                 expect(actualRequest?.httpMethod).toEventually(equal("POST"))
-                expect(actualRequest?.url?.absoluteString).toEventually(equal("https://prodregistryv2.org/v1/rgstr"))
+                expect(actualRequest?.url?.absoluteString)
+                    .toEventually(
+                        equal("https://prodregistryv2.org/v1/rgstr"))
             }
 
             it("should add events to internal queue and send once it passes max batch size") {
@@ -68,23 +79,30 @@ class EventLoggerSpec: BaseSpec {
 
                 stub(condition: isHost(LogEventHost)) { request in
                     actualRequest = request
-                    actualRequestHttpBody = try! JSONSerialization.jsonObject(
-                        with: request.ohhttpStubs_httpBody!,
-                        options: []) as! [String: Any]
+                    actualRequestHttpBody =
+                        try! JSONSerialization.jsonObject(
+                            with: request.ohhttpStubs_httpBody!,
+                            options: []) as! [String: Any]
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
 
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                let logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns,
+                    userDefaults: MockDefaults())
                 logger.maxEventQueueSize = 3
                 logger.log(event1)
                 logger.log(event2)
                 logger.log(event3)
 
-                expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
+                expect(actualRequestHttpBody?.keys)
+                    .toEventually(contain("user", "events", "statsigMetadata"))
                 expect((actualRequestHttpBody?["events"] as? [Any])?.count).toEventually(equal(3))
-                expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"]).toEventually(equal(sdkKey))
+                expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"])
+                    .toEventually(equal(sdkKey))
                 expect(actualRequest?.httpMethod).toEventually(equal("POST"))
-                expect(actualRequest?.url?.absoluteString).toEventually(equal("https://prodregistryv2.org/v1/rgstr"))
+                expect(actualRequest?.url?.absoluteString)
+                    .toEventually(
+                        equal("https://prodregistryv2.org/v1/rgstr"))
             }
 
             it("should send events with flush()") {
@@ -94,29 +112,34 @@ class EventLoggerSpec: BaseSpec {
 
                 stub(condition: isHost(LogEventHost)) { request in
                     actualRequest = request
-                    actualRequestHttpBody = try! JSONSerialization.jsonObject(
-                        with: request.ohhttpStubs_httpBody!,
-                        options: []) as! [String: Any]
+                    actualRequestHttpBody =
+                        try! JSONSerialization.jsonObject(
+                            with: request.ohhttpStubs_httpBody!,
+                            options: []) as! [String: Any]
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
 
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                let logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns,
+                    userDefaults: MockDefaults())
                 logger.start(flushInterval: 10)
                 logger.maxEventQueueSize = 10
                 logger.log(event1)
                 logger.log(event2)
                 logger.log(event3)
                 waitUntil { done in logger.flush(completion: done) }
-                
 
                 expect(actualRequestHttpBody?.keys).to(contain("user", "events", "statsigMetadata"))
                 expect((actualRequestHttpBody?["events"] as? [Any])?.count).to(equal(3))
                 expect(actualRequest?.allHTTPHeaderFields!["STATSIG-API-KEY"]).to(equal(sdkKey))
                 expect(actualRequest?.httpMethod).to(equal("POST"))
-                expect(actualRequest?.url?.absoluteString).to(equal("https://prodregistryv2.org/v1/rgstr"))
+                expect(actualRequest?.url?.absoluteString)
+                    .to(equal("https://prodregistryv2.org/v1/rgstr"))
             }
 
-            it("should save failed to send requests locally during shutdown, and load and resend local requests during startup") {
+            it(
+                "should save failed to send requests locally during shutdown, and load and resend local requests during startup"
+            ) {
                 var isPendingRequest = true
                 stub(condition: isHost(LogEventHost)) { request in
                     isPendingRequest = false
@@ -124,7 +147,9 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 let userDefaults = MockDefaults()
-                let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                let logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                )
                 logger.start(flushInterval: 10)
                 logger.log(event1)
                 logger.log(event2)
@@ -133,7 +158,8 @@ class EventLoggerSpec: BaseSpec {
                 waitUntil { done in logger.stop(completion: done) }
 
                 expect(isPendingRequest).toEventually(beFalse())
-                expect(userDefaults.data[getFailedEventStorageKey("client-key")] as? [Data]).toEventuallyNot(beNil())
+                expect(userDefaults.data[getFailedEventStorageKey("client-key")] as? [Data])
+                    .toEventuallyNot(beNil())
 
                 isPendingRequest = true
 
@@ -145,7 +171,9 @@ class EventLoggerSpec: BaseSpec {
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 403, headers: nil)
                 }
 
-                let newLogger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                let newLogger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                )
                 // initialize calls retryFailedRequests
                 newLogger.retryFailedRequests(forUser: user)
 
@@ -166,9 +194,10 @@ class EventLoggerSpec: BaseSpec {
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
                     stub(condition: isHost(LogEventHost)) { request in
-                        actualRequestHttpBody = try! JSONSerialization.jsonObject(
-                            with: request.ohhttpStubs_httpBody!,
-                            options: []) as! [String: Any]
+                        actualRequestHttpBody =
+                            try! JSONSerialization.jsonObject(
+                                with: request.ohhttpStubs_httpBody!,
+                                options: []) as! [String: Any]
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
                 }
@@ -181,37 +210,54 @@ class EventLoggerSpec: BaseSpec {
                 it("should trim event names to 64 characters") {
 
                     waitUntil { done in
-                        client = StatsigClient(sdkKey: "client-key", user: user, options: StatsigOptions(disableDiagnostics: true), completionWithResult: { _ in
-                            done()
-                        })
+                        client = StatsigClient(
+                            sdkKey: "client-key", user: user,
+                            options: StatsigOptions(disableDiagnostics: true),
+                            completionWithResult: { _ in
+                                done()
+                            })
                     }
 
                     client?.logEvent(longEventName, value: 1)
                     client?.shutdown()
 
-                    expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
-                    expect((actualRequestHttpBody?["events"] as? [[String: Any]])?.count).toEventually(beGreaterThanOrEqualTo(1))
+                    expect(actualRequestHttpBody?.keys)
+                        .toEventually(contain("user", "events", "statsigMetadata"))
+                    expect((actualRequestHttpBody?["events"] as? [[String: Any]])?.count)
+                        .toEventually(beGreaterThanOrEqualTo(1))
                     let trimmedEventName = String(longEventName.prefix(64))
-                    expect((actualRequestHttpBody?["events"] as? [[String: Any]])?
-                        .map({ $0["eventName"] as? String })
-                        .first(where: { $0 == trimmedEventName })).toEventuallyNot(beNil())
+                    expect(
+                        (actualRequestHttpBody?["events"] as? [[String: Any]])?
+                            .map({ $0["eventName"] as? String })
+                            .first(where: { $0 == trimmedEventName })
+                    ).toEventuallyNot(beNil())
                 }
 
-                it("should send full event names if the disableEventNameTrimming option is set to true") {
+                it(
+                    "should send full event names if the disableEventNameTrimming option is set to true"
+                ) {
                     waitUntil { done in
-                        client = StatsigClient(sdkKey: "client-key", user: user, options: StatsigOptions(disableDiagnostics: true, disableEventNameTrimming: true), completionWithResult: { _ in
-                            done()
-                        })
+                        client = StatsigClient(
+                            sdkKey: "client-key", user: user,
+                            options: StatsigOptions(
+                                disableDiagnostics: true, disableEventNameTrimming: true),
+                            completionWithResult: { _ in
+                                done()
+                            })
                     }
 
                     client?.logEvent(longEventName, value: 1)
                     client?.shutdown()
 
-                    expect(actualRequestHttpBody?.keys).toEventually(contain("user", "events", "statsigMetadata"))
-                    expect((actualRequestHttpBody?["events"] as? [[String: Any]])?.count).toEventually(beGreaterThanOrEqualTo(1))
-                    expect((actualRequestHttpBody?["events"] as? [[String: Any]])?
-                        .map({ $0["eventName"] as? String })
-                        .first(where: { $0 == longEventName })).toEventuallyNot(beNil())
+                    expect(actualRequestHttpBody?.keys)
+                        .toEventually(contain("user", "events", "statsigMetadata"))
+                    expect((actualRequestHttpBody?["events"] as? [[String: Any]])?.count)
+                        .toEventually(beGreaterThanOrEqualTo(1))
+                    expect(
+                        (actualRequestHttpBody?["events"] as? [[String: Any]])?
+                            .map({ $0["eventName"] as? String })
+                            .first(where: { $0 == longEventName })
+                    ).toEventuallyNot(beNil())
                 }
             }
 
@@ -229,27 +275,39 @@ class EventLoggerSpec: BaseSpec {
                     text += "test1234567"
                 }
 
-                var logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                var logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                )
                 logger.start(flushInterval: 10)
-                logger.log(Event(user: user, name: "a", value: 1, metadata: ["text": text], disableCurrentVCLogging: false))
+                logger.log(
+                    Event(
+                        user: user, name: "a", value: 1, metadata: ["text": text],
+                        disableCurrentVCLogging: false))
                 waitUntil { done in logger.stop(completion: done) }
                 let failedEventsStorageKey = logger.storageKey
 
                 // Fail to save because event is too big
                 expect(logEndpointCalled).to(equal(true))
-                expect(userDefaults.data[failedEventsStorageKey] as? [Data]).toEventuallyNot(beNil())
+                expect(userDefaults.data[failedEventsStorageKey] as? [Data])
+                    .toEventuallyNot(beNil())
                 expect((userDefaults.data[failedEventsStorageKey] as? [Data])?.count).to(equal(0))
 
                 userDefaults.reset()
 
-                logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                )
                 logger.retryFailedRequests(forUser: user)
                 logger.start(flushInterval: 2)
-                logger.log(Event(user: user, name: "b", value: 1, metadata: ["text": "small"], disableCurrentVCLogging: false))
+                logger.log(
+                    Event(
+                        user: user, name: "b", value: 1, metadata: ["text": "small"],
+                        disableCurrentVCLogging: false))
                 waitUntil { done in logger.stop(completion: done) }
 
                 // Successfully save event
-                expect(userDefaults.data[failedEventsStorageKey] as? [Data]).toEventuallyNot(beNil())
+                expect(userDefaults.data[failedEventsStorageKey] as? [Data])
+                    .toEventuallyNot(beNil())
                 expect((userDefaults.data[failedEventsStorageKey] as? [Data])?.count).to(equal(1))
             }
 
@@ -257,25 +315,30 @@ class EventLoggerSpec: BaseSpec {
 
                 it("should save to disk from the main thread") {
                     stub(condition: isHost(LogEventHost)) { request in
-                        return HTTPStubsResponse(error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
+                        return HTTPStubsResponse(
+                            error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
                     }
-                    
+
                     let userDefaults = MockDefaults()
-                    let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                    let logger = EventLogger(
+                        sdkKey: "client-key", user: user, networkService: ns,
+                        userDefaults: userDefaults)
 
                     expect(Thread.isMainThread).to(beTrue())
 
                     logger.addFailedLogRequest([Data()])
                     logger.saveFailedLogRequestsToDisk()
-                    
+
                     expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
                     expect(userDefaults.array(forKey: logger.storageKey)?.count).to(equal(1))
                 }
 
                 it("should save to disk from a background thread") {
                     let userDefaults = MockDefaults()
-                    let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
-                    
+                    let logger = EventLogger(
+                        sdkKey: "client-key", user: user, networkService: ns,
+                        userDefaults: userDefaults)
+
                     DispatchQueue.global().async {
                         expect(Thread.isMainThread).to(beFalse())
 
@@ -287,7 +350,6 @@ class EventLoggerSpec: BaseSpec {
                     expect(userDefaults.array(forKey: logger.storageKey)?.count).to(equal(1))
                 }
 
-
                 it("should handle concurrent saves without deadlocks or corruption") {
                     let iterations = 1024
                     let numberOfTasks = 10
@@ -298,7 +360,9 @@ class EventLoggerSpec: BaseSpec {
                     }
 
                     let userDefaults = MockDefaults()
-                    let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                    let logger = EventLogger(
+                        sdkKey: "client-key", user: user, networkService: ns,
+                        userDefaults: userDefaults)
 
                     var i = 0
 
@@ -314,7 +378,8 @@ class EventLoggerSpec: BaseSpec {
 
                     expect(i).toEventually(equal(iterations), timeout: .seconds(5))
                     expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
-                    expect(userDefaults.array(forKey: logger.storageKey)?.count).to(equal(iterations))
+                    expect(userDefaults.array(forKey: logger.storageKey)?.count)
+                        .to(equal(iterations))
 
                     var counters = Array(repeating: UInt8(0), count: 256)
 
@@ -335,16 +400,22 @@ class EventLoggerSpec: BaseSpec {
                     let numberOfRequest = 1005
                     let requestSize = 1000
 
-                    let addQueue = DispatchQueue(label: "com.statsig.add_failed_requests", qos: .userInitiated, attributes: .concurrent)
-                    let saveQueue = DispatchQueue(label: "com.statsig.save_failed_requests", qos: .userInitiated, attributes: .concurrent)
+                    let addQueue = DispatchQueue(
+                        label: "com.statsig.add_failed_requests", qos: .userInitiated,
+                        attributes: .concurrent)
+                    let saveQueue = DispatchQueue(
+                        label: "com.statsig.save_failed_requests", qos: .userInitiated,
+                        attributes: .concurrent)
 
                     let userDefaults = MockDefaults()
-                    let logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                    let logger = EventLogger(
+                        sdkKey: "client-key", user: user, networkService: ns,
+                        userDefaults: userDefaults)
                     logger.retryFailedRequests(forUser: user)
 
                     saveQueue.async {
                         // Wait for the addFailedLogRequest to start adding requests to the queue
-                        while (logger.failedRequestQueue.count == 0) {
+                        while logger.failedRequestQueue.count == 0 {
                             Thread.sleep(forTimeInterval: 0.001)
                         }
                         while logger.failedRequestLock.try() {
@@ -357,8 +428,10 @@ class EventLoggerSpec: BaseSpec {
 
                     addQueue.async {
                         // Continuously add requests to ensure we have the lock
-                        while (userDefaults.array(forKey: logger.storageKey) == nil) {
-                            let requests = (0..<numberOfRequest).map { _ in Data(repeating: 0, count: requestSize) }
+                        while userDefaults.array(forKey: logger.storageKey) == nil {
+                            let requests = (0..<numberOfRequest).map { _ in
+                                Data(repeating: 0, count: requestSize)
+                            }
                             logger.addFailedLogRequest(requests)
                             // Test that the queue is not empty
                             expect(logger.failedRequestQueue.count).to(beGreaterThan(0))
@@ -369,21 +442,25 @@ class EventLoggerSpec: BaseSpec {
                     }
 
                     expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
-                    expect(userDefaults.array(forKey: logger.storageKey)?.count).to(beGreaterThan(0))
+                    expect(userDefaults.array(forKey: logger.storageKey)?.count)
+                        .to(beGreaterThan(0))
                 }
             }
 
             describe("addFailedLogRequest") {
-                var logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
-                let limit = logger.MAX_SAVED_LOG_REQUEST_SIZE;
+                var logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns,
+                    userDefaults: MockDefaults())
+                let limit = logger.MAX_SAVED_LOG_REQUEST_SIZE
 
                 let bigdata = Data(count: limit + 100)
                 let mediumdata = Data(count: limit / 2 + 100)
                 let smalldata = Data(count: 100)
-                
 
                 beforeEach {
-                    logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: MockDefaults())
+                    logger = EventLogger(
+                        sdkKey: "client-key", user: user, networkService: ns,
+                        userDefaults: MockDefaults())
                 }
 
                 it("accepts data under the limit") {
@@ -407,7 +484,9 @@ class EventLoggerSpec: BaseSpec {
                     expect(logger.failedRequestQueue.count).to(equal(1))
                 }
                 it("keeps part of the data array if it's above the limit") {
-                    logger.addFailedLogRequest([smalldata, mediumdata, smalldata, smalldata, smalldata, mediumdata])
+                    logger.addFailedLogRequest([
+                        smalldata, mediumdata, smalldata, smalldata, smalldata, mediumdata,
+                    ])
                     expect(logger.failedRequestQueue.count).to(equal(4))
                 }
                 it("clears the entire queue if the last item is above the limit") {
@@ -420,7 +499,9 @@ class EventLoggerSpec: BaseSpec {
 
             describe("with pending events") {
                 let userDefaults = MockDefaults()
-                var logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                var logger = EventLogger(
+                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                )
 
                 func readRetryQueue() -> [Data] {
                     return userDefaults.array(forKey: logger.storageKey) as? [Data] ?? []
@@ -435,17 +516,19 @@ class EventLoggerSpec: BaseSpec {
                         }
                     }
                 }
-                
+
                 afterEach {
                     userDefaults.reset()
                     logger.stop()
                     userDefaults.removeObject(forKey: getFailedEventStorageKey(sdkKey))
-                    logger = EventLogger(sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults)
+                    logger = EventLogger(
+                        sdkKey: "client-key", user: user, networkService: ns,
+                        userDefaults: userDefaults)
                 }
 
                 it("should persist pending events while the request is in progress") {
                     var dataDuringRequest: [Data]?
-                    
+
                     stub(condition: isHost(LogEventHost)) { request in
                         dataDuringRequest = readRetryQueue()
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
@@ -455,9 +538,8 @@ class EventLoggerSpec: BaseSpec {
 
                     // Ensures the the retry queue starts empty
                     expect(readRetryQueue()).to(beEmpty())
-                    
+
                     flushAndWait(persistPendingEvents: true)
-                    
 
                     expect(dataDuringRequest).toNot(beEmpty())
                 }
@@ -471,23 +553,24 @@ class EventLoggerSpec: BaseSpec {
 
                     // Ensures the the retry queue starts empty
                     expect(readRetryQueue()).to(beEmpty())
-                    
+
                     flushAndWait(persistPendingEvents: true)
 
                     let dataAfterRequest = readRetryQueue()
                     expect(dataAfterRequest).to(beEmpty())
                 }
-                
+
                 it("should contain pending events after a failed request") {
                     stub(condition: isHost(LogEventHost)) { request in
-                        return HTTPStubsResponse(error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
+                        return HTTPStubsResponse(
+                            error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
                     }
 
                     logger.log(event1)
 
                     // Ensures the the retry queue starts empty
                     expect(readRetryQueue()).to(beEmpty())
-                    
+
                     flushAndWait(persistPendingEvents: true)
 
                     let dataAfterRequest = readRetryQueue()
@@ -508,7 +591,7 @@ class EventLoggerSpec: BaseSpec {
                     }
 
                     logger.log(event1)
-                    
+
                     flushAndWait(persistPendingEvents: true)
 
                     expect(dataDuringRequest).to(haveCount(mockFailedRequests.count + 1))
@@ -518,9 +601,11 @@ class EventLoggerSpec: BaseSpec {
                     expect(dataAfterRequest).to(equal(mockFailedRequests))
                 }
 
-                it("should not persist pending events when persistPendingEvents is false and request succeeds") {
+                it(
+                    "should not persist pending events when persistPendingEvents is false and request succeeds"
+                ) {
                     var dataDuringRequest: [Data]?
-                    
+
                     stub(condition: isHost(LogEventHost)) { request in
                         dataDuringRequest = readRetryQueue()
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
@@ -530,7 +615,7 @@ class EventLoggerSpec: BaseSpec {
 
                     // Ensures the retry queue starts empty
                     expect(readRetryQueue()).to(beEmpty())
-                    
+
                     flushAndWait(persistPendingEvents: false)
 
                     expect(dataDuringRequest).to(beEmpty())

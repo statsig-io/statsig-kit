@@ -1,12 +1,13 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
 
 extension Dictionary {
     subscript(d key: Key) -> [String: Any]? {
@@ -42,7 +43,7 @@ class LayerExposureSpec: BaseSpec {
 
     override func spec() {
         super.spec()
-        
+
         describe("Layer Exposure Logging") {
             it("logs layers without an allocated experiment correctly") {
                 _ = TestUtils.startWithResponseAndWait([
@@ -51,13 +52,15 @@ class LayerExposureSpec: BaseSpec {
                             "value": ["an_int": 99],
                             "rule_id": "default",
                             "secondary_exposures": [["gate": "secondary_exp"]],
-                            "undelegated_secondary_exposures": [["gate": "undelegated_secondary_exp"]],
+                            "undelegated_secondary_exposures": [
+                                ["gate": "undelegated_secondary_exp"]
+                            ],
                             "allocated_experiment_name": "",
-                            "explicit_parameters": []
+                            "explicit_parameters": [],
                         ]
                     ],
                     "time": LayerExposureSpec.lcut,
-                    "has_updates": true
+                    "has_updates": true,
                 ])
 
                 let layer = Statsig.getLayer("layer")
@@ -77,16 +80,17 @@ class LayerExposureSpec: BaseSpec {
                     .to(equal([["gate": "undelegated_secondary_exp"]]))
                 let metadata = event?[d: "metadata"] as! [String: String]
                 expect(metadata)
-                    .to(equal([
-                        "config": "layer",
-                        "ruleID": "default",
-                        "allocatedExperiment": "",
-                        "parameterName": "an_int",
-                        "isExplicitParameter": "false",
-                        "reason": "Network:Recognized",
-                        "lcut": "\(LayerExposureSpec.lcut)",
-                        "receivedAt": metadata["receivedAt"]!
-                    ]))
+                    .to(
+                        equal([
+                            "config": "layer",
+                            "ruleID": "default",
+                            "allocatedExperiment": "",
+                            "parameterName": "an_int",
+                            "isExplicitParameter": "false",
+                            "reason": "Network:Recognized",
+                            "lcut": "\(LayerExposureSpec.lcut)",
+                            "receivedAt": metadata["receivedAt"]!,
+                        ]))
             }
 
             it("logs explicit and implicit parameters correctly") {
@@ -96,13 +100,15 @@ class LayerExposureSpec: BaseSpec {
                             "value": ["an_int": 99, "a_string": "value"],
                             "rule_id": "default",
                             "secondary_exposures": [["gate": "secondary_exp"]],
-                            "undelegated_secondary_exposures": [["gate": "undelegated_secondary_exp"]],
+                            "undelegated_secondary_exposures": [
+                                ["gate": "undelegated_secondary_exp"]
+                            ],
                             "allocated_experiment_name": "the_allocated_experiment",
-                            "explicit_parameters": ["an_int"]
+                            "explicit_parameters": ["an_int"],
                         ]
                     ],
                     "time": LayerExposureSpec.lcut,
-                    "has_updates": true
+                    "has_updates": true,
                 ])
 
                 let layer = Statsig.getLayer("layer")
@@ -125,32 +131,34 @@ class LayerExposureSpec: BaseSpec {
                 expect(explicitEvent?[a: "secondaryExposures"] as? [[String: String]])
                     .to(equal([["gate": "secondary_exp"]]))
                 expect(metadata)
-                    .to(equal([
-                        "config": "layer",
-                        "ruleID": "default",
-                        "allocatedExperiment": "the_allocated_experiment",
-                        "parameterName": "an_int",
-                        "isExplicitParameter": "true",
-                        "reason": "Network:Recognized",
-                        "lcut": "\(LayerExposureSpec.lcut)",
-                        "receivedAt": metadata["receivedAt"]!
-                    ]))
+                    .to(
+                        equal([
+                            "config": "layer",
+                            "ruleID": "default",
+                            "allocatedExperiment": "the_allocated_experiment",
+                            "parameterName": "an_int",
+                            "isExplicitParameter": "true",
+                            "reason": "Network:Recognized",
+                            "lcut": "\(LayerExposureSpec.lcut)",
+                            "receivedAt": metadata["receivedAt"]!,
+                        ]))
 
                 let implicitEvent = events?[d: 1]
                 metadata = implicitEvent?[d: "metadata"] as! [String: String]
                 expect(implicitEvent?[a: "secondaryExposures"] as? [[String: String]])
                     .to(equal([["gate": "undelegated_secondary_exp"]]))
                 expect(metadata)
-                    .to(equal([
-                        "config": "layer",
-                        "ruleID": "default",
-                        "allocatedExperiment": "",
-                        "parameterName": "a_string",
-                        "isExplicitParameter": "false",
-                        "reason": "Network:Recognized",
-                        "lcut": "\(LayerExposureSpec.lcut)",
-                        "receivedAt": metadata["receivedAt"]!
-                    ]))
+                    .to(
+                        equal([
+                            "config": "layer",
+                            "ruleID": "default",
+                            "allocatedExperiment": "",
+                            "parameterName": "a_string",
+                            "isExplicitParameter": "false",
+                            "reason": "Network:Recognized",
+                            "lcut": "\(LayerExposureSpec.lcut)",
+                            "receivedAt": metadata["receivedAt"]!,
+                        ]))
             }
 
             it("logs different object types correctly") {
@@ -164,11 +172,11 @@ class LayerExposureSpec: BaseSpec {
                                 "a_long": UInt64(1),
                                 "a_string": "value",
                                 "an_array": ["a", "b"],
-                                "an_object": ["key": "value"]
-                            ],
+                                "an_object": ["key": "value"],
+                            ]
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ])
 
                 let layer = Statsig.getLayer("layer")
@@ -197,11 +205,11 @@ class LayerExposureSpec: BaseSpec {
                     "layer_configs": [
                         "layer".sha256(): [
                             "value": [
-                                "a_bool": true,
-                            ],
+                                "a_bool": true
+                            ]
                         ]
                     ],
-                    "has_updates": true
+                    "has_updates": true,
                 ])
 
                 let layer = Statsig.getLayer("layer")
@@ -217,14 +225,15 @@ class LayerExposureSpec: BaseSpec {
             }
 
             it("logs the correct name and user values") {
-                _ = TestUtils.startWithResponseAndWait([
-                    "layer_configs": [
-                        "layer".sha256(): [
-                            "value": ["an_int": 99],
-                        ]
-                    ],
-                    "has_updates": true
-                ], "client-sdk-key", StatsigUser(userID: "dloomb", email: "dan@loomb.co.nz"))
+                _ = TestUtils.startWithResponseAndWait(
+                    [
+                        "layer_configs": [
+                            "layer".sha256(): [
+                                "value": ["an_int": 99]
+                            ]
+                        ],
+                        "has_updates": true,
+                    ], "client-sdk-key", StatsigUser(userID: "dloomb", email: "dan@loomb.co.nz"))
 
                 let layer = Statsig.getLayer("layer")
                 _ = layer.getValue(forKey: "an_int", defaultValue: 0)
@@ -243,11 +252,12 @@ class LayerExposureSpec: BaseSpec {
                     .to(equal("statsig::layer_exposure"))
 
                 expect(event?["user"] as? [String: AnyHashable])
-                    .to(equal([
-                        "userID": "dloomb",
-                        "email": "dan@loomb.co.nz",
-                        "statsigEnvironment": [String: String]()
-                    ]))
+                    .to(
+                        equal([
+                            "userID": "dloomb",
+                            "email": "dan@loomb.co.nz",
+                            "statsigEnvironment": [String: String](),
+                        ]))
             }
         }
     }

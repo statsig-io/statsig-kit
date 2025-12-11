@@ -1,9 +1,9 @@
 import Foundation
-
-import XCTest
 import Nimble
 import OHHTTPStubs
 import Quick
+import XCTest
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -14,7 +14,6 @@ final class ManualFlushSpec: BaseSpec {
     override func spec() {
         super.spec()
 
-    
         it("flushes the logger") {
             let opts = StatsigOptions()
             NetworkService.defaultEventLoggingURL = URL(string: "http://ManualFlushSpec/v1/rgstr")
@@ -29,7 +28,7 @@ final class ManualFlushSpec: BaseSpec {
 
             waitUntil { done in Statsig.flush(completion: done) }
             expect(logs).to(haveCount(1))
-            expect(logs[0]["eventName"]as? String).to(equal("my_event"))
+            expect(logs[0]["eventName"] as? String).to(equal("my_event"))
 
             Statsig.shutdown()
             TestUtils.resetDefaultURLs()

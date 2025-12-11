@@ -4,7 +4,7 @@ struct SpecsResponse: Decodable {
     let featureGates: [Spec]
     let dynamicConfigs: [Spec]
     let layerConfigs: [Spec]
-    let paramStores: [String:ParamStoreSpec]?;
+    let paramStores: [String: ParamStoreSpec]?
     let time: UInt64
 
     private enum CodingKeys: String, CodingKey {
@@ -17,8 +17,8 @@ struct SpecsResponse: Decodable {
 }
 
 struct ParamStoreSpec: Decodable {
-    let targetAppIDs: [String]?;
-    let parameters: JsonValue;
+    let targetAppIDs: [String]?
+    let parameters: JsonValue
 }
 
 typealias SpecMap = [SpecType: [String: Spec]]

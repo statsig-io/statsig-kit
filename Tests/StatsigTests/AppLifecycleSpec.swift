@@ -1,9 +1,9 @@
 import Foundation
-
-import XCTest
 import Nimble
 import OHHTTPStubs
 import Quick
+import XCTest
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -18,7 +18,8 @@ final class AppLifecycleSpec: BaseSpec {
 
         func startAndLog(shutdownOnBackground: Bool, tag: String) {
             let opts = StatsigOptions(shutdownOnBackground: shutdownOnBackground)
-            NetworkService.defaultInitializationURL = URL(string: "http://AppLifecycleSpec::\(tag)/v1/initialize")
+            NetworkService.defaultInitializationURL = URL(
+                string: "http://AppLifecycleSpec::\(tag)/v1/initialize")
 
             _ = TestUtils.startWithStatusAndWait(options: opts)
 
@@ -37,7 +38,6 @@ final class AppLifecycleSpec: BaseSpec {
             TestUtils.resetDefaultURLs()
         }
 
-
         it("shuts down the logger on app background when shutdownOnBackground is true") {
             startAndLog(shutdownOnBackground: true, tag: "Shutdown")
 
@@ -49,7 +49,6 @@ final class AppLifecycleSpec: BaseSpec {
             expect(logger.timesShutdownCalled).toEventually(equal(1))
             expect(logger.timesFlushCalled).to(equal(0))
         }
-
 
         it("flushes the logger on app background when shutdownOnBackground is false") {
             startAndLog(shutdownOnBackground: false, tag: "Flush")

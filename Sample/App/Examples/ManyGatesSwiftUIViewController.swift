@@ -1,6 +1,6 @@
-import UIKit
 import Statsig
 import SwiftUI
+import UIKit
 
 fileprivate func getRandomUser() -> StatsigUser {
     StatsigUser(userID: "user_\(Int.random(in: 1...100))")
@@ -33,15 +33,16 @@ struct ContentView: View {
             Statsig.initialize(sdkKey: Self.sdkKey, user: user)
 
             NotificationCenter.default
-                .addObserver(forName: UserDefaults.didChangeNotification, object: UserDefaults.standard, queue: .main) { _ in }
+                .addObserver(
+                    forName: UserDefaults.didChangeNotification, object: UserDefaults.standard,
+                    queue: .main
+                ) { _ in }
         }
     }
-
 
 }
 
 class ManyGatesSwiftUIViewController: UIViewController {
-
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -57,8 +58,7 @@ class ManyGatesSwiftUIViewController: UIViewController {
             hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
     }
 }
-

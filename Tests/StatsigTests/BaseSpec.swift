@@ -1,35 +1,37 @@
 import Foundation
-
 import Nimble
-import Quick
 import OHHTTPStubs
+import Quick
+
+@testable import Statsig
+
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
-@testable import Statsig
-
 
 class BaseSpec: QuickSpec {
 
     override func spec() {
         beforeSuite {
-            NetworkService.disableCompression = true;
+            NetworkService.disableCompression = true
 
-            if (self.shouldResetUserDefaultsBeforeSuite()) {
+            if self.shouldResetUserDefaultsBeforeSuite() {
                 BaseSpec.resetUserDefaults()
             }
 
             let stubs = HTTPStubs.allStubs()
             if !stubs.isEmpty {
-                fatalError("Stubs not cleared. This likely means a previous test was not cleaned up (Possibly because it failed)")
+                fatalError(
+                    "Stubs not cleared. This likely means a previous test was not cleaned up (Possibly because it failed)"
+                )
             }
 
-            if (Statsig.client != nil) {
+            if Statsig.client != nil {
                 fatalError("Statsig.client not cleared")
             }
 
             waitUntil { done in
-                while (Statsig.client != nil) {}
+                while Statsig.client != nil {}
                 done()
             }
         }
@@ -66,5 +68,5 @@ class BaseSpec: QuickSpec {
             }
         }
     }
-    
+
 }

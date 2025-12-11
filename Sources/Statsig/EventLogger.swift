@@ -27,11 +27,11 @@ class EventLogger {
 
     private var exposuresDedupeDict = [DedupeKey: TimeInterval]()
 
-#if os(tvOS)
-    let MAX_SAVED_LOG_REQUEST_SIZE = 100_000 //100 KB
-#else
-    let MAX_SAVED_LOG_REQUEST_SIZE = 1_000_000 //1 MB
-#endif
+    #if os(tvOS)
+    let MAX_SAVED_LOG_REQUEST_SIZE = 100_000  //100 KB
+    #else
+    let MAX_SAVED_LOG_REQUEST_SIZE = 1_000_000  //1 MB
+    #endif
 
     init(
         sdkKey: String,
@@ -55,10 +55,13 @@ class EventLogger {
                 let self = self,
                 self.networkService.statsigOptions.eventLoggingEnabled
             else { return }
-            if let failedRequestsCache = userDefaults.array(forKey: storageKey) as? [Data], !failedRequestsCache.isEmpty {
+            if let failedRequestsCache = userDefaults.array(forKey: storageKey) as? [Data],
+                !failedRequestsCache.isEmpty
+            {
                 userDefaults.removeObject(forKey: storageKey)
-                
-                networkService.sendRequestsWithData(failedRequestsCache, forUser: user) { [weak self] failedRequestsData in
+
+                networkService.sendRequestsWithData(failedRequestsCache, forUser: user) {
+                    [weak self] failedRequestsData in
                     guard let failedRequestsData = failedRequestsData else { return }
                     self?.addFailedLogRequest(failedRequestsData)
                     self?.saveFailedLogRequestsToDisk()
@@ -84,7 +87,7 @@ class EventLogger {
 
             self.events.append(event)
 
-            if (self.events.count >= self.maxEventQueueSize) {
+            if self.events.count >= self.maxEventQueueSize {
                 self.flush()
             }
         }
@@ -99,7 +102,8 @@ class EventLogger {
     func start(flushInterval: TimeInterval = 60) {
         DispatchQueue.main.async { [weak self] in
             self?.flushTimer?.invalidate()
-            self?.flushTimer = Timer.scheduledTimer(withTimeInterval: flushInterval, repeats: true) { [weak self] _ in
+            self?.flushTimer = Timer.scheduledTimer(withTimeInterval: flushInterval, repeats: true)
+            { [weak self] _ in
                 self?.flush()
             }
         }
@@ -131,7 +135,7 @@ class EventLogger {
     func removePendingEventsData(_ requestData: Data) {
         failedRequestLock.withLock {
             for (i, req) in failedRequestQueue.enumerated() {
-                if (req == requestData) {
+                if req == requestData {
                     failedRequestQueue.remove(at: i)
                     return
                 }
@@ -139,7 +143,10 @@ class EventLogger {
         }
     }
 
-    private func flushInternal(isShuttingDown: Bool = false, persistPendingEvents: Bool = false, completion: (() -> Void)? = nil) {
+    private func flushInternal(
+        isShuttingDown: Bool = false, persistPendingEvents: Bool = false,
+        completion: (() -> Void)? = nil
+    ) {
         if events.isEmpty {
             completion?()
             return
@@ -159,14 +166,16 @@ class EventLogger {
 
         let requestData: Data
         do {
-            requestData = try networkService.prepareEventRequestBody(forUser: user, events: oldEvents).get()
+            requestData = try networkService.prepareEventRequestBody(
+                forUser: user, events: oldEvents
+            ).get()
         } catch {
             logErrorMessageOnce(error.localizedDescription)
             completion?()
             return
         }
 
-        if (persistPendingEvents) {
+        if persistPendingEvents {
             self.addSingleFailedLogRequest(requestData)
             self.saveFailedLogRequestsToDisk()
         }
@@ -184,7 +193,7 @@ class EventLogger {
                 self.saveFailedLogRequestsToDisk()
 
                 self.logErrorMessageOnce(errorMessage)
-            } else if (persistPendingEvents) {
+            } else if persistPendingEvents {
                 self.removePendingEventsData(requestData)
                 self.saveFailedLogRequestsToDisk()
             }
@@ -196,11 +205,12 @@ class EventLogger {
     func logErrorMessageOnce(_ errorMessage: String, user: StatsigUser? = nil) {
         if !errorMessage.isEmpty && !self.loggedErrorMessage.contains(errorMessage) {
             self.loggedErrorMessage.insert(errorMessage)
-            self.log(Event.statsigInternalEvent(
-                user: user ?? self.user,
-                name: "log_event_failed",
-                value: nil,
-                metadata: ["error": errorMessage])
+            self.log(
+                Event.statsigInternalEvent(
+                    user: user ?? self.user,
+                    name: "log_event_failed",
+                    value: nil,
+                    metadata: ["error": errorMessage])
             )
         }
     }
@@ -217,13 +227,13 @@ class EventLogger {
     }
 
     func addNonExposedChecksEvent() {
-        if (self.nonExposedChecks.isEmpty) {
+        if self.nonExposedChecks.isEmpty {
             return
         }
 
         guard JSONSerialization.isValidJSONObject(nonExposedChecks),
-              let data = try? JSONSerialization.data(withJSONObject: nonExposedChecks),
-              let json = String(data: data, encoding: .ascii)
+            let data = try? JSONSerialization.data(withJSONObject: nonExposedChecks),
+            let json = String(data: data, encoding: .ascii)
         else {
             self.nonExposedChecks = [String: Int]()
             return

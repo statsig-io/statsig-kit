@@ -1,18 +1,16 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
 #endif
 
-@testable import Statsig
-
-
 class FileBasedUserDefaultsSpec: BaseSpec {
-    
+
     override func spec() {
         super.spec()
 
@@ -37,7 +35,8 @@ class FileBasedUserDefaultsSpec: BaseSpec {
                 it("writes and reads") {
                     let defaults = FileBasedUserDefaults()
                     defaults.set(["A": "B"], forKey: "Bar")
-                    expect(defaults.dictionary(forKey: "Bar") as? [String: String]).to(equal(["A": "B"]))
+                    expect(defaults.dictionary(forKey: "Bar") as? [String: String]).to(
+                        equal(["A": "B"]))
                 }
 
                 it("writes and reads across sessions") {
@@ -45,7 +44,8 @@ class FileBasedUserDefaultsSpec: BaseSpec {
                     defaults.set(["A": "B"], forKey: "Bar")
 
                     let defaults2 = FileBasedUserDefaults()
-                    expect(defaults2.dictionary(forKey: "Bar") as? [String: String]).to(equal(["A": "B"]))
+                    expect(defaults2.dictionary(forKey: "Bar") as? [String: String]).to(
+                        equal(["A": "B"]))
                 }
             }
 

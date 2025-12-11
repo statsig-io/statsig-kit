@@ -1,9 +1,8 @@
 import Foundation
-
 import Nimble
 import Quick
-@testable import Statsig
 
+@testable import Statsig
 
 class InternalStoreFileBasedUserDefaultsSpec: InternalStoreSpec {
     override func shouldResetUserDefaultsBeforeSuite() -> Bool {
@@ -20,4 +19,3 @@ class InternalStoreFileBasedUserDefaultsSpec: InternalStoreSpec {
         self.specImpl()
     }
 }
-

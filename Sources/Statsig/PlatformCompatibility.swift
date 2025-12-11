@@ -1,6 +1,5 @@
 import Foundation
 
-
 #if TEST
 
 struct DeviceInfo {
@@ -10,11 +9,13 @@ struct DeviceInfo {
     let os = "testOS"
 }
 
-class PlatformCompatibility
-{
-    static let willResignActiveNotification = NSNotification.Name(rawValue: "test.willResignActiveNotification")
-    static let willTerminateNotification = NSNotification.Name(rawValue:"test.willTerminateNotification")
-    static let didBecomeActiveNotification = NSNotification.Name(rawValue:"test.didBecomeActiveNotification")
+class PlatformCompatibility {
+    static let willResignActiveNotification = NSNotification.Name(
+        rawValue: "test.willResignActiveNotification")
+    static let willTerminateNotification = NSNotification.Name(
+        rawValue: "test.willTerminateNotification")
+    static let didBecomeActiveNotification = NSNotification.Name(
+        rawValue: "test.didBecomeActiveNotification")
 
     static let deviceInfo = DeviceInfo()
 
@@ -35,10 +36,10 @@ struct DeviceInfo {
     let os = "watchOS"
 }
 
-class PlatformCompatibility
-{
+class PlatformCompatibility {
     static let willResignActiveNotification = WKExtension.applicationWillResignActiveNotification
-    static let willTerminateNotification = NSNotification.Name(rawValue: "willTerminateNotification")
+    static let willTerminateNotification = NSNotification.Name(
+        rawValue: "willTerminateNotification")
     static let didBecomeActiveNotification = WKExtension.applicationDidBecomeActiveNotification
 
     static let deviceInfo = DeviceInfo()
@@ -61,10 +62,9 @@ struct DeviceInfo {
     let os = UIDevice.current.userInterfaceIdiom == .tv ? "tvOS" : "iOS"
 }
 
-class PlatformCompatibility
-{
+class PlatformCompatibility {
     static let willResignActiveNotification = UIApplication.willResignActiveNotification
-    
+
     static let willTerminateNotification = UIApplication.willTerminateNotification
     static let didBecomeActiveNotification = UIApplication.didBecomeActiveNotification
 
@@ -72,15 +72,15 @@ class PlatformCompatibility
 
     static func getRootViewControllerClassName(_ callback: @escaping (_ name: String?) -> Void) {
         #if STATSIG_WIDGET_BUILD
-            callback(nil)
+        callback(nil)
         #else
-            ensureMainThread { [callback] in
-                if let klass = UIApplication.shared.keyWindow?.rootViewController?.classForCoder {
-                    callback("\(klass)")
-                } else {
-                    callback(nil)
-                }
+        ensureMainThread { [callback] in
+            if let klass = UIApplication.shared.keyWindow?.rootViewController?.classForCoder {
+                callback("\(klass)")
+            } else {
+                callback(nil)
             }
+        }
         #endif
     }
 }
@@ -96,8 +96,7 @@ struct DeviceInfo {
     let os = "visionOS"
 }
 
-class PlatformCompatibility
-{
+class PlatformCompatibility {
     static let willResignActiveNotification = UIApplication.willResignActiveNotification
     static let willTerminateNotification = UIApplication.willTerminateNotification
     static let didBecomeActiveNotification = UIApplication.didBecomeActiveNotification
@@ -131,8 +130,11 @@ struct DeviceInfo {
     let os = "macOS"
 
     init() {
-        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
-        if let data = IORegistryEntryCreateCFProperty(service, "model" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? Data {
+        let service = IOServiceGetMatchingService(
+            kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+        if let data = IORegistryEntryCreateCFProperty(
+            service, "model" as CFString, kCFAllocatorDefault, 0
+        ).takeRetainedValue() as? Data {
             model = data.text?.trimmingCharacters(in: .controlCharacters) ?? "Unknown"
         } else {
             model = "Unknown"
@@ -145,8 +147,7 @@ struct DeviceInfo {
     }
 }
 
-class PlatformCompatibility
-{
+class PlatformCompatibility {
     static let willResignActiveNotification = NSApplication.willResignActiveNotification
     static let willTerminateNotification = NSApplication.willTerminateNotification
     static let didBecomeActiveNotification = NSApplication.didBecomeActiveNotification
@@ -169,5 +170,3 @@ class PlatformCompatibility
 // No PlatformCompatibility (Won't Compile)
 
 #endif
-
-

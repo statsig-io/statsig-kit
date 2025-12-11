@@ -1,9 +1,9 @@
 import Foundation
-
-import XCTest
 import Nimble
 import OHHTTPStubs
 import Quick
+import XCTest
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -24,7 +24,7 @@ final class MultiClientSupportSpec: BaseSpec {
             "hash_used": "none",
             "layer_configs": [],
             "time": 123,
-            "has_updates": true
+            "has_updates": true,
         ]
 
         func stubInitOnce(_ response: [String: Any]) {

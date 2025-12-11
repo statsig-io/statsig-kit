@@ -1,6 +1,6 @@
 import Foundation
 
-internal extension Data {
+extension Data {
     var json: [String: Any]? {
         guard let result = try? JSONSerialization.jsonObject(with: self, options: []) else {
             return nil

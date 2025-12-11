@@ -35,12 +35,12 @@ public final class DynamicConfigObjC: NSObject {
     @objc public var evaluationDetails: [String: String] {
         var internalDetails = [String: Any]()
         config.evaluationDetails.addToDictionary(&internalDetails)
-            
+
         var externalDetails = [String: String]()
         for (key, value) in internalDetails {
             externalDetails[key] = "\(value)"
         }
-        
+
         return externalDetails
     }
 
@@ -71,7 +71,7 @@ public final class DynamicConfigObjC: NSObject {
     @objc public func getString(forKey: String, defaultValue: String) -> String {
         return config.getValue(forKey: forKey, defaultValue: defaultValue)
     }
-    
+
     @objc public func getNullableString(forKey: String, defaultValue: String?) -> String? {
         return config.getValue(forKey: forKey, defaultValue: defaultValue)
     }

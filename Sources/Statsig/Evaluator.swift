@@ -1,25 +1,24 @@
-import Foundation
 import CommonCrypto
+import Foundation
 
 class Evaluator {
 
     private var lcut: UInt64
     private var specs: SpecMap = [:]
-    private var paramStores: [String : ParamStoreSpec]?
+    private var paramStores: [String: ParamStoreSpec]?
     private var receivedAt: UInt64 = Time.now()
 
     internal init(
         lcut: UInt64,
         specs: SpecMap,
-        paramStores: [String : ParamStoreSpec]?
+        paramStores: [String: ParamStoreSpec]?
     ) {
         self.lcut = lcut
         self.specs = specs
         self.paramStores = paramStores
     }
 
-    func getGate(_ user: StatsigUser, _ name: String) -> FeatureGate?
-    {
+    func getGate(_ user: StatsigUser, _ name: String) -> FeatureGate? {
         guard let spec: Spec = getSpec(.gate, name) else {
             return .empty(name, self.evalDetails(reason: .Unrecognized))
         }
@@ -34,8 +33,7 @@ class Evaluator {
         )
     }
 
-    func getDynamicConfig(_ user: StatsigUser, _ name: String) -> DynamicConfig?
-    {
+    func getDynamicConfig(_ user: StatsigUser, _ name: String) -> DynamicConfig? {
         guard let spec: Spec = getSpec(.config, name) else {
             return .empty(name, self.evalDetails(reason: .Unrecognized))
         }
@@ -53,8 +51,7 @@ class Evaluator {
         )
     }
 
-    func getExperiment(_ user: StatsigUser, _ name: String) -> DynamicConfig?
-    {
+    func getExperiment(_ user: StatsigUser, _ name: String) -> DynamicConfig? {
         guard let spec: Spec = getSpec(.config, name) else {
             return .empty(name, self.evalDetails(reason: .Unrecognized))
         }
@@ -99,7 +96,8 @@ class Evaluator {
 
         return ParameterStore(
             name: name,
-            evaluationDetails: self.evalDetails(reason: paramStore != nil ? .Recognized : .Unrecognized),
+            evaluationDetails: self.evalDetails(
+                reason: paramStore != nil ? .Recognized : .Unrecognized),
             client: client,
             configuration: paramStore?.parameters.getSerializedDictionaryResult()?.dictionary ?? [:]
         )
@@ -108,7 +106,9 @@ class Evaluator {
     // MARK: Evaluation
 
     private func evalDetails(reason: EvaluationReason) -> EvaluationDetails {
-        return EvaluationDetails(source: .Bootstrap, reason: reason, lcut: self.lcut, receivedAt: self.receivedAt, prefix: "[OnDevice]")
+        return EvaluationDetails(
+            source: .Bootstrap, reason: reason, lcut: self.lcut, receivedAt: self.receivedAt,
+            prefix: "[OnDevice]")
     }
 
     private func getSpec(_ type: SpecType, _ name: String) -> Spec? {
@@ -215,7 +215,9 @@ class Evaluator {
         )
     }
 
-    private func evaluateCondition(_ condition: SpecCondition, _ user: StatsigUser) -> EvaluationResult {
+    private func evaluateCondition(_ condition: SpecCondition, _ user: StatsigUser)
+        -> EvaluationResult
+    {
         var value: JsonValue? = nil
         var pass = false
 

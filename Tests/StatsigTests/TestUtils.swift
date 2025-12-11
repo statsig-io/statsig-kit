@@ -1,7 +1,8 @@
 import Foundation
 import Nimble
-@testable import Statsig
 import OHHTTPStubs
+
+@testable import Statsig
 
 #if !COCOAPODS
 import OHHTTPStubsSwift
@@ -15,13 +16,14 @@ func skipFrame() {
     }
 }
 
-
 class TestUtils {
     static func clearStorage() {
         InternalStore.deleteAllLocalStorage()
     }
 
-    static func startStatsigAndWait(key: String, _ user: StatsigUser? = nil, _ options: StatsigOptions? = nil) {
+    static func startStatsigAndWait(
+        key: String, _ user: StatsigUser? = nil, _ options: StatsigOptions? = nil
+    ) {
         var called = false
         waitUntil(timeout: .seconds(10)) { done in
             Statsig.client = nil
@@ -37,21 +39,33 @@ class TestUtils {
         }
     }
 
-    static func startWithResponseAndWait(_ response: [String: Any], _ key: String = "client-api-key") -> URLRequest? {
+    static func startWithResponseAndWait(
+        _ response: [String: Any], _ key: String = "client-api-key"
+    ) -> URLRequest? {
         return startWithResponseAndWait(response, key, nil)
     }
 
-    static func startWithResponseAndWait(_ response: [String: Any], _ key: String = "client-api-key", _ user: StatsigUser? = nil) -> URLRequest? {
+    static func startWithResponseAndWait(
+        _ response: [String: Any], _ key: String = "client-api-key", _ user: StatsigUser? = nil
+    ) -> URLRequest? {
         return startWithResponseAndWait(response, key, user, 200)
     }
 
-    static func startWithResponseAndWait(_ response: [String: Any], _ key: String = "client-api-key", _ user: StatsigUser? = nil, _ statusCode: Int32 = 200) -> URLRequest? {
+    static func startWithResponseAndWait(
+        _ response: [String: Any], _ key: String = "client-api-key", _ user: StatsigUser? = nil,
+        _ statusCode: Int32 = 200
+    ) -> URLRequest? {
         return startWithResponseAndWait(response, key, user, 200, options: nil)
     }
 
-    static func startWithResponseAndWait(_ response: [String: Any], _ key: String = "client-api-key", _ user: StatsigUser? = nil, _ statusCode: Int32 = 200, options: StatsigOptions? = nil) -> URLRequest? {
+    static func startWithResponseAndWait(
+        _ response: [String: Any], _ key: String = "client-api-key", _ user: StatsigUser? = nil,
+        _ statusCode: Int32 = 200, options: StatsigOptions? = nil
+    ) -> URLRequest? {
         var result: URLRequest? = nil
-        let host = options?.initializationURL?.host ?? NetworkService.defaultInitializationURL?.host ?? ApiHost
+        let host =
+            options?.initializationURL?.host ?? NetworkService.defaultInitializationURL?.host
+            ?? ApiHost
         let handle = stub(condition: isHost(host)) { req in
             result = req
             return HTTPStubsResponse(jsonObject: response, statusCode: statusCode, headers: nil)
@@ -66,9 +80,16 @@ class TestUtils {
         return result
     }
 
-    static func startWithStatusAndWait(_ statusCode: Int32 = 200, _ key: String = "client-api-key", _ user: StatsigUser? = nil, options: StatsigOptions? = nil) -> URLRequest? {
+    static func startWithStatusAndWait(
+        _ statusCode: Int32 = 200, _ key: String = "client-api-key", _ user: StatsigUser? = nil,
+        options: StatsigOptions? = nil
+    ) -> URLRequest? {
         var result: URLRequest? = nil
-        stub(condition: isHost(options?.initializationURL?.host ?? NetworkService.defaultInitializationURL?.host ?? ApiHost)) { req in
+        stub(
+            condition: isHost(
+                options?.initializationURL?.host ?? NetworkService.defaultInitializationURL?.host
+                    ?? ApiHost)
+        ) { req in
             result = req
             return HTTPStubsResponse(data: Data(), statusCode: statusCode, headers: nil)
         }
@@ -79,19 +100,24 @@ class TestUtils {
         return result
     }
 
-    static func captureLogs(host: String = LogEventHost,
-                            path: String = "/v1/rgstr",
-                            removeDiagnostics: Bool = true,
-                            onLog: @escaping ([String: Any]) -> Void) {
+    static func captureLogs(
+        host: String = LogEventHost,
+        path: String = "/v1/rgstr",
+        removeDiagnostics: Bool = true,
+        onLog: @escaping ([String: Any]) -> Void
+    ) {
         stub(condition: isHost(host) && isPath(path)) { request in
-            var data = try! JSONSerialization.jsonObject(with: request.ohhttpStubs_httpBody!, options: []) as! [String: Any]
+            var data =
+                try! JSONSerialization.jsonObject(with: request.ohhttpStubs_httpBody!, options: [])
+                as! [String: Any]
             if removeDiagnostics, let events = data["events"] as? [[String: Any]] {
                 data["events"] = events.filter({ item in
                     return item["eventName"] as? String != "statsig::diagnostics"
                 })
             }
             onLog(data)
-            return HTTPStubsResponse(jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
+            return HTTPStubsResponse(
+                jsonObject: StatsigSpec.mockUserValues, statusCode: 200, headers: nil)
         }
     }
 
@@ -113,16 +139,20 @@ class TestUtils {
             ],
             "layer_configs": [:],
             "time": 111,
-            "has_updates": true
+            "has_updates": true,
         ]
     }
 
     static func resetDefaultURLs() {
-        NetworkService.defaultInitializationURL = URL(string: "https://\(ApiHost)\(Endpoint.initialize.rawValue)")
-        NetworkService.defaultEventLoggingURL = URL(string: "https://\(LogEventHost)\(Endpoint.logEvent.rawValue)")
+        NetworkService.defaultInitializationURL = URL(
+            string: "https://\(ApiHost)\(Endpoint.initialize.rawValue)")
+        NetworkService.defaultEventLoggingURL = URL(
+            string: "https://\(LogEventHost)\(Endpoint.logEvent.rawValue)")
     }
 
-    static func freezeThreadUntilAsyncDone(dispatchQueue: DispatchQueue = DispatchQueue.global(), _ callback: @escaping () -> Void) {
+    static func freezeThreadUntilAsyncDone(
+        dispatchQueue: DispatchQueue = DispatchQueue.global(), _ callback: @escaping () -> Void
+    ) {
         let semaphore = DispatchSemaphore(value: 0)
 
         dispatchQueue.async {
@@ -139,9 +169,9 @@ class TestUtils {
 extension CompressionType {
     static func from(header: String?) -> CompressionType? {
         switch header {
-            case nil: return CompressionType.none
-            case "gzip": return .gzip
-            default: return nil
+        case nil: return CompressionType.none
+        case "gzip": return .gzip
+        default: return nil
         }
     }
 }
@@ -151,11 +181,11 @@ extension URLRequest {
         guard let body = ohhttpStubs_httpBody else {
             return nil
         }
-        
+
         let contentEncoding = self.value(forHTTPHeaderField: "Content-Encoding")
         return switch CompressionType.from(header: contentEncoding) {
-            case .gzip: try! body.gunzipped()
-            default: body
+        case .gzip: try! body.gunzipped()
+        default: body
         }
     }
 
@@ -169,4 +199,3 @@ extension URLRequest {
             options: []) as? [String: Any]
     }
 }
-

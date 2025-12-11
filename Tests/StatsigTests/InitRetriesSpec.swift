@@ -1,5 +1,4 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
@@ -22,7 +21,7 @@ class InitRetriesSpec: BaseSpec {
                 }
 
                 TestUtils.startStatsigAndWait(key: "client-key")
-                expect(calls).to(equal(4)) // 1 + 3 retries
+                expect(calls).to(equal(4))  // 1 + 3 retries
             }
         }
     }

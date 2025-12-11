@@ -3,7 +3,7 @@ import Foundation
 @objc(Layer)
 public final class LayerObjC: NSObject {
     internal var layer: Layer
-    
+
     @objc public var name: String {
         layer.name
     }
@@ -27,7 +27,7 @@ public final class LayerObjC: NSObject {
     @objc public var hashedName: String {
         layer.hashedName
     }
-    
+
     @objc public var allocatedExperimentName: String {
         layer.allocatedExperimentName
     }
@@ -35,12 +35,12 @@ public final class LayerObjC: NSObject {
     @objc public var evaluationDetails: [String: String] {
         var internalDetails = [String: Any]()
         layer.evaluationDetails.addToDictionary(&internalDetails)
-            
+
         var externalDetails = [String: String]()
         for (key, value) in internalDetails {
             externalDetails[key] = "\(value)"
         }
-        
+
         return externalDetails
     }
 

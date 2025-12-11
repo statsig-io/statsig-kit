@@ -1,8 +1,8 @@
 import Foundation
-
 import Nimble
 import OHHTTPStubs
 import Quick
+
 @testable import Statsig
 
 #if !COCOAPODS

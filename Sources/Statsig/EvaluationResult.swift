@@ -128,7 +128,7 @@ struct EvaluationResult {
     static func boolean(
         _ boolValue: Bool,
         _ secondaryExposures: [[String: String]]? = nil
-    ) -> EvaluationResult  {
+    ) -> EvaluationResult {
         EvaluationResult(
             boolValue: boolValue,
             secondaryExposures: secondaryExposures
@@ -155,7 +155,7 @@ struct EvaluationResult {
             boolValue: gate.value
         )
     }
-    
+
     static func configOverride(_ config: DynamicConfig) -> EvaluationResult {
         EvaluationResult(
             ruleID: config.ruleID,
@@ -163,7 +163,7 @@ struct EvaluationResult {
             groupName: config.groupName
         )
     }
-    
+
     static func experimentOverride(_ experiment: DynamicConfig) -> EvaluationResult {
         EvaluationResult(
             ruleID: experiment.ruleID,
@@ -171,7 +171,7 @@ struct EvaluationResult {
             groupName: experiment.groupName
         )
     }
-    
+
     static func layerOverride(_ layer: Layer) -> EvaluationResult {
         EvaluationResult(
             ruleID: layer.ruleID,
@@ -180,4 +180,3 @@ struct EvaluationResult {
         )
     }
 }
-

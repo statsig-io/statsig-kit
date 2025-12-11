@@ -1,9 +1,9 @@
 import Foundation
-
-import XCTest
 import Nimble
 import OHHTTPStubs
 import Quick
+import XCTest
+
 @testable import Statsig
 
 #if !COCOAPODS
@@ -20,7 +20,7 @@ final class ManyThreadsSpec: BaseSpec {
         "dynamic_configs": [],
         "layer_configs": [],
         "time": 123,
-        "has_updates": true
+        "has_updates": true,
     ]
 
     override func spec() {
