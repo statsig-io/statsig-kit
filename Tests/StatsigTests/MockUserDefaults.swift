@@ -66,7 +66,7 @@ extension MockDefaults: DefaultsLike {
 
 extension MockDefaults {
     func getUserCaches() -> NSDictionary {
-        if let data = data[InternalStore.localStorageKey] as? NSDictionary {
+        if let data = data[UserDefaultsKeys.localStorageKey] as? NSDictionary {
             return data
         }
 

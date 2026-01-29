@@ -58,7 +58,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
             describe("when cache has v1 value") {
                 beforeEach {
                     defaults = MockDefaults(data: [
-                        InternalStore.localStorageKey: [
+                        UserDefaultsKeys.localStorageKey: [
                             cacheKey.v1: [
                                 "feature_gates": [
                                     "test_gate": [
@@ -96,7 +96,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
             describe("when cache has v2 value") {
                 beforeEach {
                     defaults = MockDefaults(data: [
-                        InternalStore.localStorageKey: [
+                        UserDefaultsKeys.localStorageKey: [
                             cacheKey.v2: [
                                 "feature_gates": [
                                     "test_gate": [
@@ -134,7 +134,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
             describe("when cache has full user hash key") {
                 beforeEach {
                     defaults = MockDefaults(data: [
-                        InternalStore.localStorageKey: [
+                        UserDefaultsKeys.localStorageKey: [
                             cacheKey.full: [
                                 "feature_gates": [
                                     "test_gate": [
