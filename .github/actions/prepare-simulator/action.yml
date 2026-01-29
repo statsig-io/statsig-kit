@@ -1,0 +1,21 @@
+name: "Prepare Simulator"
+description: "Ensures the right simulator destination is installed and ready"
+inputs:
+  platform:
+    description: "Target platform: ios, tvos, visionos, or macos"
+    required: false
+    default: "ios"
+outputs:
+  destination:
+    description: "Resolved destination string (empty for macOS)"
+    value: ${{ steps.prepare-simulator.outputs.destination }}
+runs:
+  using: "composite"
+  steps:
+    - name: Run prepare-simulator.sh
+      id: prepare-simulator
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_PLATFORM: ${{ inputs.platform }}
+      run: bash "$ACTION_PATH/prepare-simulator.sh"

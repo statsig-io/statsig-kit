@@ -31,12 +31,17 @@ jobs:
         timeout-minutes: 5
         run: pod install --repo-update
 
+      - name: Prepare Simulator
+        id: simulator
+        timeout-minutes: 3
+        uses: ./.github/actions/prepare-simulator
+
       - name: Test Sample App
         working-directory: Sample/StatsigSamplesPods
         timeout-minutes: 8
         run: |
           xcodebuild test \
-            -destination "platform=iOS Simulator,name=iPhone SE (3rd generation)" \
+            -destination "${{ steps.simulator.outputs.destination }}" \
             -workspace StatsigSamples.xcworkspace/ \
             -scheme StatsigSamplesTests \
             | xcbeautify && exit ${PIPESTATUS[0]}
@@ -47,7 +52,7 @@ jobs:
         timeout-minutes: 10
         run: |
           xcodebuild test \
-            -destination "platform=iOS Simulator,name=iPhone SE (3rd generation)" \
+            -destination "${{ steps.simulator.outputs.destination }}" \
             -workspace StatsigSamples.xcworkspace/ \
             -scheme Statsig-Unit-Tests \
             -retry-tests-on-failure \

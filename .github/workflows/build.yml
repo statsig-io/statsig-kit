@@ -19,22 +19,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          [
-            "platform=iOS Simulator,name=iPhone SE (3rd generation)",
-            "platform=macOS",
-            "platform=tvOS Simulator,name=Apple TV",
-            "platform=visionOS Simulator,name=Apple Vision Pro,OS=26.0",
-          ]
+        include:
+          - platform_type: ios
+          - platform_type: macos
+          - platform_type: tvos
+          - platform_type: visionos
     steps:
       - name: Checkout
         uses: actions/checkout@main
 
-      - name: Run Build ${{ matrix.platform }}
+      - name: Prepare Simulator
+        id: simulator
+        timeout-minutes: 3
+        uses: ./.github/actions/prepare-simulator
+        with:
+          platform: ${{ matrix.platform_type }}
+
+      - name: Run Build (${{ matrix.platform_type }})
         run: |
           cd .swiftpm/xcode
           xcodebuild build \
-            -destination "${{ matrix.platform }}" \
+            -destination "${{ steps.simulator.outputs.destination }}" \
             -workspace package.xcworkspace \
             -scheme Statsig \
             | xcbeautify && exit ${PIPESTATUS[0]}
