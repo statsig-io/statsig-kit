@@ -7,7 +7,7 @@ struct DeviceEnvironment {
 
     static internal let deviceOS = PlatformCompatibility.deviceInfo.os
     static internal let sdkType: String = "ios-client"
-    static internal let sdkVersion: String = "1.56.0"
+    static internal let sdkVersion: String = "1.57.0"
 
     let lock = NSLock()
     var sessionID: String? { UUID().uuidString }
