@@ -94,16 +94,24 @@ final class PublicFuncSpec: BaseSpec {
 
                     // Log Event
                     (
-                        t(Statsig.logEvent as (String, [String: String]) -> Void),
-                        t(client.logEvent as (String, [String: String]) -> Void)
+                        t(Statsig.logEvent as (String, [String: String]?, StatsigUser?) -> Void),
+                        t(client.logEvent as (String, [String: String]?, StatsigUser?) -> Void)
                     ),
                     (
-                        t(Statsig.logEvent as (String, String, [String: String]) -> Void),
-                        t(client.logEvent as (String, String, [String: String]) -> Void)
+                        t(
+                            Statsig.logEvent
+                                as (String, String, [String: String]?, StatsigUser?) -> Void),
+                        t(
+                            client.logEvent
+                                as (String, String, [String: String]?, StatsigUser?) -> Void)
                     ),
                     (
-                        t(Statsig.logEvent as (String, Double, [String: String]) -> Void),
-                        t(client.logEvent as (String, Double, [String: String]) -> Void)
+                        t(
+                            Statsig.logEvent
+                                as (String, Double, [String: String]?, StatsigUser?) -> Void),
+                        t(
+                            client.logEvent
+                                as (String, Double, [String: String]?, StatsigUser?) -> Void)
                     ),
 
                     // Misc

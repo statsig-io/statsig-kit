@@ -392,9 +392,14 @@ public class Statsig {
      Parameters:
      - withName: The name of the event
      - metadata: Any extra values to be logged with the event
+     - userOverride: Use to log against a different user than the current user
      */
-    public static func logEvent(_ withName: String, metadata: [String: String]? = nil) {
-        client?.logEvent(withName, metadata: metadata)
+    public static func logEvent(
+        _ withName: String,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
+    ) {
+        client?.logEvent(withName, metadata: metadata, userOverride: userOverride)
     }
 
     /**
@@ -404,11 +409,15 @@ public class Statsig {
      - withName: The name of the event
      - value: A top level value for the event
      - metadata: Any extra values to be logged with the event
+     - userOverride: Use to log against a different user than the current user
      */
     public static func logEvent(
-        _ withName: String, value: String, metadata: [String: String]? = nil
+        _ withName: String,
+        value: String,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
     ) {
-        client?.logEvent(withName, value: value, metadata: metadata)
+        client?.logEvent(withName, value: value, metadata: metadata, userOverride: userOverride)
     }
 
     /**
@@ -418,11 +427,15 @@ public class Statsig {
      - withName: The name of the event
      - value: A top level value for the event
      - metadata: Any extra key/value pairs to be logged with the event
+     - userOverride: Use to log against a different user than the current user
      */
     public static func logEvent(
-        _ withName: String, value: Double, metadata: [String: String]? = nil
+        _ withName: String,
+        value: Double,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
     ) {
-        client?.logEvent(withName, value: value, metadata: metadata)
+        client?.logEvent(withName, value: value, metadata: metadata, userOverride: userOverride)
     }
 
     /**

@@ -691,9 +691,14 @@ extension StatsigClient {
      Parameters:
      - withName: The name of the event
      - metadata: Any extra values to be logged with the event
+     - userOverride: Use to log against a different user than the current user
      */
-    public func logEvent(_ withName: String, metadata: [String: String]? = nil) {
-        logEventImpl(withName, value: nil, metadata: metadata)
+    public func logEvent(
+        _ withName: String,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
+    ) {
+        logEventImpl(withName, value: nil, metadata: metadata, userOverride: userOverride)
     }
 
     /**
@@ -703,9 +708,15 @@ extension StatsigClient {
      - withName: The name of the event
      - value: A top level value for the event
      - metadata: Any extra values to be logged with the event
+     - userOverride: Use to log against a different user than the current user
      */
-    public func logEvent(_ withName: String, value: String, metadata: [String: String]? = nil) {
-        logEventImpl(withName, value: value, metadata: metadata)
+    public func logEvent(
+        _ withName: String,
+        value: String,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
+    ) {
+        logEventImpl(withName, value: value, metadata: metadata, userOverride: userOverride)
     }
 
     /**
@@ -715,15 +726,25 @@ extension StatsigClient {
      - withName: The name of the event
      - value: A top level value for the event
      - metadata: Any extra key/value pairs to be logged with the event
+     - userOverride: Use to log against a different user than the current user
      */
-    public func logEvent(_ withName: String, value: Double, metadata: [String: String]? = nil) {
-        logEventImpl(withName, value: value, metadata: metadata)
+    public func logEvent(
+        _ withName: String,
+        value: Double,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
+    ) {
+        logEventImpl(withName, value: value, metadata: metadata, userOverride: userOverride)
     }
 
     private func logEventImpl(
-        _ withName: String, value: Any? = nil, metadata: [String: String]? = nil
+        _ withName: String,
+        value: Any? = nil,
+        metadata: [String: String]? = nil,
+        userOverride: StatsigUser? = nil
     ) {
         var eventName = withName
+        let eventUser = userOverride ?? currentUser
 
         if eventName.isEmpty {
             PrintHandler.log("[Statsig]: Must log with a non-empty event name.")
@@ -739,7 +760,7 @@ extension StatsigClient {
                 "[Statsig]: metadata is not a valid JSON object. Event is logged without metadata.")
             logger.log(
                 Event(
-                    user: currentUser,
+                    user: eventUser,
                     name: eventName,
                     value: value,
                     metadata: nil,
@@ -750,7 +771,7 @@ extension StatsigClient {
 
         logger.log(
             Event(
-                user: currentUser,
+                user: eventUser,
                 name: eventName,
                 value: value,
                 metadata: metadata,
