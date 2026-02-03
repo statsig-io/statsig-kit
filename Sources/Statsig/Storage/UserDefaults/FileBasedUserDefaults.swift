@@ -9,7 +9,10 @@ class FileBasedUserDefaults: DefaultsLike {
 
     private var dict: AtomicDictionary<Any?> = AtomicDictionary(label: FileBasedUserDefaultsQueue)
 
-    private let writeLock = NSLock()
+    internal var persistenceDispatchQueue = DispatchQueue(
+        label: "com.Statsig.FileBasedUserDefaults.Persistence",
+        qos: .default,
+        attributes: [])
 
     init() {
         readFromDisk()
@@ -31,18 +34,46 @@ class FileBasedUserDefaults: DefaultsLike {
         getValue(forKey: defaultName) as? Data
     }
 
-    func removeObject(forKey defaultName: String) {
-        dict[defaultName] = nil
-        writeToDiskAsync()
+    func removeObject(forKey key: String) {
+        let url = cacheURL
+
+        dict.setValueAndGetDataAsync(
+            value: nil, forKey: key, dispatchQueue: persistenceDispatchQueue
+        ) { data in
+            guard let data = data, let url = url else {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+                return
+            }
+            do {
+                try data.write(to: url)
+            } catch {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+                return
+            }
+        }
     }
 
-    func setValue(_ value: Any?, forKey: String) {
-        set(value, forKey: forKey)
+    func setValue(_ value: Any?, forKey key: String) {
+        set(value, forKey: key)
     }
 
-    func set(_ value: Any?, forKey: String) {
-        dict[forKey] = value
-        writeToDiskAsync()
+    func set(_ value: Any?, forKey key: String) {
+        let url = cacheURL
+
+        dict.setValueAndGetDataAsync(
+            value: value, forKey: key, dispatchQueue: persistenceDispatchQueue
+        ) { data in
+            guard let data = data, let url = url else {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+                return
+            }
+            do {
+                try data.write(to: url)
+            } catch {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+                return
+            }
+        }
     }
 
     func synchronize() -> Bool {
@@ -75,7 +106,7 @@ class FileBasedUserDefaults: DefaultsLike {
         let data = dict.toData()
 
         do {
-            try writeLock.withLock {
+            try persistenceDispatchQueue.sync {
                 try data?.write(to: url)
             }
         } catch {
@@ -83,33 +114,6 @@ class FileBasedUserDefaults: DefaultsLike {
         }
 
         return true
-    }
-
-    private func writeToDiskAsync(completion: ((_: Bool) -> Void)? = nil) {
-        guard let url = cacheURL else {
-            completion?(false)
-            return
-        }
-
-        let writeLock = writeLock
-
-        dict.toDataAsync { data in
-            guard let data = data else {
-                completion?(false)
-                return
-            }
-
-            do {
-                try writeLock.withLock {
-                    try data.write(to: url)
-                }
-            } catch {
-                completion?(false)
-                return
-            }
-
-            completion?(true)
-        }
     }
 
     private func readFromDisk() {

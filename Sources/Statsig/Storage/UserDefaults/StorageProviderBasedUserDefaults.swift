@@ -12,6 +12,10 @@ fileprivate let StorageProviderBasedUserDefaultsQueue =
 class StorageProviderBasedUserDefaults: DefaultsLike {
     internal var dict: AtomicDictionary<Any?> = AtomicDictionary(
         label: StorageProviderBasedUserDefaultsQueue)
+    internal var persistenceDispatchQueue = DispatchQueue(
+        label: "com.Statsig.StorageProviderBasedUserDefaults.Persistence",
+        qos: .default,
+        attributes: [])
     private let storageProvider: StorageProvider
 
     init(storageProvider: StorageProvider) {
@@ -36,8 +40,17 @@ class StorageProviderBasedUserDefaults: DefaultsLike {
     }
 
     func removeObject(forKey key: String) {
-        dict[key] = nil
-        writeToStorageProvider()
+        let storageProvider = storageProvider
+
+        dict.setValueAndGetDataAsync(
+            value: nil, forKey: key, dispatchQueue: persistenceDispatchQueue
+        ) { data in
+            guard let data = data else {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+                return
+            }
+            storageProvider.write(data, "com.statsig.cache")
+        }
     }
 
     func setValue(_ value: Any?, forKey: String) {
@@ -45,8 +58,18 @@ class StorageProviderBasedUserDefaults: DefaultsLike {
     }
 
     func set(_ value: Any?, forKey key: String) {
-        dict[key] = value
-        writeToStorageProvider()
+        let storageProvider = storageProvider
+
+        dict.setValueAndGetDataAsync(
+            value: value, forKey: key, dispatchQueue: persistenceDispatchQueue
+        ) {
+            data in
+            guard let data = data else {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+                return
+            }
+            storageProvider.write(data, "com.statsig.cache")
+        }
     }
 
     func synchronize() -> Bool {
@@ -72,7 +95,9 @@ class StorageProviderBasedUserDefaults: DefaultsLike {
 
     private func writeToStorageProvider() {
         if let data = dict.toData() {
-            storageProvider.write(data, "com.statsig.cache")
+            persistenceDispatchQueue.sync {
+                storageProvider.write(data, "com.statsig.cache")
+            }
         } else {
             PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
             return

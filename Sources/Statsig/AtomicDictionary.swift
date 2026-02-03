@@ -39,6 +39,22 @@ class AtomicDictionary<T> {
         }
     }
 
+    internal func setValueAndGetDataAsync(
+        value: T?,
+        forKey key: String,
+        dispatchQueue: DispatchQueue,
+        completion: ((_: Data?) -> Void)? = nil
+    ) {
+        self.queue.async(flags: .barrier) {
+            self.internalDictionary[key] = value
+            let dict = self.internalDictionary
+            dispatchQueue.async {
+                let data = dataFromDict(dict)
+                completion?(data)
+            }
+        }
+    }
+
     func removeValue(forKey key: String) {
         self.queue.async(flags: .barrier) {
             self.internalDictionary.removeValue(forKey: key)
@@ -78,36 +94,6 @@ class AtomicDictionary<T> {
         }
     }
 
-    private func dictSnapshotAsync(completion: @escaping (_: [String: T]) -> Void) {
-        self.queue.async {
-            let dict = self.internalDictionary
-            DispatchQueue.global().async {
-                completion(dict)
-            }
-        }
-    }
-
-    func toDataAsync(completion: @escaping (_: Data?) -> Void) {
-        self.dictSnapshotAsync { dict in
-            if #available(iOS 11.0, tvOS 11.0, *) {
-                guard
-                    let data = try? NSKeyedArchiver.archivedData(
-                        withRootObject: dict, requiringSecureCoding: false)
-                else {
-                    PrintHandler.log("[Statsig]: Failed create Data from AtomicDictionary")
-                    completion(nil)
-                    return
-                }
-                completion(data)
-                return
-            } else {
-                let data = NSKeyedArchiver.archivedData(withRootObject: dict)
-                completion(data)
-                return
-            }
-        }
-    }
-
     internal func reset(_ values: [String: T] = [:]) {
         self.queue.async(flags: .barrier) {
             self.internalDictionary = values
@@ -120,6 +106,22 @@ class AtomicDictionary<T> {
         }
 
         return unarchiveData(raw) as? NSDictionary
+    }
+}
+
+fileprivate func dataFromDict<T>(_ dict: [String: T]) -> Data? {
+    if #available(iOS 11.0, tvOS 11.0, *) {
+        guard
+            let data = try? NSKeyedArchiver.archivedData(
+                withRootObject: dict, requiringSecureCoding: false)
+        else {
+            PrintHandler.log("[Statsig]: Failed create Data from AtomicDictionary")
+            return nil
+        }
+        return data
+    } else {
+        let data = NSKeyedArchiver.archivedData(withRootObject: dict)
+        return data
     }
 }
 

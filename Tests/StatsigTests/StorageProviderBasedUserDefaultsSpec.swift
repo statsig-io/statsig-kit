@@ -25,6 +25,27 @@ class MockStorageProvider: StorageProvider {
     }
 }
 
+class MockLockedStorageProvider: StorageProvider {
+    var storage: [String: Data] = [:]
+    public let writeLock = NSLock()
+    var doneWriting = false
+
+    func write(_ value: Data, _ key: String) {
+        writeLock.withLock {
+            storage[key] = value
+            doneWriting = true
+        }
+    }
+
+    func read(_ key: String) -> Data? {
+        return storage[key]
+    }
+
+    func remove(_ key: String) {
+        storage[key] = nil
+    }
+}
+
 class StorageProviderBasedUserDefaultsSpec: BaseSpec {
 
     override func spec() {
@@ -40,7 +61,8 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                     defaults.set("Foo", forKey: "Bar")
 
                     expect(defaults.string(forKey: "Bar")).to(equal("Foo"))  // test in-memo dict
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))  // test storage provider
                 }
 
@@ -50,10 +72,13 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                         storageProvider: mockStorageProvider)
                     defaults.set("Foo", forKey: "Bar")
 
-                    let defaults2 = StorageProviderBasedUserDefaults(
-                        storageProvider: mockStorageProvider)
-                    expect(defaults2.string(forKey: "Bar")).to(equal("Foo"))
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+                    expect(
+                        StorageProviderBasedUserDefaults(
+                            storageProvider: mockStorageProvider
+                        ).string(forKey: "Bar")
+                    ).toEventually(equal("Foo"))
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
                 }
             }
@@ -66,7 +91,8 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                     defaults.set(["A": "B"], forKey: "Bar")
                     expect(defaults.dictionary(forKey: "Bar") as? [String: String]).to(
                         equal(["A": "B"]))
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
                 }
 
@@ -76,11 +102,13 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                         storageProvider: mockStorageProvider)
                     defaults.set(["A": "B"], forKey: "Bar")
 
-                    let defaults2 = StorageProviderBasedUserDefaults(
-                        storageProvider: mockStorageProvider)
-                    let result = defaults2.dictionary(forKey: "Bar") as? [String: String]
-                    expect(result).to(equal(["A": "B"]))
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+                    expect(
+                        StorageProviderBasedUserDefaults(
+                            storageProvider: mockStorageProvider
+                        ).dictionary(forKey: "Bar") as? [String: String]
+                    ).toEventually(equal(["A": "B"]))
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
                 }
             }
@@ -92,7 +120,8 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                         storageProvider: mockStorageProvider)
                     defaults.set(["Foo"], forKey: "Bar")
                     expect(defaults.array(forKey: "Bar") as? [String]).to(equal(["Foo"]))
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
                 }
 
@@ -102,10 +131,13 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                         storageProvider: mockStorageProvider)
                     defaults.set(["Foo"], forKey: "Bar")
 
-                    let defaults2 = StorageProviderBasedUserDefaults(
-                        storageProvider: mockStorageProvider)
-                    expect(defaults2.array(forKey: "Bar") as? [String]).to(equal(["Foo"]))
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+                    expect(
+                        StorageProviderBasedUserDefaults(
+                            storageProvider: mockStorageProvider
+                        ).array(forKey: "Bar") as? [String]
+                    ).toEventually(equal(["Foo"]))
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
                 }
             }
@@ -118,7 +150,8 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                     defaults.set("Foo", forKey: "Bar")
                     defaults.removeObject(forKey: "Bar")
                     expect(defaults.string(forKey: "Bar")).to(beNil())
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
                 }
 
@@ -129,11 +162,35 @@ class StorageProviderBasedUserDefaultsSpec: BaseSpec {
                     defaults.set("Foo", forKey: "Bar")
                     defaults.removeObject(forKey: "Bar")
 
-                    let defaults2 = StorageProviderBasedUserDefaults(
-                        storageProvider: mockStorageProvider)
-                    expect(defaults2.string(forKey: "Bar")).to(beNil())
-                    expect(mockStorageProvider.read("com.statsig.cache")).to(
+                    expect(
+                        StorageProviderBasedUserDefaults(
+                            storageProvider: mockStorageProvider
+                        ).string(forKey: "Bar")
+                    ).toEventually(beNil())
+
+                    expect(mockStorageProvider.read("com.statsig.cache")).toEventually(
                         equal(defaults.dict.toData()))
+                }
+            }
+
+            describe("async write") {
+                it("can set and read back even though the provider didn't finish writing") {
+                    let mockLockedStorageProvider = MockLockedStorageProvider()
+                    mockLockedStorageProvider.writeLock.lock()
+                    let defaults = StorageProviderBasedUserDefaults(
+                        storageProvider: mockLockedStorageProvider)
+
+                    defaults.set("foo", forKey: "key")
+
+                    expect(mockLockedStorageProvider.doneWriting).to(beFalse())
+
+                    let value = defaults.string(forKey: "key")
+
+                    expect(value).to(equal("foo"))
+
+                    mockLockedStorageProvider.writeLock.unlock()
+
+                    expect(mockLockedStorageProvider.doneWriting).toEventually(beTrue())
                 }
             }
         }

@@ -26,8 +26,7 @@ class FileBasedUserDefaultsSpec: BaseSpec {
                     let defaults = FileBasedUserDefaults()
                     defaults.set("Foo", forKey: "Bar")
 
-                    let defaults2 = FileBasedUserDefaults()
-                    expect(defaults2.string(forKey: "Bar")).to(equal("Foo"))
+                    expect(FileBasedUserDefaults().string(forKey: "Bar")).toEventually(equal("Foo"))
                 }
             }
 
@@ -43,9 +42,9 @@ class FileBasedUserDefaultsSpec: BaseSpec {
                     let defaults = FileBasedUserDefaults()
                     defaults.set(["A": "B"], forKey: "Bar")
 
-                    let defaults2 = FileBasedUserDefaults()
-                    expect(defaults2.dictionary(forKey: "Bar") as? [String: String]).to(
-                        equal(["A": "B"]))
+                    expect(FileBasedUserDefaults().dictionary(forKey: "Bar") as? [String: String])
+                        .toEventually(
+                            equal(["A": "B"]))
                 }
             }
 
@@ -60,8 +59,8 @@ class FileBasedUserDefaultsSpec: BaseSpec {
                     let defaults = FileBasedUserDefaults()
                     defaults.set(["Foo"], forKey: "Bar")
 
-                    let defaults2 = FileBasedUserDefaults()
-                    expect(defaults2.array(forKey: "Bar") as? [String]).to(equal(["Foo"]))
+                    expect(FileBasedUserDefaults().array(forKey: "Bar") as? [String]).toEventually(
+                        equal(["Foo"]))
                 }
             }
 
@@ -78,8 +77,7 @@ class FileBasedUserDefaultsSpec: BaseSpec {
                     defaults.set("Foo", forKey: "Bar")
                     defaults.removeObject(forKey: "Bar")
 
-                    let defaults2 = FileBasedUserDefaults()
-                    expect(defaults2.string(forKey: "Bar")).to(beNil())
+                    expect(FileBasedUserDefaults().string(forKey: "Bar")).toEventually(beNil())
                 }
             }
         }
