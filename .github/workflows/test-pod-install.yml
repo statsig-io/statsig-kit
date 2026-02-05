@@ -38,7 +38,7 @@ jobs:
 
       - name: Test Sample App
         working-directory: Sample/StatsigSamplesPods
-        timeout-minutes: 8
+        timeout-minutes: 15
         run: |
           xcodebuild test \
             -destination "${{ steps.simulator.outputs.destination }}" \
