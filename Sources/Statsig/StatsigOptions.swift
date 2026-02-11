@@ -52,6 +52,12 @@ public class StatsigOptions {
     public var initializeValues: [String: Any]? = nil
 
     /**
+     By default, initialize sends a network request and uses the response for evaluation.
+     Setting this value to true will initialize without sending a network request, using cached values if available, default values otherwise.
+     */
+    public var initializeOffline = false
+
+    /**
      Prevent the SDK from sending useful debug information to Statsig
      */
     public var disableDiagnostics = false
@@ -184,6 +190,7 @@ public class StatsigOptions {
         overrideStableID: String? = nil,
         enableCacheByFile: Bool? = false,
         initializeValues: [String: Any]? = nil,
+        initializeOffline: Bool? = false,
         eventLoggingEnabled: Bool? = true,
         disableDiagnostics: Bool? = false,
         disableHashing: Bool? = false,
@@ -230,6 +237,10 @@ public class StatsigOptions {
 
         if let initializeValues = initializeValues {
             self.initializeValues = initializeValues
+        }
+
+        if let initializeOffline = initializeOffline {
+            self.initializeOffline = initializeOffline
         }
 
         if let disableDiagnostics = disableDiagnostics {
@@ -384,6 +395,9 @@ extension StatsigOptions {
         // Initialize Values dictionary
         if initializeValues != nil {
             dict["initializeValues"] = "set"
+        }
+        if initializeOffline != defaultOptions.initializeOffline {
+            dict["initializeOffline"] = initializeOffline
         }
 
         return dict

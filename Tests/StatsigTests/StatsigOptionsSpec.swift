@@ -77,6 +77,7 @@ class StatsigOptionsSpec: BaseSpec {
                     overrideStableID: "test-stable-id",
                     enableCacheByFile: true,
                     initializeValues: [:],
+                    initializeOffline: true,
                     eventLoggingEnabled: false,
                     disableDiagnostics: true,
                     disableHashing: true,

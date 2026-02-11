@@ -47,6 +47,10 @@ public final class StatsigOptionsObjC: NSObject {
         if let initializeValues = args["initializeValues"] as? [String: Any] {
             self.optionsInternal.initializeValues = initializeValues
         }
+
+        if let initializeOffline = args["initializeOffline"] as? Bool {
+            self.optionsInternal.initializeOffline = initializeOffline
+        }
     }
 
     @objc override public init() {

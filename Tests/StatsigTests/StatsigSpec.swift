@@ -722,6 +722,45 @@ class StatsigSpec: BaseSpec {
                 expect(nonExistentDC?.evaluationDetails.reason).toEventually(equal(.Unrecognized))
             }
 
+            it("initializes offline from cached values") {
+                let sdkKey = "client-api-key"
+                let user = StatsigUser(userID: "offline_cache_user")
+                let options = StatsigOptions(initializeOffline: true, disableDiagnostics: true)
+                let originalDefaults = StatsigUserDefaults.defaults
+                let cacheKey = UserCacheKey.from(options, user, sdkKey)
+                let mockDefaults = MockDefaults(data: [
+                    UserDefaultsKeys.localStorageKey: [
+                        cacheKey.full: StatsigSpec.mockUserValues
+                    ]
+                ])
+                StatsigUserDefaults.defaults = mockDefaults
+
+                defer {
+                    StatsigUserDefaults.defaults = originalDefaults
+                }
+
+                var requestCount = 0
+                stub(condition: isHost(ApiHost)) { _ in
+                    requestCount += 1
+                    return HTTPStubsResponse(jsonObject: [:], statusCode: 500, headers: nil)
+                }
+
+                var gate: FeatureGate?
+                var config: DynamicConfig?
+                waitUntil { done in
+                    Statsig.initialize(sdkKey: sdkKey, user: user, options: options) { _ in
+                        gate = Statsig.getFeatureGate(gateName2)
+                        config = Statsig.getConfig(configName)
+                        done()
+                    }
+                }
+
+                expect(requestCount).to(equal(0))
+                expect(gate?.value).to(equal(true))
+                expect(gate?.evaluationDetails.source).to(equal(.Cache))
+                expect(config?.evaluationDetails.source).to(equal(.Cache))
+            }
+
             it("correctly shuts down") {
                 stub(condition: isPath("/v1/initialize")) { _ in
                     HTTPStubsResponse(

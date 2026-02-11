@@ -87,15 +87,23 @@ public class StatsigClient {
 
         if options?.initializeValues != nil {
             _onComplete(nil)
-        } else {
-            fetchValuesFromNetwork(
-                user: normalizedUser,
-                marker: Diagnostics.mark?.initialize.network,
-                processMarker: Diagnostics.mark?.initialize.process,
-                storeMarker: Diagnostics.mark?.initialize.storeRead,
-                completion: _onComplete
-            )
+            return
         }
+
+        if options?.initializeOffline == true {
+            store.finalizeValues {
+                _onComplete(nil)
+            }
+            return
+        }
+
+        fetchValuesFromNetwork(
+            user: normalizedUser,
+            marker: Diagnostics.mark?.initialize.network,
+            processMarker: Diagnostics.mark?.initialize.process,
+            storeMarker: Diagnostics.mark?.initialize.storeRead,
+            completion: _onComplete
+        )
     }
 
     deinit {
