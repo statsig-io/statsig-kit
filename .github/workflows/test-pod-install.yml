@@ -3,9 +3,7 @@ name: Test Pod Install
 on:
   workflow_dispatch:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
   release:
     types: [released, prereleased]
 
