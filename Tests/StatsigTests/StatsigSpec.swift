@@ -730,7 +730,7 @@ class StatsigSpec: BaseSpec {
                 let cacheKey = UserCacheKey.from(options, user, sdkKey)
                 let mockDefaults = MockDefaults(data: [
                     UserDefaultsKeys.localStorageKey: [
-                        cacheKey.full: StatsigSpec.mockUserValues
+                        cacheKey.fullUserWithSDKKey: StatsigSpec.mockUserValues
                     ]
                 ])
                 StatsigUserDefaults.defaults = mockDefaults

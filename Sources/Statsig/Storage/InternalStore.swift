@@ -37,10 +37,12 @@ class InternalStore {
     var localOverrides: [String: Any] = InternalStore.getEmptyOverrides()
     let storeQueue = DispatchQueue(
         label: storeQueueLabel, qos: .userInitiated, attributes: .concurrent)
+    let storageService: StorageService
 
     init(_ sdkKey: String, _ user: StatsigUser, options: StatsigOptions) {
         Diagnostics.mark?.initialize.readCache.start()
-        cache = StatsigValuesCache(sdkKey, user, options)
+        storageService = StorageService(sdkKey: sdkKey)
+        cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
             StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)
             ?? [:]
@@ -219,15 +221,6 @@ class InternalStore {
             guard let self = self else { return }
 
             self.cache.saveValues(values, cacheKey, userHash)
-            let cacheByID = self.cache.cacheByID
-            let cacheKeyMapping = self.cache.cacheKeyMapping
-
-            DispatchQueue.global().async {
-                StatsigUserDefaults.defaults.setDictionarySafe(
-                    cacheByID, forKey: UserDefaultsKeys.localStorageKey)
-                StatsigUserDefaults.defaults.setDictionarySafe(
-                    cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
-            }
 
             DispatchQueue.global().async { completion?() }
         }
@@ -242,6 +235,9 @@ class InternalStore {
     static func deleteAllLocalStorage() {
         StatsigUserDefaults.defaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
+        if StorageService.useMultiFileStorage {
+            UserPayloadStore.removeAll()
+        }
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
         StatsigUserDefaults.defaults.removeObject(

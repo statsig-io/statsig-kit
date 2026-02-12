@@ -9,7 +9,7 @@ struct StatsigValuesCache {
     var stickyDeviceExperiments: [String: [String: Any]]
     var networkFallbackInfo: [String: [String: Any]]
     /*
-     Maps .v2 cache keys to .full cache keys
+     Maps .v2 cache keys to .fullUserWithSDKKey cache keys
      */
     var cacheKeyMapping: [String: String]
     var source: EvaluationSource = .Loading
@@ -26,6 +26,8 @@ struct StatsigValuesCache {
     var bootstrapMetadata: BootstrapMetadata? = nil
     var sdkFlags: SDKFlags?
 
+    let storageService: StorageService
+
     var userCache: [String: Any] {
         didSet {
             lcut = userCache[InternalStore.lcutKey] as? UInt64
@@ -40,25 +42,49 @@ struct StatsigValuesCache {
         }
     }
 
-    init(_ sdkKey: String, _ user: StatsigUser, _ options: StatsigOptions) {
+    init(
+        _ sdkKey: String,
+        _ user: StatsigUser,
+        _ storageService: StorageService,
+        _ options: StatsigOptions
+    ) {
         self.options = options
         self.sdkKey = sdkKey
-        self.cacheByID = StatsigValuesCache.loadDictMigratingIfRequired(
-            forKey: UserDefaultsKeys.localStorageKey)
+        self.storageService = storageService
+        self.userCacheKey = UserCacheKey.from(options, user, sdkKey)
+        self.cacheKeyMapping =
+            StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.cacheKeyMappingKey)
+            as? [String: String] ?? [:]
+        if StorageService.useMultiFileStorage {
+            self.cacheByID = StatsigValuesCache.loadCache(userCacheKey, storageService).cache
+        } else {
+            self.cacheByID = StatsigValuesCache.loadDictMigratingIfRequired(
+                forKey: UserDefaultsKeys.localStorageKey)
+        }
         self.stickyDeviceExperiments = StatsigValuesCache.loadDictMigratingIfRequired(
             forKey: UserDefaultsKeys.stickyDeviceExperimentsKey)
         self.networkFallbackInfo = StatsigValuesCache.loadDictMigratingIfRequired(
             forKey: UserDefaultsKeys.networkFallbackInfoKey)
-        self.cacheKeyMapping =
-            StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.cacheKeyMappingKey)
-            as? [String: String] ?? [:]
 
         self.userCache = [:]
-        self.userCacheKey = UserCacheKey.from(options, user, sdkKey)
         self.userLastUpdateTime = 0
 
         self.setUserCacheKeyAndValues(user, withBootstrapValues: options.initializeValues)
         self.migrateLegacyStickyExperimentValues(user)
+    }
+
+    static func loadCache(
+        _ userCacheKey: UserCacheKey,
+        _ storageService: StorageService
+    ) -> (cache: [String: [String: Any]], needsMigration: Bool) {
+        if let storageServicePayload = storageService.userPayload.read(key: userCacheKey) {
+            return ([userCacheKey.fullUserWithSDKKey: storageServicePayload], false)
+        }
+
+        let userDefaultsDict = StatsigValuesCache.loadDictMigratingIfRequired(
+            forKey: UserDefaultsKeys.localStorageKey)
+
+        return (userDefaultsDict, !userDefaultsDict.isEmpty)
     }
 
     func getGate(_ gateName: String) -> FeatureGate {
@@ -251,7 +277,7 @@ struct StatsigValuesCache {
     mutating func saveValues(_ values: [String: Any], _ cacheKey: UserCacheKey, _ userHash: String?)
     {
         var cache =
-            cacheKey.full == userCacheKey.full
+            cacheKey.fullUserWithSDKKey == userCacheKey.fullUserWithSDKKey
             ? userCache : (getCacheValues(forCacheKey: cacheKey) ?? getDefaultValues())
 
         let hasUpdates = values["has_updates"] as? Bool == true
@@ -269,15 +295,31 @@ struct StatsigValuesCache {
             cache[InternalStore.sdkFlagsKey] = values[InternalStore.sdkFlagsKey]
         }
 
-        if userCacheKey.full == cacheKey.full {
+        if userCacheKey.fullUserWithSDKKey == cacheKey.fullUserWithSDKKey {
             // Now the values we serve came from network request
             source = hasUpdates ? .Network : .NetworkNotModified
             userCache = cache
         }
 
-        cacheByID[cacheKey.full] = cache
-        cacheKeyMapping[userCacheKey.v2] = userCacheKey.full
+        cacheByID[cacheKey.fullUserWithSDKKey] = cache
+        cacheKeyMapping[userCacheKey.v2] = userCacheKey.fullUserWithSDKKey
         runCacheEviction()
+
+        persist(cacheKey, cache)
+    }
+
+    func persist(_ cacheKey: UserCacheKey, _ payload: [String: Any]) {
+        DispatchQueue.global().async {
+            if StorageService.useMultiFileStorage {
+                storageService.userPayload.write(
+                    key: cacheKey, payload: payload)
+            } else {
+                StatsigUserDefaults.defaults.setDictionarySafe(
+                    cacheByID, forKey: UserDefaultsKeys.localStorageKey)
+            }
+            StatsigUserDefaults.defaults.setDictionarySafe(
+                cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
+        }
     }
 
     mutating func runCacheEviction() {
@@ -324,9 +366,16 @@ struct StatsigValuesCache {
         saveToUserDefaults()
     }
 
-    private func getCacheValues(forCacheKey key: UserCacheKey) -> [String: Any]? {
+    private mutating func getCacheValues(forCacheKey key: UserCacheKey) -> [String: Any]? {
+        if StorageService.useMultiFileStorage {
+            if let payload = storageService.userPayload.read(key: key) {
+                self.cacheByID[key.fullUserWithSDKKey] = payload
+                self.cacheKeyMapping[key.v2] = key.fullUserWithSDKKey
+                // TODO: cacheKeyMapping needs to be persisted
+            }
+        }
         // Full User Hash Key
-        if let fullHashCachedValues = cacheByID[key.full] {
+        if let fullHashCachedValues = cacheByID[key.fullUserWithSDKKey] {
             return fullHashCachedValues
         }
 
@@ -355,9 +404,13 @@ struct StatsigValuesCache {
     }
 
     private mutating func saveToUserDefaults() {
-        cacheByID[userCacheKey.full] = userCache
-        StatsigUserDefaults.defaults.setDictionarySafe(
-            cacheByID, forKey: UserDefaultsKeys.localStorageKey)
+        cacheByID[userCacheKey.fullUserWithSDKKey] = userCache
+        if StorageService.useMultiFileStorage {
+            storageService.userPayload.write(key: userCacheKey, payload: userCache)
+        } else {
+            StatsigUserDefaults.defaults.setDictionarySafe(
+                cacheByID, forKey: UserDefaultsKeys.localStorageKey)
+        }
         StatsigUserDefaults.defaults.setDictionarySafe(
             stickyDeviceExperiments, forKey: UserDefaultsKeys.stickyDeviceExperimentsKey)
         StatsigUserDefaults.defaults.setDictionarySafe(
@@ -376,8 +429,8 @@ struct StatsigValuesCache {
 
         // Bootstrap
         if let bootstrapValues = bootstrapValues {
-            cacheByID[userCacheKey.full] = bootstrapValues
-            cacheKeyMapping[userCacheKey.v2] = userCacheKey.full
+            cacheByID[userCacheKey.fullUserWithSDKKey] = bootstrapValues
+            cacheKeyMapping[userCacheKey.v2] = userCacheKey.fullUserWithSDKKey
             userCache = bootstrapValues
             let bootstrapMetadata = extractBootstrapMetadata(from: bootstrapValues)
             userCache[InternalStore.bootstrapMetadata] = bootstrapMetadata
@@ -481,8 +534,8 @@ struct StatsigValuesCache {
             cacheByID.removeValue(forKey: userCacheKey.v2)
         }
 
-        if cacheByID[userCacheKey.full] == nil && oldCache != nil {
-            cacheByID[userCacheKey.full] = oldCache
+        if cacheByID[userCacheKey.fullUserWithSDKKey] == nil && oldCache != nil {
+            cacheByID[userCacheKey.fullUserWithSDKKey] = oldCache
         }
     }
 

@@ -3,7 +3,8 @@ import Foundation
 struct UserCacheKey {
     let v1: String
     let v2: String
-    let full: String
+    let fullUserWithSDKKey: String
+    let fullUserHash: String
 
     static func from(_ options: StatsigOptions, _ user: StatsigUser, _ sdkKey: String)
         -> UserCacheKey
@@ -12,8 +13,14 @@ struct UserCacheKey {
 
         let v1 = customCacheKey ?? getVersion1(user)
         let v2 = customCacheKey ?? getVersion2(user, sdkKey)
-        let full = getFullUserCacheKey(user, sdkKey)
-        return UserCacheKey(v1: v1, v2: v2, full: full)
+        let fullUserWithSDKKey = getFullUserWithSDKKey(user, sdkKey)
+        let fullUserHash = user.getFullUserHash()
+        return UserCacheKey(
+            v1: v1,
+            v2: v2,
+            fullUserWithSDKKey: fullUserWithSDKKey,
+            fullUserHash: fullUserHash
+        )
     }
 
     private static func getVersion1(_ user: StatsigUser) -> String {
@@ -41,7 +48,7 @@ struct UserCacheKey {
             .djb2()
     }
 
-    static func getFullUserCacheKey(_ user: StatsigUser, _ sdkKey: String) -> String {
+    static func getFullUserWithSDKKey(_ user: StatsigUser, _ sdkKey: String) -> String {
         return "\(user.getFullUserHash()):\(sdkKey)"
     }
 }

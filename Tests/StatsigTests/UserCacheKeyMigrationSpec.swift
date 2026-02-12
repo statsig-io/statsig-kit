@@ -51,7 +51,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
 
                 it("saves values as full") {
                     let keys = defaults.getUserCaches().allKeys as? [String]
-                    expect(keys).to(equal([cacheKey.full]))
+                    expect(keys).to(equal([cacheKey.fullUserWithSDKKey]))
                 }
             }
 
@@ -85,7 +85,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
 
                 it("saves values as full user hash and removes v1") {
                     let keys = defaults.getUserCaches().allKeys as? [String]
-                    expect(keys).to(equal([cacheKey.full]))
+                    expect(keys).to(equal([cacheKey.fullUserWithSDKKey]))
                 }
 
                 it("gets the values that were migrated from v1") {
@@ -123,7 +123,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
 
                 it("saves values as full user hash and removes v2") {
                     let keys = defaults.getUserCaches().allKeys as? [String]
-                    expect(keys).to(equal([cacheKey.full]))
+                    expect(keys).to(equal([cacheKey.fullUserWithSDKKey]))
                 }
 
                 it("gets the values were in cache") {
@@ -135,7 +135,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
                 beforeEach {
                     defaults = MockDefaults(data: [
                         UserDefaultsKeys.localStorageKey: [
-                            cacheKey.full: [
+                            cacheKey.fullUserWithSDKKey: [
                                 "feature_gates": [
                                     "test_gate": [
                                         "name": "test_gate",
@@ -161,7 +161,7 @@ class UserCacheKeyMigrationSpec: BaseSpec {
 
                 it("saves values as full user hash") {
                     let keys = defaults.getUserCaches().allKeys as? [String]
-                    expect(keys).to(equal([cacheKey.full]))
+                    expect(keys).to(equal([cacheKey.fullUserWithSDKKey]))
                 }
 
                 it("gets the values were in cache") {
