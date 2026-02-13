@@ -12,13 +12,13 @@ public class Statsig {
     /**
      Initializes the Statsig SDK. Fetching latest values from Statsig.
      Default values will be returned until initialization is compelete.
-
+    
      Parameters:
      - sdkKey: The client SDK key copied from console.statsig.com
      - user: The user to check values against
      - options: Configuration options for the Statsig SDK
      - completion: A callback function for when initialization completes. If an error occurred during initialization, a `StatsigClientError` object will be passed to the callback.
-
+    
      SeeAlso: [Initialization Documentation](https://docs.statsig.com/client/iosClientSDK#step-3---initialize-the-sdk)
      */
     public static func initialize(
@@ -67,7 +67,7 @@ public class Statsig {
 
     /**
      Whether Statsig initialization has been completed.
-
+    
      SeeAlso [StatsigListening](https://docs.statsig.com/client/iosClientSDK#statsiglistening)
      */
     public static func isInitialized() -> Bool {
@@ -81,10 +81,10 @@ public class Statsig {
 
     /**
      Adds a delegate to be called during initializaiton and update user steps.
-
+    
      Parameters:
      - listener: The class that implements the StatsigListening protocol
-
+    
      SeeAlso [StatsigListening](https://docs.statsig.com/client/iosClientSDK#statsiglistening)
      */
     public static func addListener(_ listener: StatsigListening) {
@@ -98,10 +98,10 @@ public class Statsig {
 
     /**
      Gets the boolean result of a gate for the current user. An exposure event will automatically be logged for the given gate.
-
+    
      Parameters:
      - gateName: The name of the feature gate setup on console.statsig.com
-
+    
      SeeAlso [Gate Documentation](https://docs.statsig.com/feature-gates/working-with)
      */
     public static func checkGate(_ gateName: String) -> Bool {
@@ -110,10 +110,10 @@ public class Statsig {
 
     /**
      Gets the boolean result of a gate for the current user. No exposure events will be logged.
-
+    
      Parameters:
      - gateName: The name of the feature gate setup on console.statsig.com
-
+    
      SeeAlso [Gate Documentation](https://docs.statsig.com/feature-gates/working-with)
      */
     public static func checkGateWithExposureLoggingDisabled(_ gateName: String) -> Bool {
@@ -122,10 +122,10 @@ public class Statsig {
 
     /**
      Get the value for the given feature gate
-
+    
      Parameters:
      - gateName: The name of the feature gate setup on console.statsig.com
-
+    
      SeeAlso [Gate Documentation](https://docs.statsig.com/feature-gates/working-with)
      */
     public static func getFeatureGate(_ gateName: String) -> FeatureGate {
@@ -134,10 +134,10 @@ public class Statsig {
 
     /**
      Get the value for the given feature gate. No exposure event will be logged.
-
+    
      Parameters:
      - gateName: The name of the feature gate setup on console.statsig.com
-
+    
      SeeAlso [Gate Documentation](https://docs.statsig.com/feature-gates/working-with)
      */
     public static func getFeatureGateWithExposureLoggingDisabled(_ gateName: String) -> FeatureGate
@@ -147,7 +147,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given gate. Only required if a related checkGateWithExposureLoggingDisabled call has been made.
-
+    
      Parameters:
      - gateName: The name of the feature gate setup on console.statsig.com
      */
@@ -162,11 +162,11 @@ public class Statsig {
 
     /**
      Get the values for the given experiment or autotune. An exposure event will automatically be logged for the given experiment.
-
+    
      Parameters:
      - experimentName: The name of the experiment setup on console.statsig.com
      - keepDeviceValue: Locks experiment values to the first time they are received. If an experiment changes, but the user has already been exposed, the original values are returned. This is not common practice.
-
+    
      SeeAlso [Experiments Documentation](https://docs.statsig.com/experiments-plus)
      */
     public static func getExperiment(_ experimentName: String, keepDeviceValue: Bool = false)
@@ -179,11 +179,11 @@ public class Statsig {
 
     /**
      Get the values for the given experiment. No exposure events will be logged.
-
+    
      Parameters:
      - experimentName: The name of the experiment setup on console.statsig.com
      - keepDeviceValue: Locks experiment values to the first time they are received. If an experiment changes, but the user has already been exposed, the original values are returned. This is not common practice.
-
+    
      SeeAlso [Experiments Documentation](https://docs.statsig.com/experiments-plus)
      */
     public static func getExperimentWithExposureLoggingDisabled(
@@ -196,7 +196,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given experiment. Only required if a related getExperimentWithExposureLoggingDisabled has been made.
-
+    
      Parameters:
      - experimentName: The name of the experiment setup on console.statsig.com
      */
@@ -214,10 +214,10 @@ public class Statsig {
 
     /**
      Get the values for the given dynamic config. An exposure event will automatically be logged for the given dynamic config.
-
+    
      Parameters:
      - configName: The name of the dynamic config setup on console.statsig.com
-
+    
      SeeAlso [Dynamic Config Documentation](https://docs.statsig.com/dynamic-config)
      */
     public static func getConfig(_ configName: String) -> DynamicConfig {
@@ -226,10 +226,10 @@ public class Statsig {
 
     /**
      Get the values for the given dynamic config. No exposure event will be logged.
-
+    
      Parameters:
      - configName: The name of the dynamic config setup on console.statsig.com
-
+    
      SeeAlso [Dynamic Config Documentation](https://docs.statsig.com/dynamic-config)
      */
     public static func getConfigWithExposureLoggingDisabled(_ configName: String) -> DynamicConfig {
@@ -238,7 +238,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given dynamic config. Only required if a related getConfigWithExposureLoggingDisabled call has been made.
-
+    
      Parameters:
      - experimentName: The name of the experiment setup on console.statsig.com
      */
@@ -253,11 +253,11 @@ public class Statsig {
 
     /**
      Get the values for the given layer. Exposure events will be fired when getValue is called on the result Layer class.
-
+    
      Parameters:
      - layerName: The name of the layer setup on console.statsig.com
      - keepDeviceValue: Locks layer values to the first time they are received. If an layer values change, but the user has already been exposed, the original values are returned. This is not common practice.
-
+    
      SeeAlso [Layers Documentation](https://docs.statsig.com/layers)
      */
     public static func getLayer(_ layerName: String, keepDeviceValue: Bool = false) -> Layer {
@@ -268,11 +268,11 @@ public class Statsig {
 
     /**
      Get the values for the given layer. No exposure events will be fired.
-
+    
      Parameters:
      - layerName: The name of the layer setup on console.statsig.com
      - keepDeviceValue: Locks layer values to the first time they are received. If an layer values change, but the user has already been exposed, the original values are returned. This is not common practice.
-
+    
      SeeAlso [Layers Documentation](https://docs.statsig.com/layers)
      */
     public static func getLayerWithExposureLoggingDisabled(
@@ -285,7 +285,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given layer parameter. Only required if a related getLayerWithExposureLoggingDisabled call has been made.
-
+    
      Parameters:
      - layerName: The name of the layer setup on console.statsig.com
      - parameterName: The name of the parameter that was checked.
@@ -305,10 +305,10 @@ public class Statsig {
 
     /**
      Get the values for the given parameter store. Exposure events will be fired when getValue is called on the result ParameterStore class.
-
+    
      Parameters:
      - storeName: The name of the parameter store setup on console.statsig.com
-
+    
      SeeAlso [Parameter Stores Documentation](https://docs.statsig.com/client/concepts/parameter-stores/)
      */
     public static func getParameterStore(
@@ -323,10 +323,10 @@ public class Statsig {
 
     /**
      Get the values for the given parameter store. No exposure events will be fired.
-
+    
      Parameters:
      - storeName: The name of the parameter store setup on console.statsig.com
-
+    
      SeeAlso [Parameter Stores Documentation](https://docs.statsig.com/client/concepts/parameter-stores/)
      */
     public static func getParameterStoreWithExposureLoggingDisabled(
@@ -341,7 +341,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given feature gate. Only required if a related getFeatureGateWithExposureLoggingDisabled call has been made.
-
+    
      Parameters:
      - gate: The the feature gate class of a feature gate setup on console.statsig.com
      */
@@ -356,7 +356,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given dynamic config. Only required if a related getConfigWithExposureLoggingDisabled or getExperimentWithExposureLoggingDisabled call has been made.
-
+    
      Parameters:
      - config: The dynamic config class of an experiment, autotune, or dynamic config setup on console.statsig.com
      */
@@ -371,7 +371,7 @@ public class Statsig {
 
     /**
      Logs an exposure event for the given layer. Only required if a related getLayerWithExposureLoggingDisabled call has been made.
-
+    
      Parameters:
      - layer: The layer class of a layer setup on console.statsig.com
      - paramterName: The name of the layer parameter that was checked
@@ -388,7 +388,7 @@ public class Statsig {
 
     /**
      Logs an event to Statsig with the provided values.
-
+    
      Parameters:
      - withName: The name of the event
      - metadata: Any extra values to be logged with the event
@@ -404,7 +404,7 @@ public class Statsig {
 
     /**
      Logs an event to Statsig with the provided values.
-
+    
      Parameters:
      - withName: The name of the event
      - value: A top level value for the event
@@ -422,7 +422,7 @@ public class Statsig {
 
     /**
      Logs an event to Statsig with the provided values.
-
+    
      Parameters:
      - withName: The name of the event
      - value: A top level value for the event
@@ -442,7 +442,7 @@ public class Statsig {
      Switches the user and pulls new values for that user from Statsig.
      If `values` passed in, updates ther user using these values rather than fetching updates.
      Default values will be returned until the update is complete.
-
+    
      Parameters:
      - user: The new user
      - values: The updated values to be associated with the user.
@@ -464,7 +464,7 @@ public class Statsig {
 
     /**
      Manually triggered the refreshing process for the current user
-
+    
      Parameters:
      - completion: A callback block called when the new values/update operation have been received. May be called with a `StatsigClientError` object if the fetch fails.
      */
@@ -546,7 +546,7 @@ public class Statsig {
 
     /**
      Sets a value to be returned for the given gate instead of the actual evaluated value.
-
+    
      Parameters:
      - gateName: The name of the gate to be overridden
      - value: The value that will be returned
@@ -557,7 +557,7 @@ public class Statsig {
 
     /**
      Sets a value to be returned for the given dynamic config/experiment instead of the actual evaluated value.
-
+    
      Parameters:
      - configName: The name of the config or experiment to be overridden
      - value: The value that the resulting DynamicConfig will contain
@@ -568,7 +568,7 @@ public class Statsig {
 
     /**
      Sets a value to be returned for the given layer instead of the actual evaluated value.
-
+    
      Parameters:
      - layerName: The name of the layer to be overridden
      - value: The value that the resulting Layer will contain
@@ -579,7 +579,7 @@ public class Statsig {
 
     /**
      Sets a value to be returned for the given parameter store instead of following the actual ref in the store.
-
+    
      Parameters:
      - storeName: The name of the config or experiment to be overridden
      - value: Dictionary where keys are property names and values are static ref values in the overridden store
@@ -590,7 +590,7 @@ public class Statsig {
 
     /**
      Clears any overridden value for the given gate/dynamic config/experiment.
-
+    
      Parameters:
      - name: The name of the gate/dynamic config/experiment to clear
      */
@@ -768,13 +768,13 @@ public class Statsig {
     /**
      Initializes the Statsig SDK. Fetching latest values from Statsig.
      Default values will be returned until initialization is compelete.
-
+    
      Parameters:
      - sdkKey: The client SDK key copied from console.statsig.com
      - user: The user to check values against
      - options: Configuration options for the Statsig SDK
      - completion: A callback function for when initialization completes. If an error occurred during initialization, a error message string will be passed to the callback.
-
+    
      SeeAlso: [Initialization Documentation](https://docs.statsig.com/client/iosClientSDK#step-3---initialize-the-sdk)
      */
     @available(*, deprecated, message: "Use `Statsig.initialize` instead")
@@ -791,7 +791,7 @@ public class Statsig {
      Switches the user and pulls new values for that user from Statsig.
      If `values` passed in, updates ther user using these values rather than fetching updates.
      Default values will be returned until the update is complete.
-
+    
      Parameters:
      - user: The new user
      - values: The updated values to be associated with the user.
@@ -808,7 +808,7 @@ public class Statsig {
 
     /**
      Manually triggered the refreshing process for the current user
-
+    
      Parameters:
      - completion: A callback block called when the new values/update operation have been received. May be called with an error message string if the fetch fails.
      */

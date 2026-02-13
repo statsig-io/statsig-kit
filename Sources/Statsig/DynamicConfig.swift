@@ -113,7 +113,7 @@ public struct DynamicConfig: ConfigBase, ConfigProtocol {
 
     /**
      Get the value for the given key, falling back to the defaultValue if it cannot be found or is of a different type.
-
+    
      Parameters:
      - forKey: The key of parameter being fetched
      - defaultValue: The fallback value if the key cannot be found
@@ -128,7 +128,7 @@ public struct DynamicConfig: ConfigBase, ConfigProtocol {
      1. Set the type on the variable definition `let a: String? = layer.getValue(...)`
      2. Cast to the type you need `let a = layer.getValue(...) as String?`
      3. Add the defaultValue parameter: `let a = layer.getValue(forKey:"key", defaultValue: "")`.
-
+    
      Parameters:
      - forKey: The key of parameter being fetched
      */

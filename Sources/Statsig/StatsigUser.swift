@@ -52,7 +52,7 @@ public struct StatsigUser: Sendable {
 
     /**
      Any Custom IDs to associated with the user.
-
+    
      See Also [Experiments With Custom ID Types](https://docs.statsig.com/guides/experiment-on-custom-id-types)
      */
     public let customIDs: [String: String]?

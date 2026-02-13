@@ -63,7 +63,7 @@ public struct ParameterStore: ConfigBase {
     /**
      Get the value for the given key. If the value cannot be found, or is found to have a different type than the defaultValue, the defaultValue will be returned.
      If a valid value is found, a layer exposure event will be fired.
-
+    
      Parameters:
      - forKey: The key of parameter being fetched
      - defaultValue: The fallback value if the key cannot be found
@@ -78,7 +78,7 @@ public struct ParameterStore: ConfigBase {
      1. Set the type on the variable definition `let a: String? = layer.getValue(...)`
      2. Cast to the type you need `let a = layer.getValue(...) as String?`
      3. Add the defaultValue parameter: `let a = layer.getValue(forKey:"key", defaultValue: "")`.
-
+    
      Parameters:
      - forKey: The key of parameter being fetched
      */
