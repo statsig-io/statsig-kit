@@ -41,7 +41,7 @@ class InternalStore {
 
     init(_ sdkKey: String, _ user: StatsigUser, options: StatsigOptions) {
         Diagnostics.mark?.initialize.readCache.start()
-        storageService = StorageService(sdkKey: sdkKey)
+        storageService = StorageService.forSDKKey(sdkKey)
         cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
             StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)
@@ -237,6 +237,7 @@ class InternalStore {
             forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
         if StorageService.useMultiFileStorage {
             UserPayloadStore.removeAll()
+            StorageService.clearCachedServices()
         }
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
@@ -383,12 +384,16 @@ class InternalStore {
     }
 
     func migrateIfNeeded() {
-        let cacheByID = storeQueue.sync {
-            return cache.cacheByID
+        let (cacheByID, cacheKeyMapping) = storeQueue.sync {
+            return (cache.cacheByID, cache.cacheKeyMapping)
         }
 
         DispatchQueue.global(qos: .utility).async {
-            UserPayloadStore.migrateIfNeeded(cacheByID, StatsigUserDefaults.defaults)
+            UserPayloadStore.migrateIfNeeded(
+                cacheByID,
+                cacheKeyMapping,
+                StatsigUserDefaults.defaults
+            )
         }
     }
 }
