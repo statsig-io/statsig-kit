@@ -117,7 +117,7 @@ final class StoragePerformanceSpec: XCTestCase {
         TestUtils.clearStorage()
         TestUtils.resetDefaultURLs()
         HTTPStubs.removeAllStubs()
-        StorageService.useMultiFileStorage = false
+        StorageServiceMigrationStatus.migrationStatus = .initial
         try super.tearDownWithError()
     }
 
@@ -125,7 +125,7 @@ final class StoragePerformanceSpec: XCTestCase {
         // Comment next line to run benchmark
         try XCTSkipIf(true, "Benchmark skipped by default")
 
-        StorageService.useMultiFileStorage = true
+        StorageServiceMigrationStatus.migrationStatus = .done
         stubInitializeEndpoint()
         stubRegisterEndpoint()
         prefillStorage(userCount: 10, useMultiFile: true)
@@ -142,7 +142,7 @@ final class StoragePerformanceSpec: XCTestCase {
         // Comment next line to run benchmark
         try XCTSkipIf(true, "Benchmark skipped by default")
 
-        StorageService.useMultiFileStorage = false
+        StorageServiceMigrationStatus.migrationStatus = .initial
         stubInitializeEndpoint()
         stubRegisterEndpoint()
         prefillStorage(userCount: 10, useMultiFile: false)

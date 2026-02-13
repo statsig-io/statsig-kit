@@ -32,6 +32,7 @@ class InternalStore {
     static let fullChecksum = "full_checksum"
     static let fullUserHashKey = "full_user_hash"
     static let sdkFlagsKey = "sdk_flags"
+    static let sdkConfigsKey = "sdk_configs"
 
     var cache: StatsigValuesCache
     var localOverrides: [String: Any] = InternalStore.getEmptyOverrides()
@@ -85,6 +86,12 @@ class InternalStore {
     func getSDKFlags(user: StatsigUser) -> SDKFlags {
         storeQueue.sync {
             return cache.getSDKFlags(user: user)
+        }
+    }
+
+    func getSDKConfigs(user: StatsigUser) -> SDKConfigs {
+        storeQueue.sync {
+            return cache.getSDKConfigs(user: user)
         }
     }
 
@@ -217,6 +224,8 @@ class InternalStore {
             return
         }
 
+        self.storageService.processSDKConfigs(payload: values)
+
         storeQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
 
@@ -235,10 +244,8 @@ class InternalStore {
     static func deleteAllLocalStorage() {
         StatsigUserDefaults.defaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
-        if StorageService.useMultiFileStorage {
-            UserPayloadStore.removeAll()
-            StorageService.clearCachedServices()
-        }
+        UserPayloadStore.removeAll()
+        StorageService.clearCachedServices()
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
         StatsigUserDefaults.defaults.removeObject(

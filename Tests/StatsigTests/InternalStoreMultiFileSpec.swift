@@ -87,6 +87,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     to: dir.appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME))
             }
 
+            func setUseMultiFileStorage(_ value: Bool) {
+                StorageServiceMigrationStatus.migrationStatus = value ? .done : .initial
+            }
+
             beforeSuite {
                 let tempDirectoryURL = FileManager.default.temporaryDirectory
                     .appendingPathComponent("statsig-tests")
@@ -116,8 +120,6 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             }
 
             beforeEach {
-                StorageService.useMultiFileStorage = true
-                StorageServiceMigrationStatus.migrationStatus = .initial
                 defaults = MockDefaults(data: [:])
                 StatsigUserDefaults.defaults = defaults
                 TestUtils.clearStorage()
@@ -125,11 +127,18 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
             afterEach {
                 TestUtils.clearStorage()
-                StorageService.useMultiFileStorage = false
-                StorageServiceMigrationStatus.migrationStatus = .initial
             }
 
             describe("persistence") {
+
+                beforeEach {
+                    setUseMultiFileStorage(true)
+                }
+
+                afterEach {
+                    setUseMultiFileStorage(false)
+                }
+
                 it("writes a payload to a user-scoped file") {
                     let user = StatsigUser(userID: "user_a")
                     let store = InternalStore(sdkKey, user, options: options)
@@ -297,6 +306,15 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             }
 
             describe("eviction") {
+
+                beforeEach {
+                    setUseMultiFileStorage(true)
+                }
+
+                afterEach {
+                    setUseMultiFileStorage(false)
+                }
+
                 it("deletes older user payloads once they reach a threshold") {
                     let payloadStore = UserPayloadStore.forSDKKey(sdkKey)
                     let users = (0..<12).map { StatsigUser(userID: "user_\($0)") }
@@ -358,6 +376,14 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
             describe("migration") {
 
+                beforeEach {
+                    StorageServiceMigrationStatus.migrationStatus = .initial
+                }
+
+                afterEach {
+                    StorageServiceMigrationStatus.migrationStatus = .initial
+                }
+
                 it("does not fall back to userDefaults when index file exists") {
                     let user = StatsigUser(userID: "user_a")
                     let cacheKey = UserCacheKey.from(options, user, sdkKey)
@@ -370,7 +396,6 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     )
 
                     let store = InternalStore(sdkKey, user, options: options)
-                    store.migrateIfNeeded()
 
                     expect(StorageServiceMigrationStatus.migrationStatus).toEventually(equal(.done))
 
@@ -397,6 +422,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     )
 
                     let store = InternalStore(sdkKey, userA, options: options)
+                    StorageServiceMigrationStatus.setNeedsMigration()
                     store.migrateIfNeeded()
                     expect(StorageServiceMigrationStatus.migrationStatus).toEventually(equal(.done))
 
@@ -419,6 +445,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     )
 
                     let store = InternalStore(sdkKey, userA, options: options)
+                    StorageServiceMigrationStatus.setNeedsMigration()
                     store.migrateIfNeeded()
                     expect(StorageServiceMigrationStatus.migrationStatus).toEventually(equal(.done))
 
@@ -438,6 +465,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     )
 
                     let store = InternalStore(sdkKey, userA, options: options)
+                    StorageServiceMigrationStatus.setNeedsMigration()
                     store.migrateIfNeeded()
                     expect(StorageServiceMigrationStatus.migrationStatus).toEventually(equal(.done))
 
@@ -445,6 +473,84 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
                         .to(beNil())
                 }
+            }
+
+            describe("sdk config") {
+
+                beforeEach {
+                    StorageServiceMigrationStatus.migrationStatus = .initial
+                }
+
+                afterEach {
+                    StorageServiceMigrationStatus.migrationStatus = .initial
+                }
+
+                it("processes sdk configs and persists storage toggle for next launch") {
+                    let user = StatsigUser(userID: "user_a")
+                    let store = InternalStore(sdkKey, user, options: options)
+                    let cacheKey = UserCacheKey.from(options, user, sdkKey)
+
+                    var payload = StatsigSpec.mockUserValues
+                    let multiFileStoreGate = "multi_file_store_gate"
+                    payload[InternalStore.gatesKey] = [
+                        multiFileStoreGate: ["value": true, "rule_id": "rule_id_multi_file"]
+                    ]
+                    payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
+                    payload[InternalStore.hashUsedKey] = "none"
+
+                    setUseMultiFileStorage(false)
+
+                    store.saveValues(payload, cacheKey, user.getFullUserHash())
+
+                    expect(StorageServiceMigrationStatus.migrationStatus).toEventually(
+                        equal(.pending))
+
+                    store.migrateIfNeeded()
+
+                    expect(StorageService.useMultiFileStorage).toEventually(beTrue())
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
+                        .toEventuallyNot(beNil())
+                    expect(try? Data(contentsOf: getIndexFileURL(sdkKey)!))
+                        .toEventuallyNot(beNil())
+                }
+
+                it("uses the new storage in the current session") {
+                    let userA = StatsigUser(userID: "user_a")
+                    let userB = StatsigUser(userID: "user_b")
+                    let store = InternalStore(sdkKey, userA, options: options)
+                    let cacheKeyA = UserCacheKey.from(options, userA, sdkKey)
+                    let cacheKeyB = UserCacheKey.from(options, userB, sdkKey)
+
+                    var payload = StatsigSpec.mockUserValues
+                    let multiFileStoreGate = "multi_file_store_gate"
+                    payload[InternalStore.gatesKey] = [
+                        multiFileStoreGate: ["value": true, "rule_id": "rule_id_multi_file"]
+                    ]
+                    payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
+                    payload[InternalStore.hashUsedKey] = "none"
+
+                    setUseMultiFileStorage(false)
+
+                    store.saveValues(payload, cacheKeyA, userA.getFullUserHash())
+
+                    expect(StorageServiceMigrationStatus.migrationStatus)
+                        .to(equal(.pending))
+                    expect(StorageService.useMultiFileStorage).to(beTrue())
+
+                    // NOTE: This doesn't have the SDK config. It's fine as long as we're not disabling storage.
+                    store.saveValues(
+                        StatsigSpec.mockUpdatedUserValues, cacheKeyB, userB.getFullUserHash())
+
+                    store.migrateIfNeeded()
+
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKeyA)!))
+                        .toEventuallyNot(beNil())
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKeyB)!))
+                        .toEventuallyNot(beNil())
+                    expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
+                        .to(beNil())
+                }
+
             }
 
             describe("concurrency") {

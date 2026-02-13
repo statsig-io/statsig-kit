@@ -249,6 +249,7 @@ public class StatsigClient {
             "derived_fields": self.store.cache.userCache["derived_fields"],
             "full_checksum": self.store.cache.userCache["full_checksum"],
             "sdk_flags": self.store.cache.userCache["sdk_flags"],
+            "sdk_configs": self.store.cache.userCache["sdk_configs"],
             "has_updates": true,
         ]
 

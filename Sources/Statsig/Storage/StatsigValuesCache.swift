@@ -26,6 +26,7 @@ struct StatsigValuesCache {
     var options: StatsigOptions
     var bootstrapMetadata: BootstrapMetadata? = nil
     var sdkFlags: SDKFlags?
+    var sdkConfigs: SDKConfigs?
 
     let storageService: StorageService
 
@@ -40,6 +41,7 @@ struct StatsigValuesCache {
             hashUsed = userCache[InternalStore.hashUsedKey] as? String
             bootstrapMetadata = userCache[InternalStore.bootstrapMetadata] as? BootstrapMetadata
             sdkFlags = SDKFlags(from: userCache[InternalStore.sdkFlagsKey])
+            sdkConfigs = SDKConfigs(from: userCache[InternalStore.sdkConfigsKey])
         }
     }
 
@@ -281,6 +283,14 @@ struct StatsigValuesCache {
         return SDKFlags()
     }
 
+    func getSDKConfigs(user: StatsigUser) -> SDKConfigs {
+        if userCache[InternalStore.userHashKey] as? String == user.getFullUserHash() {
+            return sdkConfigs ?? SDKConfigs()
+        }
+
+        return SDKConfigs()
+    }
+
     mutating func updateUser(_ newUser: StatsigUser, _ values: [String: Any]? = nil) {
         // when updateUser is called, state will be uninitialized until updated values are fetched or local cache is retrieved
         source = .Loading
@@ -306,6 +316,7 @@ struct StatsigValuesCache {
             cache[InternalStore.derivedFieldsKey] = values[InternalStore.derivedFieldsKey]
             cache[InternalStore.fullChecksum] = values[InternalStore.fullChecksum]
             cache[InternalStore.sdkFlagsKey] = values[InternalStore.sdkFlagsKey]
+            cache[InternalStore.sdkConfigsKey] = values[InternalStore.sdkConfigsKey]
         }
 
         if userCacheKey.fullUserWithSDKKey == cacheKey.fullUserWithSDKKey {
