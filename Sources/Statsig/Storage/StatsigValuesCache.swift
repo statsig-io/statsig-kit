@@ -4,6 +4,7 @@ fileprivate let MaxCachedUserObjects = 10
 
 struct StatsigValuesCache {
     var cacheByID: [String: [String: Any]]
+    var needsCacheMigration: Bool = false
     var userCacheKey: UserCacheKey
     var userLastUpdateTime: Double
     var stickyDeviceExperiments: [String: [String: Any]]
@@ -56,7 +57,11 @@ struct StatsigValuesCache {
             StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.cacheKeyMappingKey)
             as? [String: String] ?? [:]
         if StorageService.useMultiFileStorage {
-            self.cacheByID = StatsigValuesCache.loadCache(userCacheKey, storageService).cache
+            let loaded = StatsigValuesCache.loadCache(userCacheKey, storageService)
+            self.cacheByID = loaded.cache
+            if loaded.needsMigration {
+                UserPayloadStore.setNeedsMigration()
+            }
         } else {
             self.cacheByID = StatsigValuesCache.loadDictMigratingIfRequired(
                 forKey: UserDefaultsKeys.localStorageKey)

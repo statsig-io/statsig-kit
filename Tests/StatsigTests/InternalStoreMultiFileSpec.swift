@@ -5,14 +5,6 @@ import Quick
 @testable import Statsig
 
 final class InternalStoreMultiFileSpec: BaseSpec {
-    private func userPayloadFileURL(_ sdkKey: String, _ cacheKey: UserCacheKey) -> URL? {
-        return FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
-            .first?
-            .appendingPathComponent("statsig-cache")
-            .appendingPathComponent(sdkKey)
-            .appendingPathComponent("user-payload")
-            .appendingPathComponent(cacheKey.fullUserHash)
-    }
 
     private func cacheIsEmpty(_ cache: [String: Any]) -> Bool {
         return
@@ -29,6 +21,67 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             let sdkKey = "client-api-key"
             let options = StatsigOptions()
             var defaults: MockDefaults!
+
+            var tempDir: URL?
+            var originalURL = UserPayloadStore.rootDirectoryURL
+
+            func userPayloadFileURL(_ sdkKey: String, _ cacheKey: UserCacheKey) -> URL? {
+                return tempDir?
+                    .appendingPathComponent(sdkKey)
+                    .appendingPathComponent("user-payload")
+                    .appendingPathComponent(cacheKey.fullUserHash)
+            }
+
+            func legacyPayloadFileURL(_ filename: String) -> URL? {
+                return tempDir?
+                    .appendingPathComponent("_legacy")
+                    .appendingPathComponent("user-payload")
+                    .appendingPathComponent(filename)
+            }
+
+            func legacyPayload(_ key: String) -> [String: Any]? {
+                let legacyDir =
+                    tempDir?
+                    .appendingPathComponent("_legacy")
+                    .appendingPathComponent("user-payload")
+
+                if let payload = UserPayloadStore.read(
+                    url: legacyDir?.appendingPathComponent(key)
+                ) {
+                    return payload
+                }
+
+                return nil
+            }
+
+            beforeSuite {
+                let dir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("statsig-cache")
+                let uniqueDirectoryName = UUID().uuidString
+                let tempDirectoryURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(uniqueDirectoryName, isDirectory: true)
+                do {
+                    try FileManager.default.createDirectory(
+                        at: tempDirectoryURL, withIntermediateDirectories: true, attributes: nil)
+                } catch {
+                    fail("Failed to create dir: \(error)")
+                }
+
+                tempDir = dir
+                originalURL = UserPayloadStore.rootDirectoryURL
+                UserPayloadStore.rootDirectoryURL = dir
+            }
+
+            afterSuite {
+                if let originalURL = originalURL,
+                    UserPayloadStore.rootDirectoryURL != originalURL
+                {
+                    UserPayloadStore.rootDirectoryURL = originalURL
+                }
+                if let tempDir = tempDir {
+                    try? FileManager.default.removeItem(at: tempDir)
+                }
+            }
 
             beforeEach {
                 StorageService.useMultiFileStorage = true
@@ -56,7 +109,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         }
                     }
 
-                    expect(try? Data(contentsOf: self.userPayloadFileURL(sdkKey, cacheKey)!))
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
                         .toEventuallyNot(beNil())
                 }
 
@@ -78,7 +131,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     store.updateUser(userB)
                     skipFrame()
 
-                    waitUntil(timeout: .seconds(1)) { done in
+                    waitUntil { done in
                         store.saveValues(
                             StatsigSpec.mockUpdatedUserValues, keyB, userB.getFullUserHash()
                         ) {
@@ -86,16 +139,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         }
                     }
 
-                    expect(try? Data(contentsOf: self.userPayloadFileURL(sdkKey, keyA)!))
-                        .toEventuallyNot(
-                            beNil(),
-                            timeout: .seconds(2)
-                        )
-                    expect(try? Data(contentsOf: self.userPayloadFileURL(sdkKey, keyB)!))
-                        .toEventuallyNot(
-                            beNil(),
-                            timeout: .seconds(2)
-                        )
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, keyA)!))
+                        .toEventuallyNot(beNil())
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, keyB)!))
+                        .toEventuallyNot(beNil())
 
                     let reloadedA = InternalStore(sdkKey, userA, options: options)
                     let reloadedB = InternalStore(sdkKey, userB, options: options)
@@ -118,7 +165,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
                     let store = InternalStore(sdkKey, user, options: options)
 
-                    waitUntil(timeout: .seconds(1)) { done in
+                    waitUntil { done in
                         store.saveValues(
                             StatsigSpec.mockUserValues, initialKey, user.getFullUserHash()
                         ) {
@@ -149,7 +196,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
                     let store = InternalStore(sdkKey, user, options: options)
 
-                    waitUntil(timeout: .seconds(1)) { done in
+                    waitUntil { done in
                         store.saveValues(
                             StatsigSpec.mockUserValues, initialKey, user.getFullUserHash()
                         ) {
@@ -171,7 +218,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     let store = InternalStore(sdkKey, user, options: options)
                     let cacheKey = UserCacheKey.from(options, user, sdkKey)
 
-                    waitUntil(timeout: .seconds(1)) { done in
+                    waitUntil { done in
                         store.saveValues(
                             StatsigSpec.mockUserValues, cacheKey, user.getFullUserHash()
                         ) {
@@ -179,13 +226,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         }
                     }
 
-                    expect(try? Data(contentsOf: self.userPayloadFileURL(sdkKey, cacheKey)!))
-                        .toEventuallyNot(
-                            beNil(),
-                            timeout: .seconds(2)
-                        )
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
+                        .toEventuallyNot(beNil())
 
-                    if let fileURL = self.userPayloadFileURL(sdkKey, cacheKey) {
+                    if let fileURL = userPayloadFileURL(sdkKey, cacheKey) {
                         try? FileManager.default.removeItem(at: fileURL)
                     }
 
@@ -199,7 +243,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     let store = InternalStore(sdkKey, user, options: options)
                     let cacheKey = UserCacheKey.from(options, user, sdkKey)
 
-                    waitUntil(timeout: .seconds(1)) { done in
+                    waitUntil { done in
                         store.saveValues(
                             StatsigSpec.mockUserValues, cacheKey, user.getFullUserHash()
                         ) {
@@ -207,11 +251,8 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         }
                     }
 
-                    expect(try? Data(contentsOf: self.userPayloadFileURL(sdkKey, cacheKey)!))
-                        .toEventuallyNot(
-                            beNil(),
-                            timeout: .seconds(2)
-                        )
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
+                        .toEventuallyNot(beNil())
 
                     if let dir = store.storageService.userPayload.directoryURL {
                         try? FileManager.default.createDirectory(
@@ -236,20 +277,101 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 pending("deletes older user payloads once they reach a global limit") {}
             }
 
-            // TODO: Future PR
             describe("migration") {
-                pending("reads from userDefaults if no user-scoped file doesn't exist") {}
-                // maybe: doesn't reads from userDefaults if the user-scoped file for the current user exists"
-                // maybe: doesn't reads from userDefaults if the user-scoped file for another user exists"
 
-                pending("migrates existing UserDefaults payloads into user-scoped files") {}
-                // TODO: assert that userdefaults has no user payload after migration
+                beforeEach {
+                    UserPayloadStore.migrationStatus = .none
+                }
 
-                pending("migrates v2 keys from UserDefaults payloads, reads them ok") {}
-                // TODO: assert that userdefaults has no user payload after migration
+                afterEach {
+                    UserPayloadStore.migrationStatus = .none
+                }
 
-                pending("migrates v1 keys from UserDefaults payloads, reads them ok") {}
-                // TODO: assert that userdefaults has no user payload after migration
+                it("reads from userDefaults and migrates when no user-scoped file exists") {
+                    let user = StatsigUser(userID: "user_a")
+                    let cacheKey = UserCacheKey.from(options, user, sdkKey)
+
+                    StatsigUserDefaults.defaults.setDictionarySafe(
+                        [cacheKey.fullUserWithSDKKey: StatsigSpec.mockUserValues],
+                        forKey: UserDefaultsKeys.localStorageKey
+                    )
+
+                    let store = InternalStore(sdkKey, user, options: options)
+
+                    store.migrateIfNeeded()
+
+                    expect(store.checkGate(forName: "gate_name_2").value).to(beTrue())
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
+                        .toEventuallyNot(beNil())
+                    expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
+                        .toEventually(beNil())
+                }
+
+                it("migrates existing UserDefaults payloads into user-scoped files") {
+                    let userA = StatsigUser(userID: "user_a")
+                    let userB = StatsigUser(userID: "user_b")
+                    let otherSdkKey = "client-other-key"
+
+                    let keyA = UserCacheKey.from(options, userA, sdkKey)
+                    let keyB = UserCacheKey.from(options, userB, otherSdkKey)
+
+                    StatsigUserDefaults.defaults.setDictionarySafe(
+                        [
+                            keyA.fullUserWithSDKKey: StatsigSpec.mockUserValues,
+                            keyB.fullUserWithSDKKey: StatsigSpec.mockUpdatedUserValues,
+                        ],
+                        forKey: UserDefaultsKeys.localStorageKey
+                    )
+
+                    let storeA = InternalStore(sdkKey, userA, options: options)
+
+                    storeA.migrateIfNeeded()
+
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, keyA)!))
+                        .toEventuallyNot(beNil())
+                    expect(try? Data(contentsOf: userPayloadFileURL(otherSdkKey, keyB)!))
+                        .toEventuallyNot(beNil())
+                    expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
+                        .toEventually(beNil())
+                }
+
+                it("migrates v2 keys from UserDefaults payloads and reads them") {
+                    let userA = StatsigUser(userID: "user_a")
+                    let userB = StatsigUser(userID: "user_b")
+                    let cacheKeyB = UserCacheKey.from(options, userB, sdkKey)
+
+                    StatsigUserDefaults.defaults.setDictionarySafe(
+                        [cacheKeyB.v2: StatsigSpec.mockUserValues],
+                        forKey: UserDefaultsKeys.localStorageKey
+                    )
+
+                    let store = InternalStore(sdkKey, userA, options: options)
+
+                    store.migrateIfNeeded()
+
+                    expect(legacyPayload(cacheKeyB.v2)).toEventuallyNot(beNil())
+                    expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
+                        .toEventually(beNil())
+                }
+
+                it("migrates v1 keys from UserDefaults payloads and reads them") {
+                    let userA = StatsigUser(userID: "user_a")
+                    let userB = StatsigUser(userID: "user_b")
+                    let cacheKeyB = UserCacheKey.from(options, userB, sdkKey)
+
+                    StatsigUserDefaults.defaults.setDictionarySafe(
+                        [cacheKeyB.v1: StatsigSpec.mockUserValues],
+                        forKey: UserDefaultsKeys.localStorageKey
+                    )
+
+                    let store = InternalStore(sdkKey, userA, options: options)
+
+                    store.migrateIfNeeded()
+
+                    expect(legacyPayload(cacheKeyB.v1)).toEventuallyNot(beNil())
+                    expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
+                        .toEventually(beNil())
+                }
             }
 
             describe("concurrency") {

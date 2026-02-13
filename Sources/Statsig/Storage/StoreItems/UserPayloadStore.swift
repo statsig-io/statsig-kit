@@ -2,16 +2,29 @@ import Foundation
 
 // TODO: Thread-safety
 // TODO: Cache eviction
-// TODO: Read old non-migrated payloads
-// TODO: Read migrated payloads with old keys (v1 or v2)
+
+fileprivate let DIRNAME_USER_PAYLOAD = "user-payload"
 
 struct UserPayloadStore {
 
     // MARK: Static
 
-    private static let rootDirectoryURL = FileManager
+    internal static var rootDirectoryURL = FileManager
         .default.urls(for: .cachesDirectory, in: .userDomainMask)
         .first?.appendingPathComponent("statsig-cache")
+
+    static var legacyDirURL: URL? {
+        rootDirectoryURL?
+            .appendingPathComponent("_legacy")
+            .appendingPathComponent(DIRNAME_USER_PAYLOAD)
+    }
+
+    static func userFileURL(sdkKey: String, filename: String) -> URL? {
+        return rootDirectoryURL?
+            .appendingPathComponent(sdkKey)
+            .appendingPathComponent(DIRNAME_USER_PAYLOAD)
+            .appendingPathComponent(filename)
+    }
 
     // MARK: Params & Init
 
@@ -21,7 +34,7 @@ struct UserPayloadStore {
     init(sdkKey: String) {
         self.directoryURL = UserPayloadStore.rootDirectoryURL?
             .appendingPathComponent(sdkKey)
-            .appendingPathComponent("user-payload")
+            .appendingPathComponent(DIRNAME_USER_PAYLOAD)
     }
 
     // MARK: Utils
@@ -30,30 +43,35 @@ struct UserPayloadStore {
         return key.fullUserHash
     }
 
-    private func userFileURL(_ fullUserHash: String) -> URL? {
+    private func userFileURL(_ userCacheKey: UserCacheKey) -> URL? {
         return directoryURL?
-            .appendingPathComponent(fullUserHash)
+            .appendingPathComponent(userCacheKey.fullUserHash)
     }
 
     // MARK: Write
 
     func write(key: UserCacheKey, payload: [String: Any]) {
-        return write(filename: filename(for: key), payload: payload)
+        UserPayloadStore.write(url: userFileURL(key), payload: payload)
     }
 
-    // Will be used for migration and backwards compatibility
-    func write(filename: String, payload: [String: Any]) {
+    // Used for migration and backwards compatibility
+    static func write(sdkKey: String, filename: String, payload: [String: Any]) {
+        return write(url: userFileURL(sdkKey: sdkKey, filename: filename), payload: payload)
+    }
+
+    // Used for migration and backwards compatibility
+    static func write(url: URL?, payload: [String: Any]) {
         guard
-            let url = userFileURL(filename),
+            let url = url,
             let data = encode(payload)
         else {
             // TODO: Handle errors
             return
         }
 
-        if let dir = directoryURL {
+        if !url.path.isEmpty {
             try? FileManager.default.createDirectory(
-                at: dir,
+                at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
         }
@@ -65,13 +83,24 @@ struct UserPayloadStore {
     // MARK: Read
 
     func read(key: UserCacheKey) -> [String: Any]? {
-        return read(filename: filename(for: key))
+        if let payload = UserPayloadStore.read(url: userFileURL(key)) {
+            return payload
+        }
+
+        if let payload = UserPayloadStore.readLegacy(key.v2) {
+            return payload
+        }
+
+        if let payload = UserPayloadStore.readLegacy(key.v1) {
+            return payload
+        }
+
+        return nil
     }
 
-    // Will be used for migration and backwards compatibility
-    func read(filename: String) -> [String: Any]? {
+    static func read(url: URL?) -> [String: Any]? {
         guard
-            let url = userFileURL(filename),
+            let url = url,
             let data = try? Data(contentsOf: url)
         else {
             // TODO: Handle errors
@@ -85,12 +114,7 @@ struct UserPayloadStore {
     // MARK: Delete
 
     func remove(key: UserCacheKey) {
-        return remove(filename: filename(for: key))
-
-    }
-
-    func remove(filename: String) {
-        guard let url = userFileURL(filename) else {
+        guard let url = userFileURL(key) else {
             // TODO: Handle errors
             return
         }
@@ -101,14 +125,67 @@ struct UserPayloadStore {
 
     // MARK: Encoding
 
-    private func encode(_ value: [String: Any]) -> Data? {
+    private static func encode(_ value: [String: Any]) -> Data? {
         // TODO: Handle errors
         return try? JSONSerialization.data(withJSONObject: value, options: [])
     }
 
-    private func decode(_ data: Data) -> [String: Any]? {
+    private static func decode(_ data: Data) -> [String: Any]? {
         // TODO: Handle errors
         return try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+    }
+
+    // MARK: Migration and Compatibility
+
+    enum MigrationStatus {
+        case none
+        case pending
+        case started
+        // NOTE: we could also have a `done` status, but it's not used yet
+    }
+    static var migrationStatus = MigrationStatus.none
+    static let migrationLock = NSLock()
+
+    static func setNeedsMigration() {
+        migrationLock.withLock {
+            if migrationStatus == .none {
+                migrationStatus = .pending
+            }
+        }
+    }
+
+    static func migrateIfNeeded(
+        _ cacheByID: [String: [String: Any]],
+        _ defaults: DefaultsLike
+    ) {
+        let shouldMigrate = migrationLock.withLock {
+            if migrationStatus != .pending { return false }
+            self.migrationStatus = .started
+            return true
+        }
+        guard shouldMigrate else { return }
+
+        for (key, payload) in cacheByID {
+            if let parsed = extractSDKKey(from: key) {
+                UserPayloadStore.write(
+                    sdkKey: parsed.sdkKey,
+                    filename: parsed.baseKey,
+                    payload: payload
+                )
+            } else {
+                UserPayloadStore.writeLegacy(filename: key, payload: payload)
+            }
+        }
+
+        defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
+    }
+
+    static func readLegacy(_ filename: String) -> [String: Any]? {
+        return read(url: legacyDirURL?.appendingPathComponent(filename))
+    }
+
+    static func writeLegacy(filename: String, payload: [String: Any]) {
+        return write(url: legacyDirURL?.appendingPathComponent(filename), payload: payload)
     }
 
     // MARK: Tests
@@ -124,4 +201,25 @@ struct UserPayloadStore {
 
         try? FileManager.default.removeItem(at: dir)
     }
+}
+
+// MARK: Utils
+
+fileprivate let sdkKeyPrefix = "client-"
+
+fileprivate func extractSDKKey(from cacheKey: String) -> (baseKey: String, sdkKey: String)? {
+    guard let separatorIndex = cacheKey.lastIndex(of: ":") else {
+        return nil
+    }
+
+    let sdkKey = String(cacheKey[cacheKey.index(after: separatorIndex)...])
+    guard sdkKey.hasPrefix(sdkKeyPrefix) else {
+        return nil
+    }
+
+    let baseKey = String(cacheKey[..<separatorIndex])
+    guard !baseKey.contains(":") && !baseKey.isEmpty else {
+        return nil
+    }
+    return (baseKey, sdkKey)
 }

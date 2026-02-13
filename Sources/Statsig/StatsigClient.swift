@@ -83,6 +83,8 @@ public class StatsigClient {
             self.notifyOnInitializedListeners(error)
             completionWithResult?(error)
             completion?(error?.message)
+
+            self.store.migrateIfNeeded()
         }
 
         if options?.initializeValues != nil {

@@ -381,6 +381,16 @@ class InternalStore {
             return cache.getEvaluationSource()
         }
     }
+
+    func migrateIfNeeded() {
+        let cacheByID = storeQueue.sync {
+            return cache.cacheByID
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            UserPayloadStore.migrateIfNeeded(cacheByID, StatsigUserDefaults.defaults)
+        }
+    }
 }
 
 extension String {

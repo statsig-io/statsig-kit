@@ -1,5 +1,3 @@
-// TODO: Migration
-
 struct StorageService {
 
     // TODO: Delete this static variable once we ship multi-file storage
