@@ -17,5 +17,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@main
 
+      - name: Prepare Simulator
+        id: simulator
+        timeout-minutes: 3
+        uses: ./.github/actions/prepare-simulator
+
       - name: Run Tests
-        run: ./run_tests.sh -test-iterations 3 -retry-tests-on-failure -parallel-testing-enabled NO
+        working-directory: .swiftpm/xcode
+        timeout-minutes: 10
+        run: |
+          xcodebuild test \
+            -destination "${{ steps.simulator.outputs.destination }}" \
+            -scheme Statsig \
+            -workspace package.xcworkspace \
+            -test-iterations 3 \
+            -retry-tests-on-failure \
+            -parallel-testing-enabled NO \
+            | xcbeautify && exit ${PIPESTATUS[0]}

@@ -55,5 +55,5 @@ jobs:
             -scheme Statsig-Unit-Tests \
             -retry-tests-on-failure \
             -test-iterations 3 \
-            -parallel-testing-enabled NO
+            -parallel-testing-enabled NO \
             | xcbeautify && exit ${PIPESTATUS[0]}
