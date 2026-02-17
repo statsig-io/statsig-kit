@@ -3,8 +3,6 @@ import Foundation
 struct DeviceEnvironment {
     private static let instance = DeviceEnvironment()
 
-    private let stableIDKey = "com.Statsig.InternalStore.stableIDKey"
-
     static internal let deviceOS = PlatformCompatibility.deviceInfo.os
     static internal let sdkType: String = "ios-client"
     static internal let sdkVersion: String = "1.59.0"
@@ -38,18 +36,20 @@ struct DeviceEnvironment {
 
     func getStableID(_ overrideStableID: String? = nil) -> String {
         if let overrideStableID = overrideStableID {
-            StatsigUserDefaults.defaults.setValue(overrideStableID, forKey: stableIDKey)
+            StatsigUserDefaults.defaults.setValue(
+                overrideStableID, forKey: UserDefaultsKeys.stableIDKey)
             return overrideStableID
         }
 
-        if let storedStableID = StatsigUserDefaults.defaults.string(forKey: stableIDKey),
+        if let storedStableID = StatsigUserDefaults.defaults.string(
+            forKey: UserDefaultsKeys.stableIDKey),
             storedStableID != ""
         {
             return storedStableID
         }
 
         let newStableID = UUID().uuidString
-        StatsigUserDefaults.defaults.setValue(newStableID, forKey: stableIDKey)
+        StatsigUserDefaults.defaults.setValue(newStableID, forKey: UserDefaultsKeys.stableIDKey)
         return newStableID
     }
 

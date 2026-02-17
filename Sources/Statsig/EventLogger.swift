@@ -1,12 +1,6 @@
 import Foundation
 
-internal func getFailedEventStorageKey(_ sdkKey: String) -> String {
-    return "\(EventLogger.failedLogsKey):\(sdkKey.djb2())"
-}
-
 class EventLogger {
-    internal static let failedLogsKey = "com.Statsig.EventLogger.loggingRequestUserDefaultsKey"
-
     private static let eventQueueLabel = "com.Statsig.eventQueue"
     private static let nonExposedChecksEvent = "non_exposed_checks"
 
@@ -45,7 +39,7 @@ class EventLogger {
         self.networkService = networkService
         self.loggedErrorMessage = Set<String>()
         self.userDefaults = userDefaults
-        self.storageKey = getFailedEventStorageKey(sdkKey)
+        self.storageKey = UserDefaultsKeys.getFailedEventsStorageKey(sdkKey)
         self.nonExposedChecks = [String: Int]()
     }
 
@@ -303,6 +297,7 @@ class EventLogger {
     }
 
     static func deleteLocalStorage(sdkKey: String) {
-        StatsigUserDefaults.defaults.removeObject(forKey: getFailedEventStorageKey(sdkKey))
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.getFailedEventsStorageKey(sdkKey))
     }
 }

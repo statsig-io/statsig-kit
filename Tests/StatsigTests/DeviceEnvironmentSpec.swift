@@ -10,7 +10,7 @@ class DeviceEnvironmentSpec: BaseSpec {
 
         describe("getting the environment info about current device") {
             StatsigUserDefaults.defaults.removeObject(
-                forKey: "com.Statsig.InternalStore.stableIDKey")
+                forKey: UserDefaultsKeys.stableIDKey)
             let env1 = DeviceEnvironment.get()
             let env2 = DeviceEnvironment.get()
             let env3 = DeviceEnvironment.get("12345")

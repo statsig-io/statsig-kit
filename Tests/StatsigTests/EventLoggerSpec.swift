@@ -158,12 +158,17 @@ class EventLoggerSpec: BaseSpec {
                 waitUntil { done in logger.stop(completion: done) }
 
                 expect(isPendingRequest).toEventually(beFalse())
-                expect(userDefaults.data[getFailedEventStorageKey("client-key")] as? [Data])
-                    .toEventuallyNot(beNil())
+                expect(
+                    userDefaults.data[UserDefaultsKeys.getFailedEventsStorageKey("client-key")]
+                        as? [Data]
+                )
+                .toEventuallyNot(beNil())
 
                 isPendingRequest = true
 
-                let savedData = userDefaults.data[getFailedEventStorageKey("client-key")] as? [Data]
+                let savedData =
+                    userDefaults.data[UserDefaultsKeys.getFailedEventsStorageKey("client-key")]
+                    as? [Data]
                 var resendData: [Data] = []
 
                 stub(condition: isHost(LogEventHost)) { request in
@@ -520,7 +525,8 @@ class EventLoggerSpec: BaseSpec {
                 afterEach {
                     userDefaults.reset()
                     logger.stop()
-                    userDefaults.removeObject(forKey: getFailedEventStorageKey(sdkKey))
+                    userDefaults.removeObject(
+                        forKey: UserDefaultsKeys.getFailedEventsStorageKey(sdkKey))
                     logger = EventLogger(
                         sdkKey: "client-key", user: user, networkService: ns,
                         userDefaults: userDefaults)
