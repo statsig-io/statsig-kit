@@ -95,7 +95,8 @@ final class UserPayloadIndexStore {
 
     init(
         sdkKey: String,
-        indexFileURL: URL?
+        indexFileURL: URL?,
+        initialIndexData: Data? = nil
     ) {
         self.sdkKey = sdkKey
         self.indexFileURL = indexFileURL
@@ -105,10 +106,12 @@ final class UserPayloadIndexStore {
             qos: .utility
         )
 
-        let loadedIndex = UserPayloadIndexStore.readIndex(from: indexFileURL)
-        self.index = loadedIndex.index
-        if loadedIndex.indexFileExists {
-            StorageServiceMigrationStatus.markMigrationDone()
+        if let initialIndexData = initialIndexData,
+            let decodedIndex = UserPayloadIndex.decode(initialIndexData)
+        {
+            self.index = decodedIndex
+        } else {
+            self.index = UserPayloadIndex.empty()
         }
     }
 
@@ -209,30 +212,6 @@ final class UserPayloadIndexStore {
     }
 
     // MARK: Read/write
-
-    private static func readIndex(from url: URL?) -> (
-        index: UserPayloadIndex,
-        indexFileExists: Bool
-    ) {
-        guard let url = url else {
-            return (UserPayloadIndex.empty(), false)
-        }
-
-        let data: Data
-        do {
-            data = try Data(contentsOf: url)
-        } catch {
-            let nsError = error as NSError
-            let missingFileError =
-                nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileReadNoSuchFileError
-            return (UserPayloadIndex.empty(), !missingFileError)
-        }
-
-        guard let decoded = UserPayloadIndex.decode(data) else {
-            return (UserPayloadIndex.empty(), true)
-        }
-        return (decoded, true)
-    }
 
     // FIXME: writeForMigration uses a different queue than persistIndexNow.
     public static func writeForMigration(

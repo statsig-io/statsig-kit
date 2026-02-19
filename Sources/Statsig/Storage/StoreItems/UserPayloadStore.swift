@@ -23,17 +23,31 @@ final class UserPayloadStore {
         attributes: .concurrent
     )
 
-    static func forSDKKey(_ sdkKey: String, rootDir: URL? = defaultRootDirURL)
+    static func forSDKKey(
+        _ sdkKey: String,
+        rootDir: URL? = defaultRootDirURL,
+        indexData: Data? = nil
+    )
         -> UserPayloadStore
     {
         storesLock.withLock {
             if let existing = storesBySDKKey[sdkKey] {
                 return existing
             }
-            let created = UserPayloadStore(sdkKey: sdkKey, rootDir: rootDir)
+            let created = UserPayloadStore(sdkKey: sdkKey, rootDir: rootDir, indexData: indexData)
             storesBySDKKey[sdkKey] = created
             return created
         }
+    }
+
+    static func readIndexData(
+        sdkKey: String,
+        rootDir: URL? = defaultRootDirURL
+    ) -> Data? {
+        guard let indexFileURL = getIndexFileURL(rootDir, sdkKey) else {
+            return nil
+        }
+        return try? Data(contentsOf: indexFileURL)
     }
 
     static func getLegacyDirURL(_ rootDir: URL?) -> URL? {
@@ -64,7 +78,7 @@ final class UserPayloadStore {
     private let evictionQueue: DispatchQueue
     private let indexStore: UserPayloadIndexStore
 
-    private init(sdkKey: String, rootDir: URL?) {
+    private init(sdkKey: String, rootDir: URL?, indexData: Data?) {
         self.sdkKey = sdkKey
         self.rootDir = rootDir
         self.directoryURL = rootDir?
@@ -81,7 +95,8 @@ final class UserPayloadStore {
             qos: .utility)
         self.indexStore = UserPayloadIndexStore(
             sdkKey: sdkKey,
-            indexFileURL: indexFileURL
+            indexFileURL: indexFileURL,
+            initialIndexData: indexData
         )
     }
 

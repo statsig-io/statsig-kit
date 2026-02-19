@@ -38,11 +38,11 @@ class InternalStore {
     var localOverrides: [String: Any] = InternalStore.getEmptyOverrides()
     let storeQueue = DispatchQueue(
         label: storeQueueLabel, qos: .userInitiated, attributes: .concurrent)
-    let storageService: StorageService
+    let storageService: StorageService?
 
     init(_ sdkKey: String, _ user: StatsigUser, options: StatsigOptions) {
         Diagnostics.mark?.initialize.readCache.start()
-        storageService = StorageService.forSDKKey(sdkKey)
+        storageService = StorageService.forSDKKeyIfEnabled(sdkKey)
         cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
             StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)
@@ -224,7 +224,7 @@ class InternalStore {
             return
         }
 
-        self.storageService.processSDKConfigs(payload: values)
+        StorageService.processSDKConfigs(payload: values)
 
         storeQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }

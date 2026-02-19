@@ -89,6 +89,20 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
             func setUseMultiFileStorage(_ value: Bool) {
                 StorageServiceMigrationStatus.migrationStatus = value ? .done : .initial
+                guard value else { return }
+
+                guard let dir = UserPayloadStore.getSDKKeyDirURL(tempDir, sdkKey) else {
+                    return
+                }
+                try? FileManager.default.createDirectory(
+                    at: dir,
+                    withIntermediateDirectories: true
+                )
+
+                let indexURL = dir.appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME)
+                if let emptyIndex = UserPayloadIndex.empty().encode() {
+                    try? emptyIndex.write(to: indexURL, options: .atomic)
+                }
             }
 
             beforeSuite {
@@ -222,7 +236,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
                     expect(store.cache.source).toEventually(equal(.Network))
                     expect(
-                        store.storageService.userPayload.mappedFullUserHash(v2Key: updatedKey.v2)
+                        store.storageService?.userPayload.mappedFullUserHash(v2Key: updatedKey.v2)
                     ).toEventuallyNot(beNil())
 
                     expect(store.checkGate(forName: "gate_name_2").value).to(beTrue())
@@ -286,7 +300,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
                         .toEventuallyNot(beNil())
 
-                    guard let dir = store.storageService.userPayload.directoryURL else {
+                    guard let dir = store.storageService?.userPayload.directoryURL else {
                         fail("Failed to get the directory URL")
                         return
                     }

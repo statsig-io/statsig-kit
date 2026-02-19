@@ -13,6 +13,31 @@ final class StorageService {
     let sdkKey: String
     let userPayload: UserPayloadStore
 
+    static func forSDKKeyIfEnabled(_ sdkKey: String) -> StorageService? {
+        servicesLock.withLock {
+            if let existing = servicesBySDKKey[sdkKey] {
+                return existing
+            }
+
+            if let indexData = UserPayloadStore.readIndexData(sdkKey: sdkKey) {
+                StorageServiceMigrationStatus.markMigrationDone()
+                let created = StorageService(sdkKey: sdkKey, indexData: indexData)
+                servicesBySDKKey[sdkKey] = created
+                return created
+            }
+
+            // If multi-file storage is already enabled by another sdk key in this session,
+            // create a service with an empty index for this sdk key.
+            if StorageService.useMultiFileStorage {
+                let created = StorageService(sdkKey: sdkKey)
+                servicesBySDKKey[sdkKey] = created
+                return created
+            }
+
+            return nil
+        }
+    }
+
     static func forSDKKey(_ sdkKey: String) -> StorageService {
         servicesLock.withLock {
             if let existing = servicesBySDKKey[sdkKey] {
@@ -24,15 +49,15 @@ final class StorageService {
         }
     }
 
-    init(sdkKey: String) {
+    init(sdkKey: String, indexData: Data? = nil) {
         self.sdkKey = sdkKey
-        self.userPayload = UserPayloadStore.forSDKKey(sdkKey)
+        self.userPayload = UserPayloadStore.forSDKKey(sdkKey, indexData: indexData)
     }
 
     // TODO: Multi-client
     // TODO: Only change value once per session, using an in-memory value (maybe)
     // NOTE: If the SDK or gate switches off, this won't disable the multi-file storage for existing users
-    func processSDKConfigs(payload: [String: Any]) {
+    static func processSDKConfigs(payload: [String: Any]) {
         guard
             !StorageService.useMultiFileStorage,
             let configs = payload[InternalStore.sdkConfigsKey] as? [String: Any]
