@@ -512,8 +512,6 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
                     payload[InternalStore.hashUsedKey] = "none"
 
-                    setUseMultiFileStorage(false)
-
                     store.saveValues(payload, cacheKey, user.getFullUserHash())
 
                     expect(StorageServiceMigrationStatus.migrationStatus).toEventually(
@@ -560,6 +558,49 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKeyA)!))
                         .toEventuallyNot(beNil())
                     expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKeyB)!))
+                        .toEventuallyNot(beNil())
+                    expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
+                        .to(beNil())
+                }
+
+                it(
+                    "does not enable multi-file storage from sdk configs when EXPERIMENTAL_storageType is legacy"
+                ) {
+                    let user = StatsigUser(userID: "user_a")
+                    let legacyOptions = StatsigOptions(EXPERIMENTAL_storageType: .legacy)
+                    let store = InternalStore(sdkKey, user, options: legacyOptions)
+                    let cacheKey = UserCacheKey.from(legacyOptions, user, sdkKey)
+
+                    var payload = StatsigSpec.mockUserValues
+                    let multiFileStoreGate = "multi_file_store_gate"
+                    payload[InternalStore.gatesKey] = [
+                        multiFileStoreGate: ["value": true, "rule_id": "rule_id_multi_file"]
+                    ]
+                    payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
+                    payload[InternalStore.hashUsedKey] = "none"
+
+                    setUseMultiFileStorage(false)
+
+                    store.saveValues(payload, cacheKey, user.getFullUserHash())
+
+                    expect(StorageServiceMigrationStatus.migrationStatus).toEventually(
+                        equal(.initial))
+                    expect(StorageService.useMultiFileStorage).to(beFalse())
+                }
+
+                it("forces multi-file storage when EXPERIMENTAL_storageType is multiFile") {
+                    let user = StatsigUser(userID: "user_a")
+                    let multiFileOptions = StatsigOptions(EXPERIMENTAL_storageType: .multiFile)
+                    let store = InternalStore(sdkKey, user, options: multiFileOptions)
+                    let cacheKey = UserCacheKey.from(multiFileOptions, user, sdkKey)
+
+                    expect(StorageServiceMigrationStatus.migrationStatus).toEventually(
+                        equal(.pending))
+                    expect(StorageService.useMultiFileStorage).to(beTrue())
+
+                    store.saveValues(StatsigSpec.mockUserValues, cacheKey, user.getFullUserHash())
+
+                    expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
                         .toEventuallyNot(beNil())
                     expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
                         .to(beNil())

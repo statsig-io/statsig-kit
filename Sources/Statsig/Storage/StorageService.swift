@@ -54,9 +54,9 @@ final class StorageService {
         self.userPayload = UserPayloadStore.forSDKKey(sdkKey, indexData: indexData)
     }
 
-    // TODO: Multi-client
     // TODO: Only change value once per session, using an in-memory value (maybe)
     // NOTE: If the SDK or gate switches off, this won't disable the multi-file storage for existing users
+    // NOTE: For the scenario where multiple clients have diverging values, we'll switch the storage type if any of them enables it
     static func processSDKConfigs(payload: [String: Any]) {
         guard
             !StorageService.useMultiFileStorage,

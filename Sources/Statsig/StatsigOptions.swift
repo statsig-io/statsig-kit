@@ -7,6 +7,12 @@ internal let LogEventHost = "prodregistryv2.org"
  Configuration options for the StatsigSDK.
  */
 public class StatsigOptions {
+    public enum EXPERIMENTAL_StorageType: String {
+        case auto
+        case legacy
+        case multiFile
+    }
+
     public enum EvaluationCallbackData {
         case gate(FeatureGate)
         case config(DynamicConfig)
@@ -44,6 +50,18 @@ public class StatsigOptions {
      Use file caching instead of UserDefaults. Useful if you are running into size limits with UserDefaults (ie tvOS)
      */
     public var enableCacheByFile = false
+
+    /**
+     Controls storage backend selection.
+     - auto: Uses SDK-driven migration behavior.
+     - legacy: Forces legacy storage behavior.
+     - multiFile: Forces multi-file storage behavior.
+     */
+    public var EXPERIMENTAL_storageType: EXPERIMENTAL_StorageType = .auto {
+        didSet {
+            applyExperimentalStorageType()
+        }
+    }
 
     /**
      Provide a Dictionary representing the "initiailize response" required  to synchronously initialize the SDK.
@@ -189,6 +207,7 @@ public class StatsigOptions {
         autoValueUpdateIntervalSec: Double? = nil,
         overrideStableID: String? = nil,
         enableCacheByFile: Bool? = false,
+        EXPERIMENTAL_storageType: EXPERIMENTAL_StorageType? = .auto,
         initializeValues: [String: Any]? = nil,
         initializeOffline: Bool? = false,
         eventLoggingEnabled: Bool? = true,
@@ -229,6 +248,11 @@ public class StatsigOptions {
 
         if let enableCacheByFile = enableCacheByFile {
             self.enableCacheByFile = enableCacheByFile
+        }
+
+        if let EXPERIMENTAL_storageType = EXPERIMENTAL_storageType {
+            self.EXPERIMENTAL_storageType = EXPERIMENTAL_storageType
+            applyExperimentalStorageType()
         }
 
         if let eventLoggingEnabled = eventLoggingEnabled {
@@ -306,6 +330,12 @@ public class StatsigOptions {
         self.overrideAdapter = overrideAdapter
 
         self.printHandler = printHandler
+    }
+
+    private func applyExperimentalStorageType() {
+        if EXPERIMENTAL_storageType == .multiFile {
+            StorageServiceMigrationStatus.setNeedsMigration()
+        }
     }
 }
 
@@ -390,6 +420,9 @@ extension StatsigOptions {
         }
         if disableEventNameTrimming != defaultOptions.disableEventNameTrimming {
             dict["disableEventNameTrimming"] = disableEventNameTrimming
+        }
+        if EXPERIMENTAL_storageType != defaultOptions.EXPERIMENTAL_storageType {
+            dict["EXPERIMENTAL_storageType"] = EXPERIMENTAL_storageType.rawValue
         }
 
         // Initialize Values dictionary

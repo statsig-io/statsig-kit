@@ -39,9 +39,13 @@ class InternalStore {
     let storeQueue = DispatchQueue(
         label: storeQueueLabel, qos: .userInitiated, attributes: .concurrent)
     let storageService: StorageService?
+    let sdkKey: String
+    let storageTypeOption: StatsigOptions.EXPERIMENTAL_StorageType
 
     init(_ sdkKey: String, _ user: StatsigUser, options: StatsigOptions) {
         Diagnostics.mark?.initialize.readCache.start()
+        self.sdkKey = sdkKey
+        self.storageTypeOption = options.EXPERIMENTAL_storageType
         storageService = StorageService.forSDKKeyIfEnabled(sdkKey)
         cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
@@ -219,12 +223,14 @@ class InternalStore {
         _ userHash: String?,
         _ completion: (() -> Void)? = nil
     ) {
-        guard SDKKeyValidator.validate(self.cache.sdkKey, values) else {
+        guard SDKKeyValidator.validate(sdkKey, values) else {
             completion?()
             return
         }
 
-        StorageService.processSDKConfigs(payload: values)
+        if storageTypeOption == .auto {
+            StorageService.processSDKConfigs(payload: values)
+        }
 
         storeQueue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }

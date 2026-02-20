@@ -76,6 +76,7 @@ class StatsigOptionsSpec: BaseSpec {
                     autoValueUpdateIntervalSec: 24 * 3600,
                     overrideStableID: "test-stable-id",
                     enableCacheByFile: true,
+                    EXPERIMENTAL_storageType: .legacy,
                     initializeValues: [:],
                     initializeOffline: true,
                     eventLoggingEnabled: false,
