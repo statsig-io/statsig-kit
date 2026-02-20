@@ -17,8 +17,29 @@ func skipFrame() {
 }
 
 class TestUtils {
-    static func clearStorage() {
-        InternalStore.deleteAllLocalStorage()
+    static func clearStorage(rootDir: URL? = FileStorageAdapter.defaultRootDirectory) {
+        // User Defaults
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
+        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
+        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.DEPRECATED_stickyUserExperimentsKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.stickyDeviceExperimentsKey)
+        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.networkFallbackInfoKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
+        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localOverridesKey)
+        _ = StatsigUserDefaults.defaults.synchronize()
+
+        // Storage Service
+        if let rootDir = rootDir {
+            try? FileManager.default.removeItem(at: rootDir)
+        }
+
+        UserPayloadStore.clearCachedInstances()
+        StorageService.clearCachedInstances()
     }
 
     static func startStatsigAndWait(

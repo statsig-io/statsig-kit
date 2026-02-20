@@ -28,21 +28,27 @@ struct StatsigValuesCache {
     var sdkFlags: SDKFlags?
     var sdkConfigs: SDKConfigs?
 
-    let storageService: StorageService?
-    private var activeStorageService: StorageService? {
-        // Some stores initialize before multi-file storage is enabled and keep `storageService`
-        // as nil. If another SDK key flips the global migration state later in the same session,
-        // we still need this store to start using file-backed storage.
-        // TODO: Remove this lazy fallback once multi-file storage is fully rolled out.
-        if let storageService = storageService {
+    let storageServiceLock = NSLock()
+    var storageService: StorageService?
+    internal mutating func activeStorageService() -> StorageService? {
+        storageServiceLock.withLock {
+            // Some stores initialize before multi-file storage is enabled and keep `storageService`
+            // as nil. If another SDK key flips the global migration state later in the same session,
+            // we still need this store to start using file-backed storage.
+            // TODO: Remove this lazy fallback once multi-file storage is fully rolled out.
+            if let storageService = storageService {
+                return storageService
+            }
+
+            guard StorageService.useMultiFileStorage else {
+                return nil
+            }
+
+            let storageService = StorageService.forSDKKey(
+                sdkKey, storageProvider: options.storageProvider)
+            self.storageService = storageService
             return storageService
         }
-
-        guard StorageService.useMultiFileStorage else {
-            return nil
-        }
-
-        return StorageService.forSDKKey(sdkKey)
     }
 
     var userCache: [String: Any] {
@@ -341,7 +347,7 @@ struct StatsigValuesCache {
         }
 
         cacheByID[cacheKey.fullUserWithSDKKey] = cache
-        if activeStorageService == nil {
+        if activeStorageService() == nil {
             cacheKeyMapping[userCacheKey.v2] = userCacheKey.fullUserWithSDKKey
 
             runCacheEviction()
@@ -350,9 +356,12 @@ struct StatsigValuesCache {
         persist(cacheKey, cache)
     }
 
-    func persist(_ cacheKey: UserCacheKey, _ payload: [String: Any]) {
+    mutating func persist(_ cacheKey: UserCacheKey, _ payload: [String: Any]) {
+        let storageService = activeStorageService()
+        let cacheByID = cacheByID
+        let cacheKeyMapping = cacheKeyMapping
         DispatchQueue.global().async {
-            if let storageService = activeStorageService {
+            if let storageService = storageService {
                 storageService.userPayload.write(
                     key: cacheKey, payload: payload)
             } else {
@@ -415,7 +424,7 @@ struct StatsigValuesCache {
         }
 
         // Cached mappedFullUserHash (v2 -> full user hash)
-        if let storageService = activeStorageService {
+        if let storageService = activeStorageService() {
             // TODO: Move memoization to UserPayloadStore to avoid calling mappedFullUserHash
             if let mappedFullUserHash = storageService.userPayload.mappedFullUserHash(v2Key: key.v2)
             {
@@ -436,7 +445,7 @@ struct StatsigValuesCache {
         }
 
         // Read from file
-        if let storageService = activeStorageService,
+        if let storageService = activeStorageService(),
             let payload = storageService.userPayload.read(key: key)
         {
             cacheByID[key.fullUserWithSDKKey] = payload
@@ -457,7 +466,7 @@ struct StatsigValuesCache {
 
     private mutating func saveToUserDefaults() {
         cacheByID[userCacheKey.fullUserWithSDKKey] = userCache
-        if let storageService = activeStorageService {
+        if let storageService = activeStorageService() {
             storageService.userPayload.write(key: userCacheKey, payload: userCache)
         } else {
             StatsigUserDefaults.defaults.setDictionarySafe(
@@ -482,7 +491,7 @@ struct StatsigValuesCache {
         // Bootstrap
         if let bootstrapValues = bootstrapValues {
             cacheByID[userCacheKey.fullUserWithSDKKey] = bootstrapValues
-            if activeStorageService == nil {
+            if activeStorageService() == nil {
                 cacheKeyMapping[userCacheKey.v2] = userCacheKey.fullUserWithSDKKey
             }
             userCache = bootstrapValues

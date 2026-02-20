@@ -5,6 +5,39 @@ import Quick
 @testable import Statsig
 
 final class InternalStoreMultiFileSpec: BaseSpec {
+    private final class InMemoryStorageProvider: NSObject, StorageProvider {
+        private let lock = NSLock()
+        private var dataByKey: [String: Data] = [:]
+
+        private(set) var readKeys: [String] = []
+        private(set) var writeKeys: [String] = []
+        private(set) var removeKeys: [String] = []
+
+        func read(_ key: String) -> Data? {
+            return lock.withLock {
+                readKeys.append(key)
+                return dataByKey[key]
+            }
+        }
+
+        func write(_ value: Data, _ key: String) {
+            lock.withLock {
+                writeKeys.append(key)
+                dataByKey[key] = value
+            }
+        }
+
+        func remove(_ key: String) {
+            lock.withLock {
+                removeKeys.append(key)
+                dataByKey.removeValue(forKey: key)
+            }
+        }
+
+        func data(for key: String) -> Data? {
+            return lock.withLock { dataByKey[key] }
+        }
+    }
 
     private func cacheIsEmpty(_ cache: [String: Any]) -> Bool {
         return
@@ -23,37 +56,53 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             var defaults: MockDefaults!
 
             var tempDir: URL?
-            var originalURL = UserPayloadStore.defaultRootDirURL
+            var originalURL = FileStorageAdapter.defaultRootDirectory
+
+            // TODO: Replace some of the helper functions below with static utils in UserPayloadStore
+
+            let legacyPayloadDirectory: () -> URL? = {
+                tempDir?
+                    .appendingPathComponent("_legacy")
+                    .appendingPathComponent(USER_PAYLOAD_DIRNAME)
+            }
+
+            func url(for key: [String]) -> URL? {
+                guard let rootDirectory = tempDir, !key.isEmpty else {
+                    return nil
+                }
+
+                return key.reduce(rootDirectory) { partial, component in
+                    partial.appendingPathComponent(component)
+                }
+            }
+
+            func sdkPayloadDirectory(_ sdkKey: String) -> URL? {
+                return url(for: UserPayloadStore.sdkDirectoryKey(sdkKey: sdkKey))
+            }
 
             func userPayloadFileURL(_ sdkKey: String, _ cacheKey: UserCacheKey) -> URL? {
-                return UserPayloadStore.getSDKKeyDirURL(tempDir, sdkKey)?
+                return sdkPayloadDirectory(sdkKey)?
                     .appendingPathComponent(cacheKey.fullUserHash)
             }
 
-            func legacyPayloadFileURL(_ filename: String) -> URL? {
-                return tempDir?
-                    .appendingPathComponent("_legacy")
-                    .appendingPathComponent("user-payload")
-                    .appendingPathComponent(filename)
+            func getIndexFileURL(_ sdkKey: String) -> URL? {
+                return sdkPayloadDirectory(sdkKey)?
+                    .appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME)
             }
 
-            func getIndexFileURL(_ sdkKey: String) -> URL? {
-                return UserPayloadStore.getIndexFileURL(tempDir, sdkKey)
+            func readJSONPayload(_ url: URL?) -> [String: Any]? {
+                guard
+                    let fileURL = url,
+                    let data = try? Data(contentsOf: fileURL)
+                else {
+                    return nil
+                }
+
+                return UserPayloadStore.decode(data)
             }
 
             func legacyPayload(_ key: String) -> [String: Any]? {
-                let legacyDir =
-                    tempDir?
-                    .appendingPathComponent("_legacy")
-                    .appendingPathComponent("user-payload")
-
-                if let payload = UserPayloadStore.read(
-                    url: legacyDir?.appendingPathComponent(key)
-                ) {
-                    return payload
-                }
-
-                return nil
+                return readJSONPayload(legacyPayloadDirectory()?.appendingPathComponent(key))
             }
 
             func makePayload(withTimestamp timestamp: UInt64) -> [String: Any] {
@@ -66,7 +115,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             func populateWithPayloads(
                 _ payloads: [(key: UserCacheKey, payload: [String: Any])]
             ) throws {
-                guard let dir = UserPayloadStore.getSDKKeyDirURL(tempDir, sdkKey) else {
+                guard let dir = sdkPayloadDirectory(sdkKey) else {
                     fail("Failed to create dir URL")
                     return
                 }
@@ -91,7 +140,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 StorageServiceMigrationStatus.migrationStatus = value ? .done : .initial
                 guard value else { return }
 
-                guard let dir = UserPayloadStore.getSDKKeyDirURL(tempDir, sdkKey) else {
+                guard let dir = sdkPayloadDirectory(sdkKey) else {
                     return
                 }
                 try? FileManager.default.createDirectory(
@@ -118,15 +167,15 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 }
 
                 tempDir = tempDirectoryURL
-                originalURL = UserPayloadStore.defaultRootDirURL
-                UserPayloadStore.defaultRootDirURL = tempDir
+                originalURL = FileStorageAdapter.defaultRootDirectory
+                FileStorageAdapter.defaultRootDirectory = tempDir
             }
 
             afterSuite {
                 if let originalURL = originalURL,
-                    UserPayloadStore.defaultRootDirURL != originalURL
+                    FileStorageAdapter.defaultRootDirectory != originalURL
                 {
-                    UserPayloadStore.defaultRootDirURL = originalURL
+                    FileStorageAdapter.defaultRootDirectory = originalURL
                 }
                 if let tempDir = tempDir {
                     try? FileManager.default.removeItem(at: tempDir)
@@ -136,11 +185,11 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             beforeEach {
                 defaults = MockDefaults(data: [:])
                 StatsigUserDefaults.defaults = defaults
-                TestUtils.clearStorage()
+                TestUtils.clearStorage(rootDir: tempDir)
             }
 
             afterEach {
-                TestUtils.clearStorage()
+                TestUtils.clearStorage(rootDir: tempDir)
             }
 
             describe("persistence") {
@@ -209,7 +258,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, keyB)!))
                         .toEventuallyNot(beNil())
 
-                    StorageService.clearCachedServices()
+                    StorageService.clearCachedInstances()
 
                     let reloadedA = InternalStore(sdkKey, userA, options: options)
                     let reloadedB = InternalStore(sdkKey, userB, options: options)
@@ -300,7 +349,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     expect(try? Data(contentsOf: userPayloadFileURL(sdkKey, cacheKey)!))
                         .toEventuallyNot(beNil())
 
-                    guard let dir = store.storageService?.userPayload.directoryURL else {
+                    guard let dir = sdkPayloadDirectory(sdkKey) else {
                         fail("Failed to get the directory URL")
                         return
                     }
@@ -312,7 +361,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     let garbage = "not-json".data(using: .utf8)!
                     try garbage.write(to: fileURL)
 
-                    StorageService.clearCachedServices()
+                    StorageService.clearCachedInstances()
 
                     let reloaded = InternalStore(sdkKey, user, options: options)
                     expect(reloaded.checkGate(forName: "gate_name_2").value).to(beFalse())
@@ -330,7 +379,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 }
 
                 it("deletes older user payloads once they reach a threshold") {
-                    let payloadStore = UserPayloadStore.forSDKKey(sdkKey)
+                    let payloadStore = UserPayloadStore.forSDKKey(
+                        sdkKey,
+                        storageAdapter: FileStorageAdapter(rootDirectory: tempDir)
+                    )
                     let users = (0..<12).map { StatsigUser(userID: "user_\($0)") }
                     let keys = users.map { UserCacheKey.from(options, $0, sdkKey) }
 
@@ -341,9 +393,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         )
                     }
 
-                    let payloadDir = tempDir?
-                        .appendingPathComponent(sdkKey)
-                        .appendingPathComponent("user-payload")
+                    let payloadDir = sdkPayloadDirectory(sdkKey)
                     expect(
                         {
                             let files =
@@ -363,7 +413,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 }
 
                 it("persists the index entries after eviction") {
-                    let payloadStore = UserPayloadStore.forSDKKey(sdkKey)
+                    let payloadStore = UserPayloadStore.forSDKKey(
+                        sdkKey,
+                        storageAdapter: FileStorageAdapter(rootDirectory: tempDir)
+                    )
                     let users = (0..<11).map { StatsigUser(userID: "index_user_\($0)") }
                     let keys = users.map { UserCacheKey.from(options, $0, sdkKey) }
 
@@ -385,6 +438,77 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                             return index.entries.count
                         }()
                     ).toEventually(equal(5))
+                }
+            }
+
+            describe("storage adapter bridge") {
+                beforeEach {
+                    setUseMultiFileStorage(true)
+                }
+
+                afterEach {
+                    setUseMultiFileStorage(false)
+                }
+
+                it("maps adapter keys to dot-delimited storage provider keys") {
+                    let provider = InMemoryStorageProvider()
+                    let adapter = StorageProviderToAdapter(storageProvider: provider)
+                    let key = ["client-sdk", "user-payload", "abc"]
+                    let value = "hello".data(using: .utf8)!
+
+                    adapter.write(value, key, options: [])
+
+                    switch adapter.read(key) {
+                    case .data(let readValue):
+                        expect(readValue).to(equal(value))
+                    default:
+                        fail("Expected read to return persisted data")
+                    }
+
+                    adapter.remove(key)
+
+                    expect(provider.writeKeys).to(contain("client-sdk.user-payload.abc"))
+                    expect(provider.readKeys).to(contain("client-sdk.user-payload.abc"))
+                    expect(provider.removeKeys).to(contain("client-sdk.user-payload.abc"))
+                }
+
+                it("returns notFound when the provider does not contain data for a key") {
+                    let provider = InMemoryStorageProvider()
+                    let adapter = StorageProviderToAdapter(storageProvider: provider)
+
+                    switch adapter.read(["missing", "key"]) {
+                    case .notFound:
+                        break
+                    default:
+                        fail("Expected notFound for missing provider keys")
+                    }
+                }
+
+                it("uses StorageProvider-backed adapter for multi-file user payload persistence") {
+                    let provider = InMemoryStorageProvider()
+                    let optionsWithProvider = StatsigOptions(storageProvider: provider)
+                    let user = StatsigUser(userID: "provider_user")
+                    let cacheKey = UserCacheKey.from(optionsWithProvider, user, sdkKey)
+                    let store = InternalStore(sdkKey, user, options: optionsWithProvider)
+
+                    store.saveValues(
+                        StatsigSpec.mockUserValues,
+                        cacheKey,
+                        user.getFullUserHash()
+                    )
+
+                    let payloadStorageKey =
+                        "\(sdkKey).\(USER_PAYLOAD_DIRNAME).\(cacheKey.fullUserHash)"
+                    let indexStorageKey =
+                        "\(sdkKey).\(USER_PAYLOAD_DIRNAME).\(USER_PAYLOAD_INDEX_FILENAME)"
+
+                    expect(provider.data(for: payloadStorageKey)).toEventuallyNot(beNil())
+                    expect(provider.data(for: indexStorageKey)).toEventuallyNot(beNil())
+
+                    StorageService.clearCachedInstances()
+
+                    let reloadedStore = InternalStore(sdkKey, user, options: optionsWithProvider)
+                    expect(reloadedStore.checkGate(forName: "gate_name_2").value).to(beTrue())
                 }
             }
 

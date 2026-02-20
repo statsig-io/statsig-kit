@@ -2,18 +2,13 @@ import Foundation
 
 // TODO: Audit thread-safety across index state and background persistence.
 
-fileprivate let DIRNAME_USER_PAYLOAD = "user-payload"
+internal let USER_PAYLOAD_DIRNAME = "user-payload"
 internal let USER_PAYLOAD_INDEX_FILENAME = "_index.json"
+internal let LEGACY_DIRECTORY_KEY = ["_legacy", USER_PAYLOAD_DIRNAME]
 
 final class UserPayloadStore {
 
     // MARK: Static
-
-    // NOTE: This is app-specific when running with a bundle. CLI tools/tests may resolve to a
-    // shared caches folder. We can consider exposing a root override in the future.
-    static var defaultRootDirURL = FileManager
-        .default.urls(for: .cachesDirectory, in: .userDomainMask)
-        .first?.appendingPathComponent("statsig-cache")
 
     private static let storesLock = NSLock()
     private static var storesBySDKKey: [String: UserPayloadStore] = [:]
@@ -25,8 +20,8 @@ final class UserPayloadStore {
 
     static func forSDKKey(
         _ sdkKey: String,
-        rootDir: URL? = defaultRootDirURL,
-        indexData: Data? = nil
+        storageAdapter: StorageAdapter,
+        index: UserPayloadIndex = UserPayloadIndex.empty()
     )
         -> UserPayloadStore
     {
@@ -34,58 +29,33 @@ final class UserPayloadStore {
             if let existing = storesBySDKKey[sdkKey] {
                 return existing
             }
-            let created = UserPayloadStore(sdkKey: sdkKey, rootDir: rootDir, indexData: indexData)
+            let created = UserPayloadStore(
+                sdkKey: sdkKey,
+                storageAdapter: storageAdapter,
+                index: index
+            )
             storesBySDKKey[sdkKey] = created
             return created
         }
     }
 
-    static func readIndexData(
-        sdkKey: String,
-        rootDir: URL? = defaultRootDirURL
-    ) -> Data? {
-        guard let indexFileURL = getIndexFileURL(rootDir, sdkKey) else {
-            return nil
-        }
-        return try? Data(contentsOf: indexFileURL)
-    }
-
-    static func getLegacyDirURL(_ rootDir: URL?) -> URL? {
-        return rootDir?
-            .appendingPathComponent("_legacy")
-            .appendingPathComponent(DIRNAME_USER_PAYLOAD)
-    }
-
-    /// Unique directory for each SDK key: statsig-cache/${sdkKey}/user-payload
-    static func getSDKKeyDirURL(_ rootDir: URL?, _ sdkKey: String) -> URL? {
-        return rootDir?
-            .appendingPathComponent(sdkKey)
-            .appendingPathComponent(DIRNAME_USER_PAYLOAD)
-    }
-
-    static func getIndexFileURL(_ rootDir: URL?, _ sdkKey: String) -> URL? {
-        return getSDKKeyDirURL(rootDir, sdkKey)?
-            .appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME)
-    }
-
     // MARK: Params & Init
 
-    let rootDir: URL?
-    let directoryURL: URL?
     let sdkKey: String
+    let storageAdapter: StorageAdapter
 
     private let persistenceQueue: DispatchQueue
     private let evictionQueue: DispatchQueue
     private let indexStore: UserPayloadIndexStore
+    private let directoryKey: [String]
 
-    private init(sdkKey: String, rootDir: URL?, indexData: Data?) {
+    private init(
+        sdkKey: String, storageAdapter: StorageAdapter,
+        index: UserPayloadIndex = UserPayloadIndex.empty()
+    ) {
         self.sdkKey = sdkKey
-        self.rootDir = rootDir
-        self.directoryURL = rootDir?
-            .appendingPathComponent(sdkKey)
-            .appendingPathComponent(DIRNAME_USER_PAYLOAD)
-        let indexFileURL = self.directoryURL?
-            .appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME)
+        self.storageAdapter = storageAdapter
+        self.directoryKey = Self.sdkDirectoryKey(sdkKey: sdkKey)
         let sdkKeyPrefix = String(sdkKey.dropFirst(7).prefix(4))
         self.persistenceQueue = DispatchQueue(
             label: "com.statsig.userPayload.persistence.\(sdkKeyPrefix)",
@@ -95,8 +65,8 @@ final class UserPayloadStore {
             qos: .utility)
         self.indexStore = UserPayloadIndexStore(
             sdkKey: sdkKey,
-            indexFileURL: indexFileURL,
-            initialIndexData: indexData
+            storageAdapter: storageAdapter,
+            initialIndex: index
         )
     }
 
@@ -106,21 +76,29 @@ final class UserPayloadStore {
         return key.fullUserHash
     }
 
-    private func userFileURL(_ userCacheKey: UserCacheKey) -> URL? {
-        return directoryURL?
-            .appendingPathComponent(userCacheKey.fullUserHash)
+    internal static func sdkDirectoryKey(sdkKey: String) -> [String] {
+        return [sdkKey, USER_PAYLOAD_DIRNAME]
+    }
+
+    private func userPayloadKey(_ userCacheKey: UserCacheKey) -> [String] {
+        return self.directoryKey + [filename(for: userCacheKey)]
+    }
+
+    private static func legacyPayloadKey(_ filename: String) -> [String] {
+        return LEGACY_DIRECTORY_KEY + [filename]
     }
 
     // MARK: Write
 
     func write(key: UserCacheKey, payload: [String: Any]) {
         guard
-            let url = userFileURL(key),
             let data = UserPayloadStore.encode(payload)
         else {
             // TODO: Handle errors
             return
         }
+        let payloadKey = userPayloadKey(key)
+        let storageAdapter = self.storageAdapter
 
         // Update index
         let payloadCount = indexStore.updateIndexForWrite(
@@ -130,15 +108,7 @@ final class UserPayloadStore {
 
         // Persist payload
         persistenceQueue.async {
-            if !url.path.isEmpty {
-                try? FileManager.default.createDirectory(
-                    at: url.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-            }
-
-            // TODO: Handle errors
-            try? data.write(to: url, options: .atomic)
+            storageAdapter.write(data, payloadKey, options: .createFolderIfNeeded)
         }
 
         // Persist index
@@ -149,39 +119,19 @@ final class UserPayloadStore {
         }
     }
 
-    // Used for migration and backwards compatibility
-    private static func write(url: URL?, payload: [String: Any], persistenceQueue: DispatchQueue) {
-        guard
-            let url = url,
-            let data = encode(payload)
-        else {
-            // TODO: Handle errors
-            return
-        }
-
-        persistenceQueue.async {
-            if !url.path.isEmpty {
-                try? FileManager.default.createDirectory(
-                    at: url.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-            }
-
-            // TODO: Handle errors
-            try? data.write(to: url, options: .atomic)
-        }
-    }
-
     // Used for migrations
-    private static func writeForMigration(url: URL, payload: [String: Any]) {
+    private static func writeForMigration(
+        key: [String],
+        payload: [String: Any],
+        storageAdapter: StorageAdapter
+    ) {
         guard let data = encode(payload) else {
             // TODO: Handle errors
             return
         }
 
         migrationPersistenceQueue.async {
-            // TODO: Handle errors
-            try? data.write(to: url, options: .withoutOverwriting)
+            storageAdapter.write(data, key, options: [.withoutOverwriting])
         }
     }
 
@@ -205,7 +155,10 @@ final class UserPayloadStore {
     }
 
     private func readPayload(key: UserCacheKey) -> [String: Any]? {
-        if let payload = UserPayloadStore.read(url: userFileURL(key)) {
+        if let payload = UserPayloadStore.read(
+            key: userPayloadKey(key),
+            storageAdapter: storageAdapter)
+        {
             return payload
         }
 
@@ -229,8 +182,8 @@ final class UserPayloadStore {
             return nil
         }
 
-        let payloadURL = directoryURL?.appendingPathComponent(mappedKey)
-        if let payload = UserPayloadStore.read(url: payloadURL) {
+        let payloadKey = self.directoryKey + [mappedKey]
+        if let payload = Self.read(key: payloadKey, storageAdapter: storageAdapter) {
             return payload
         }
 
@@ -241,12 +194,18 @@ final class UserPayloadStore {
         return nil
     }
 
-    static func read(url: URL?) -> [String: Any]? {
-        guard
-            let url = url,
-            let data = try? Data(contentsOf: url)
-        else {
+    static func read(key: [String], storageAdapter: StorageAdapter) -> [String: Any]? {
+        guard !key.isEmpty else {
             // TODO: Handle errors
+            return nil
+        }
+
+        let data: Data
+        switch storageAdapter.read(key) {
+        case .data(let readData):
+            data = readData
+        case .notFound, .error:
+            // TODO: Handle adapter read errors
             return nil
         }
 
@@ -257,14 +216,16 @@ final class UserPayloadStore {
     // MARK: Delete
 
     func remove(key: UserCacheKey) {
-        guard let url = userFileURL(key) else {
+        let payloadKey = userPayloadKey(key)
+        guard !payloadKey.isEmpty else {
             // TODO: Handle errors
             return
         }
+        let storageAdapter = self.storageAdapter
 
         // TODO: Handle errors
         persistenceQueue.async {
-            try? FileManager.default.removeItem(at: url)
+            storageAdapter.remove(payloadKey)
         }
     }
 
@@ -286,7 +247,7 @@ final class UserPayloadStore {
         _ cacheByID: [String: [String: Any]],
         _ cacheKeyMapping: [String: String],
         _ defaults: DefaultsLike,
-        _ rootDir: URL? = UserPayloadStore.defaultRootDirURL
+        _ storageAdapter: StorageAdapter
     ) {
         guard StorageServiceMigrationStatus.beginMigrationIfNeeded() else { return }
 
@@ -318,13 +279,8 @@ final class UserPayloadStore {
                         > Time.parse(rhs.payload[InternalStore.evalTimeKey])
                 }
                 .prefix(MAX_CACHED_USER_PAYLOADS_PER_KEY)
-
-            guard let dirURL = getSDKKeyDirURL(rootDir, sdkKey) else { continue }
-
-            try? FileManager.default.createDirectory(
-                at: dirURL,
-                withIntermediateDirectories: true
-            )
+            let sdkDirectoryKey = Self.sdkDirectoryKey(sdkKey: sdkKey)
+            storageAdapter.createFolderIfNeeded(sdkDirectoryKey)
 
             for entry in selectedEntries {
                 index.entries[entry.fullUserHash] = IndexEntry(
@@ -334,36 +290,35 @@ final class UserPayloadStore {
                 }
 
                 UserPayloadStore.writeForMigration(
-                    url: dirURL.appendingPathComponent(entry.fullUserHash),
-                    payload: entry.payload
+                    key: sdkDirectoryKey + [entry.fullUserHash],
+                    payload: entry.payload,
+                    storageAdapter: storageAdapter
                 )
             }
             UserPayloadIndexStore.writeForMigration(
-                url: dirURL.appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME),
+                key: sdkDirectoryKey + [USER_PAYLOAD_INDEX_FILENAME],
                 index: index,
+                storageAdapter: storageAdapter,
                 persistenceQueue: migrationPersistenceQueue
             )
         }
 
-        if let legacyDirURL = UserPayloadStore.getLegacyDirURL(rootDir) {
-            // TODO: Handle errors
-            try? FileManager.default.createDirectory(
-                at: legacyDirURL,
-                withIntermediateDirectories: true
-            )
+        let selectedLegacyEntries =
+            legacyEntries
+            .sorted { lhs, rhs in
+                Time.parse(lhs.payload[InternalStore.evalTimeKey])
+                    > Time.parse(rhs.payload[InternalStore.evalTimeKey])
+            }
+            .prefix(MAX_CACHED_USER_PAYLOADS_PER_KEY)
 
-            let selectedLegacyEntries =
-                legacyEntries
-                .sorted { lhs, rhs in
-                    Time.parse(lhs.payload[InternalStore.evalTimeKey])
-                        > Time.parse(rhs.payload[InternalStore.evalTimeKey])
-                }
-                .prefix(MAX_CACHED_USER_PAYLOADS_PER_KEY)
+        if selectedLegacyEntries.count > 0 {
+            storageAdapter.createFolderIfNeeded(LEGACY_DIRECTORY_KEY)
 
             for entry in selectedLegacyEntries {
-                UserPayloadStore.writeForMigration(
-                    url: legacyDirURL.appendingPathComponent(entry.fullUserHash),
-                    payload: entry.payload
+                Self.writeForMigration(
+                    key: Self.legacyPayloadKey(entry.fullUserHash),
+                    payload: entry.payload,
+                    storageAdapter: storageAdapter
                 )
             }
         }
@@ -376,27 +331,21 @@ final class UserPayloadStore {
     }
 
     func readLegacy(_ filename: String) -> [String: Any]? {
-        return UserPayloadStore.read(
-            url: UserPayloadStore.getLegacyDirURL(self.rootDir)?.appendingPathComponent(
-                filename))
+        return Self.read(
+            key: Self.legacyPayloadKey(filename),
+            storageAdapter: storageAdapter
+        )
     }
 
     func mappedFullUserHash(v2Key: String) -> String? {
         return indexStore.mappedFullUserHash(v2Key: v2Key)
     }
 
-    // MARK: Tests
+    // MARK: Test utils
 
-    func removeAll() {
-        guard let dir = directoryURL else { return }
-
-        try? FileManager.default.removeItem(at: dir)
-    }
-
-    internal static func removeAll(_ rootDir: URL? = defaultRootDirURL) {
-        guard let rootDir = rootDir else { return }
-
-        try? FileManager.default.removeItem(at: rootDir)
+    internal static func clearCachedInstances(
+        _ rootDir: URL? = FileStorageAdapter.defaultRootDirectory
+    ) {
         storesLock.withLock {
             storesBySDKKey.removeAll()
         }
@@ -413,14 +362,11 @@ final class UserPayloadStore {
             return
         }
 
-        if let directoryURL = directoryURL {
-            // Delete user payloads
-            persistenceQueue.async {
-                let fileManager = FileManager.default
-                for filename in evicted {
-                    let url = directoryURL.appendingPathComponent(filename)
-                    try? fileManager.removeItem(at: url)
-                }
+        let storageAdapter = self.storageAdapter
+        let sdkDirectoryKey = self.directoryKey
+        persistenceQueue.async {
+            for filename in evicted {
+                storageAdapter.remove(sdkDirectoryKey + [filename])
             }
         }
         indexStore.persistIndexIfAllowed()

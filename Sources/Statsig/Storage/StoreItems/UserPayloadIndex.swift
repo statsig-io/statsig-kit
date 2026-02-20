@@ -87,7 +87,8 @@ fileprivate func resolvedTimestamp(_ payload: [String: Any]) -> UInt64 {
 
 final class UserPayloadIndexStore {
     let sdkKey: String
-    let indexFileURL: URL?
+    let indexFileKey: [String]
+    private let storageAdapter: StorageAdapter
     private let indexPersistenceQueue: DispatchQueue
 
     private let indexLock = NSLock()
@@ -95,24 +96,18 @@ final class UserPayloadIndexStore {
 
     init(
         sdkKey: String,
-        indexFileURL: URL?,
-        initialIndexData: Data? = nil
+        storageAdapter: StorageAdapter,
+        initialIndex: UserPayloadIndex = UserPayloadIndex.empty()
     ) {
         self.sdkKey = sdkKey
-        self.indexFileURL = indexFileURL
+        self.indexFileKey = [sdkKey, USER_PAYLOAD_DIRNAME, USER_PAYLOAD_INDEX_FILENAME]
+        self.storageAdapter = storageAdapter
+        self.index = initialIndex
         self.indexPersistenceQueue = DispatchQueue(
             label:
                 "com.statsig.userPayload.index.persistence.\(String(sdkKey.dropFirst(7).prefix(4)))",
             qos: .utility
         )
-
-        if let initialIndexData = initialIndexData,
-            let decodedIndex = UserPayloadIndex.decode(initialIndexData)
-        {
-            self.index = decodedIndex
-        } else {
-            self.index = UserPayloadIndex.empty()
-        }
     }
 
     // MARK: Cache Key Mapping
@@ -196,31 +191,51 @@ final class UserPayloadIndexStore {
 
     private func persistIndexNow() {
         guard
-            let indexURL = indexFileURL,
             let indexData = indexLock.withLock({ index.encode() })
         else {
             return
         }
+        let storageAdapter = self.storageAdapter
+        let indexFileKey = self.indexFileKey
         indexPersistenceQueue.async {
-            // Handle errors
-            try? FileManager.default.createDirectory(
-                at: indexURL.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try? indexData.write(to: indexURL, options: .atomic)
+            storageAdapter.write(indexData, indexFileKey, options: .createFolderIfNeeded)
         }
     }
 
     // MARK: Read/write
 
+    internal static func readIndex(sdkKey: String, storageAdapter: StorageAdapter) -> (
+        index: UserPayloadIndex,
+        indexFileExists: Bool
+    ) {
+        let key = UserPayloadStore.sdkDirectoryKey(sdkKey: sdkKey) + [USER_PAYLOAD_INDEX_FILENAME]
+
+        let data: Data
+        switch storageAdapter.read(key) {
+        case .data(let readData):
+            data = readData
+        case .notFound:
+            return (UserPayloadIndex.empty(), false)
+        case .error:
+            return (UserPayloadIndex.empty(), true)
+        }
+
+        guard let decoded = UserPayloadIndex.decode(data) else {
+            return (UserPayloadIndex.empty(), true)
+        }
+        return (decoded, true)
+    }
+
     // FIXME: writeForMigration uses a different queue than persistIndexNow.
     public static func writeForMigration(
-        url: URL, index: UserPayloadIndex, persistenceQueue: DispatchQueue
+        key: [String],
+        index: UserPayloadIndex,
+        storageAdapter: StorageAdapter,
+        persistenceQueue: DispatchQueue
     ) {
-        guard let data = index.encode() else { return }
+        guard let data = index.encode(), !key.isEmpty else { return }
         persistenceQueue.async {
-            // TODO: Handle errors
-            try? data.write(to: url, options: .atomic)
+            storageAdapter.write(data, key)
         }
     }
 

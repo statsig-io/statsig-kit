@@ -66,7 +66,7 @@ final class StoragePerformanceSpec: XCTestCase {
     }
 
     private func prefillStorage(userCount: Int, useMultiFile: Bool) {
-        let storageService = StorageService(sdkKey: sdkKey)
+        let storageService = StorageService.forSDKKey(sdkKey)
         var cacheByID: [String: [String: Any]] = [:]
 
         for i in 0..<userCount {

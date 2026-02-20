@@ -46,7 +46,8 @@ class InternalStore {
         Diagnostics.mark?.initialize.readCache.start()
         self.sdkKey = sdkKey
         self.storageTypeOption = options.EXPERIMENTAL_storageType
-        storageService = StorageService.forSDKKeyIfEnabled(sdkKey)
+        storageService = StorageService.forSDKKeyIfEnabled(
+            sdkKey, storageProvider: options.storageProvider)
         cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
             StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)
@@ -247,11 +248,10 @@ class InternalStore {
         }
     }
 
+    /// @deprecated Use TestUtils.clearStorage instead
     static func deleteAllLocalStorage() {
         StatsigUserDefaults.defaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
-        UserPayloadStore.removeAll()
-        StorageService.clearCachedServices()
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
         StatsigUserDefaults.defaults.removeObject(
@@ -263,6 +263,14 @@ class InternalStore {
             forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localOverridesKey)
         _ = StatsigUserDefaults.defaults.synchronize()
+
+        // Storage Service
+        if let rootDir = FileStorageAdapter.defaultRootDirectory {
+            try? FileManager.default.removeItem(at: rootDir)
+        }
+
+        UserPayloadStore.clearCachedInstances()
+        StorageService.clearCachedInstances()
     }
 
     // Local overrides functions
@@ -397,6 +405,10 @@ class InternalStore {
     }
 
     func migrateIfNeeded() {
+        guard let storageService = self.cache.activeStorageService() else {
+            return
+        }
+
         let (cacheByID, cacheKeyMapping) = storeQueue.sync {
             return (cache.cacheByID, cache.cacheKeyMapping)
         }
@@ -405,7 +417,8 @@ class InternalStore {
             UserPayloadStore.migrateIfNeeded(
                 cacheByID,
                 cacheKeyMapping,
-                StatsigUserDefaults.defaults
+                StatsigUserDefaults.defaults,
+                storageService.userPayload.storageAdapter
             )
         }
     }

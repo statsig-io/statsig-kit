@@ -13,23 +13,37 @@ final class StorageService {
     let sdkKey: String
     let userPayload: UserPayloadStore
 
-    static func forSDKKeyIfEnabled(_ sdkKey: String) -> StorageService? {
+    static func forSDKKeyIfEnabled(
+        _ sdkKey: String,
+        storageProvider: StorageProvider? = nil
+    ) -> StorageService? {
         servicesLock.withLock {
             if let existing = servicesBySDKKey[sdkKey] {
                 return existing
             }
 
-            if let indexData = UserPayloadStore.readIndexData(sdkKey: sdkKey) {
-                StorageServiceMigrationStatus.markMigrationDone()
-                let created = StorageService(sdkKey: sdkKey, indexData: indexData)
-                servicesBySDKKey[sdkKey] = created
-                return created
-            }
+            // NOTE: Separate SDK keys can have separate adapters, but that doesn't apply to migrations.
+            let storageAdapter: StorageAdapter =
+                storageProvider.map { StorageProviderToAdapter(storageProvider: $0) }
+                ?? FileStorageAdapter()
 
             // If multi-file storage is already enabled by another sdk key in this session,
             // create a service with an empty index for this sdk key.
             if StorageService.useMultiFileStorage {
-                let created = StorageService(sdkKey: sdkKey)
+                let created = StorageService(sdkKey: sdkKey, storageAdapter: storageAdapter)
+                servicesBySDKKey[sdkKey] = created
+                return created
+            }
+
+            let indexResult = UserPayloadIndexStore.readIndex(
+                sdkKey: sdkKey,
+                storageAdapter: storageAdapter
+            )
+            if indexResult.indexFileExists {
+                // TODO: Review the scenario where the index file exists but decoding fails. It currently considers the migration done.
+                StorageServiceMigrationStatus.markMigrationDone()
+                let created = StorageService(
+                    sdkKey: sdkKey, storageAdapter: storageAdapter, index: indexResult.index)
                 servicesBySDKKey[sdkKey] = created
                 return created
             }
@@ -38,20 +52,29 @@ final class StorageService {
         }
     }
 
-    static func forSDKKey(_ sdkKey: String) -> StorageService {
+    static func forSDKKey(_ sdkKey: String, storageProvider: StorageProvider? = nil)
+        -> StorageService
+    {
         servicesLock.withLock {
             if let existing = servicesBySDKKey[sdkKey] {
                 return existing
             }
-            let created = StorageService(sdkKey: sdkKey)
+            let storageAdapter: StorageAdapter =
+                storageProvider.map { StorageProviderToAdapter(storageProvider: $0) }
+                ?? FileStorageAdapter()
+            let created = StorageService(sdkKey: sdkKey, storageAdapter: storageAdapter)
             servicesBySDKKey[sdkKey] = created
             return created
         }
     }
 
-    init(sdkKey: String, indexData: Data? = nil) {
+    init(
+        sdkKey: String, storageAdapter: StorageAdapter,
+        index: UserPayloadIndex = UserPayloadIndex.empty()
+    ) {
         self.sdkKey = sdkKey
-        self.userPayload = UserPayloadStore.forSDKKey(sdkKey, indexData: indexData)
+        self.userPayload = UserPayloadStore.forSDKKey(
+            sdkKey, storageAdapter: storageAdapter, index: index)
     }
 
     // TODO: Only change value once per session, using an in-memory value (maybe)
@@ -84,7 +107,7 @@ final class StorageService {
 
     // MARK: Test utils
 
-    internal static func clearCachedServices() {
+    internal static func clearCachedInstances() {
         servicesLock.withLock {
             servicesBySDKKey.removeAll()
         }
