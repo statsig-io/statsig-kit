@@ -1,4 +1,5 @@
 import Dispatch
+import Foundation
 
 fileprivate let TIME_OFFSET = DispatchTime.now().uptimeNanoseconds
 fileprivate let NANO_IN_MS = 1_000_000.0
@@ -8,14 +9,39 @@ enum MarkerContext: String {
     case apiCall = "api_call"
 }
 
+final class MarkerRecorder {
+    private let lock = NSLock()
+    private var markersByContext: [MarkerContext: [[String: Any]]] = [:]
+
+    func append(context: MarkerContext, marker: [String: Any]) {
+        lock.withLock {
+            markersByContext[context, default: []].append(marker)
+        }
+    }
+
+    func consumeMarkers(forContext context: MarkerContext) -> [[String: Any]] {
+        lock.withLock {
+            let markers = markersByContext[context] ?? []
+            markersByContext[context] = []
+            return markers
+        }
+    }
+
+    func markerCount(forContext context: MarkerContext) -> Int {
+        lock.withLock {
+            markersByContext[context]?.count ?? 0
+        }
+    }
+}
+
 class MarkerBase {
     let context: MarkerContext
     let markerKey: String?
 
-    private let recorder: MarkerAtomicDict
+    private let recorder: MarkerRecorder
     private let offset: UInt64
 
-    init(_ recorder: MarkerAtomicDict, context: MarkerContext, markerKey: String? = nil) {
+    init(_ recorder: MarkerRecorder, context: MarkerContext, markerKey: String? = nil) {
         self.context = context
         self.markerKey = markerKey
         self.recorder = recorder
@@ -31,7 +57,7 @@ class MarkerBase {
     }
 
     func getMarkerCount() -> Int {
-        return recorder[context.rawValue]?.count ?? 0
+        return recorder.markerCount(forContext: context)
     }
 
     private func add(_ action: String, _ markerKey: String?, _ args: [String: Any]) {
@@ -39,10 +65,7 @@ class MarkerBase {
         marker["key"] = marker["key"] ?? markerKey
         marker["action"] = action
         marker["timestamp"] = now()
-
-        var local = recorder[context.rawValue] ?? []
-        local.append(marker)
-        recorder[context.rawValue] = local
+        recorder.append(context: context, marker: marker)
     }
 
     private func now() -> Double {

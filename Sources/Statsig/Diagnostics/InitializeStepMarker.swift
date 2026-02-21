@@ -1,7 +1,7 @@
 class InitializeStepMarker: MarkerBase {
     let step: String
 
-    init(_ recorder: MarkerAtomicDict, key: String, step: String) {
+    init(_ recorder: MarkerRecorder, key: String, step: String) {
         self.step = step
         super.init(recorder, context: .initialize, markerKey: key)
     }

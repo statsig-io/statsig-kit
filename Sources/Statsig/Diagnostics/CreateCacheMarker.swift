@@ -8,7 +8,7 @@ enum CacheType: String {
 
 class CreateCacheMarker: InitializeStepMarker {
 
-    init(_ recorder: MarkerAtomicDict, key: String) {
+    init(_ recorder: MarkerRecorder, key: String) {
         super.init(recorder, key: key, step: "create_cache")
     }
 

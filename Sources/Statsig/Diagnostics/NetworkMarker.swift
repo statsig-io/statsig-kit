@@ -3,7 +3,7 @@ import Foundation
 class NetworkMarker: MarkerBase {
     let step = "network_request"
 
-    convenience init(_ recorder: MarkerAtomicDict, key: String) {
+    convenience init(_ recorder: MarkerRecorder, key: String) {
         self.init(recorder, context: .initialize, markerKey: key)
     }
 

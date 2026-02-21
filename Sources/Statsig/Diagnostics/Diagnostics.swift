@@ -1,67 +1,82 @@
+import Foundation
+
 protocol MarkersContainer {
     var overall: OverallMarker { get }
     var initialize: InitializeMarkers { get }
 }
 
-typealias MarkerAtomicDict = AtomicDictionary<[[String: Any]]>
-
 class Diagnostics {
+    private static let stateLock = NSLock()
     private static var instance: DiagnosticsImpl?
-    internal static var sampling = Int.random(in: 1...10000)
+    private static var _sampling = Int.random(in: 1...10000)
     private static var disableCoreAPI = false
 
+    internal static var sampling: Int {
+        get {
+            stateLock.withLock { _sampling }
+        }
+        set {
+            stateLock.withLock { _sampling = newValue }
+        }
+    }
+
     static var mark: MarkersContainer? {
-        return instance
+        stateLock.withLock { instance }
     }
 
     static func boot(_ options: StatsigOptions?) {
-        if options?.disableDiagnostics == true {
-            disableCoreAPI = true
-        }
+        stateLock.withLock {
+            if options?.disableDiagnostics == true {
+                disableCoreAPI = true
+            }
 
-        instance = DiagnosticsImpl()
+            instance = DiagnosticsImpl()
+        }
     }
 
     static func shutdown() {
-        instance = nil
+        stateLock.withLock {
+            instance = nil
+        }
     }
 
     static func log(_ logger: EventLogger, user: StatsigUser, context: MarkerContext) {
+        let state = stateLock.withLock { (instance: instance, disableCoreAPI: disableCoreAPI) }
+
         guard
-            let instance = instance,
-            let markers = instance.getMarkers(forContext: context),
-            !markers.isEmpty
+            let instance = state.instance
         else {
             return
         }
 
-        if disableCoreAPI && context == MarkerContext.apiCall {
+        if state.disableCoreAPI && context == MarkerContext.apiCall {
             return
         }
 
-        instance.clearMarkers(forContext: context)
+        let markers = instance.consumeMarkers(forContext: context)
+        guard
+            !markers.isEmpty
+        else {
+            return
+        }
 
         let event = DiagnosticsEvent(user, context.rawValue, markers)
         logger.log(event)
     }
 }
 
-fileprivate class DiagnosticsImpl: MarkersContainer {
-    var overall: OverallMarker
-    var initialize: InitializeMarkers
+fileprivate final class DiagnosticsImpl: MarkersContainer {
+    let overall: OverallMarker
+    let initialize: InitializeMarkers
 
-    private var markers = MarkerAtomicDict(label: "com.Statsig.Diagnostics")
+    private let recorder = MarkerRecorder()
 
     fileprivate init() {
-        self.overall = OverallMarker(markers)
-        self.initialize = InitializeMarkers(markers)
+        self.overall = OverallMarker(recorder)
+        self.initialize = InitializeMarkers(recorder)
     }
 
-    func getMarkers(forContext context: MarkerContext) -> [[String: Any]]? {
-        return markers[context.rawValue]
-    }
-
-    fileprivate func clearMarkers(forContext context: MarkerContext) {
-        markers[context.rawValue] = []
+    fileprivate func consumeMarkers(forContext context: MarkerContext) -> [[String: Any]] {
+        recorder.consumeMarkers(forContext: context)
     }
 }

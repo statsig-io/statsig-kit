@@ -7,7 +7,7 @@ class InitializeMarkers {
     let storeRead: InitializeStepMarker
     let process: InitializeStepMarker
 
-    init(_ recorder: MarkerAtomicDict) {
+    init(_ recorder: MarkerRecorder) {
         self.network = NetworkMarker(recorder, key: key)
         self.createCache = CreateCacheMarker(recorder, key: key)
         self.readCache = InitializeStepMarker(recorder, key: key, step: "load_cache")

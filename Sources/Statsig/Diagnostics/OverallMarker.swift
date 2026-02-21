@@ -1,5 +1,5 @@
 class OverallMarker: MarkerBase {
-    convenience init(_ recorder: MarkerAtomicDict) {
+    convenience init(_ recorder: MarkerRecorder) {
         self.init(recorder, context: .initialize, markerKey: "overall")
     }
 
