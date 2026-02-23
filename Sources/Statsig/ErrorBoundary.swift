@@ -66,7 +66,10 @@ class ErrorBoundary {
             let body: [String: Any] = [
                 "exception": errorDetails.name,
                 "info": errorDetails.info,
-                "statsigMetadata": self.statsigOptions.environment,
+                // TODO: Use user.deviceEnvironment instead of DeviceEnvironment.getSDKMetadata().
+                "statsigMetadata": DeviceEnvironment.getSDKMetadata().merging(
+                    self.statsigOptions.environment, uniquingKeysWith: { $1 }
+                ),
                 "tag": tag,
                 "statsigOptions": self.statsigOptions.getDictionaryForLogging(),
             ]
