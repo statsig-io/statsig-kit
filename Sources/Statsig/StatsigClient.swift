@@ -80,6 +80,8 @@ public class StatsigClient {
             )
             Diagnostics.log(self.logger, user: normalizedUser, context: .initialize)
 
+            StorageService.sendStorageGateExposureIfNeeded(statsigClient: self)
+
             self.notifyOnInitializedListeners(error)
             completionWithResult?(error)
             completion?(error?.message)
@@ -1023,6 +1025,10 @@ extension StatsigClient {
                 (listener as StatsigListeningInternal).onUserUpdated?(error?.message)
             }
         }
+    }
+
+    internal func getCurrentSDKConfigs() -> SDKConfigs {
+        return store.getSDKConfigs(user: currentUser)
     }
 }
 

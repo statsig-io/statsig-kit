@@ -1,8 +1,13 @@
 import Foundation
 import Nimble
+import OHHTTPStubs
 import Quick
 
 @testable import Statsig
+
+#if !COCOAPODS
+import OHHTTPStubsSwift
+#endif
 
 final class InternalStoreMultiFileSpec: BaseSpec {
     private final class InMemoryStorageProvider: NSObject, StorageProvider {
@@ -620,6 +625,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 }
 
                 afterEach {
+                    Statsig.client?.shutdown()
+                    Statsig.client = nil
+                    HTTPStubs.removeAllStubs()
+                    TestUtils.resetDefaultURLs()
                     StorageServiceMigrationStatus.migrationStatus = .initial
                 }
 
@@ -728,6 +737,90 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         .toEventuallyNot(beNil())
                     expect(defaults.dictionary(forKey: UserDefaultsKeys.localStorageKey))
                         .to(beNil())
+                }
+
+                it(
+                    "logs the storage gate exposure during initialize when EXPERIMENTAL_storageType is auto"
+                ) {
+                    let eventHost = "InternalStoreMultiFileSpec"
+                    let multiFileStoreGate = "multi_file_store_gate"
+                    var logs: [[String: Any]] = []
+
+                    NetworkService.defaultEventLoggingURL = URL(
+                        string: "http://\(eventHost)/v1/rgstr")
+                    TestUtils.captureLogs(host: eventHost) { captured in
+                        if let events = captured["events"] as? [[String: Any]] {
+                            logs.append(
+                                contentsOf: events.filter {
+                                    $0["eventName"] as? String == "statsig::gate_exposure"
+                                })
+                        }
+                    }
+
+                    var payload = StatsigSpec.mockUserValues
+                    payload[InternalStore.gatesKey] = [
+                        multiFileStoreGate: ["value": true, "rule_id": "rule_id_multi_file"]
+                    ]
+                    payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
+                    payload[InternalStore.hashUsedKey] = "none"
+
+                    let autoOptions = StatsigOptions(
+                        EXPERIMENTAL_storageType: .auto,
+                        disableDiagnostics: true
+                    )
+                    _ = TestUtils.startWithResponseAndWait(payload, options: autoOptions)
+
+                    waitUntil { done in
+                        Statsig.flush(completion: done)
+                    }
+
+                    expect(
+                        logs.contains {
+                            $0[jsonDict: "metadata"]?["gate"] as? String == multiFileStoreGate
+                        }
+                    ).to(beTrue())
+                }
+
+                it(
+                    "does not log the storage gate exposure during initialize when EXPERIMENTAL_storageType is legacy"
+                ) {
+                    let eventHost = "InternalStoreMultiFileSpec"
+                    let multiFileStoreGate = "multi_file_store_gate"
+                    var logs: [[String: Any]] = []
+
+                    NetworkService.defaultEventLoggingURL = URL(
+                        string: "http://\(eventHost)/v1/rgstr")
+                    TestUtils.captureLogs(host: eventHost) { captured in
+                        if let events = captured["events"] as? [[String: Any]] {
+                            logs.append(
+                                contentsOf: events.filter {
+                                    $0["eventName"] as? String == "statsig::gate_exposure"
+                                })
+                        }
+                    }
+
+                    var payload = StatsigSpec.mockUserValues
+                    payload[InternalStore.gatesKey] = [
+                        multiFileStoreGate: ["value": true, "rule_id": "rule_id_multi_file"]
+                    ]
+                    payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
+                    payload[InternalStore.hashUsedKey] = "none"
+
+                    let legacyOptions = StatsigOptions(
+                        EXPERIMENTAL_storageType: .legacy,
+                        disableDiagnostics: true
+                    )
+                    _ = TestUtils.startWithResponseAndWait(payload, options: legacyOptions)
+
+                    waitUntil { done in
+                        Statsig.flush(completion: done)
+                    }
+
+                    expect(
+                        logs.contains {
+                            $0[jsonDict: "metadata"]?["gate"] as? String == multiFileStoreGate
+                        }
+                    ).to(beFalse())
                 }
 
             }

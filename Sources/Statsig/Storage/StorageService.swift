@@ -105,6 +105,21 @@ final class StorageService {
         StorageServiceMigrationStatus.setNeedsMigration()
     }
 
+    static func sendStorageGateExposureIfNeeded(statsigClient: StatsigClient) {
+        guard statsigClient.statsigOptions.EXPERIMENTAL_storageType == .auto else {
+            return
+        }
+
+        guard
+            let gateName = statsigClient.getCurrentSDKConfigs().multiFileStoreGate,
+            !gateName.isEmpty
+        else {
+            return
+        }
+
+        _ = statsigClient.checkGate(gateName)
+    }
+
     // MARK: Test utils
 
     internal static func clearCachedInstances() {
