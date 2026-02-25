@@ -183,7 +183,8 @@ final class UserPayloadIndexStore {
     // MARK: Persist functions
 
     func persistIndexIfAllowed() {
-        if StorageServiceMigrationStatus.isMigrationInProgress() {
+        // Delay persisting the index until migration is done
+        if StorageServiceMigrationStatus.isMigrating() {
             return
         }
         persistIndexNow()

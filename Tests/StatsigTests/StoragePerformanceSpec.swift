@@ -73,7 +73,7 @@ final class StoragePerformanceSpec: XCTestCase {
             let prefillUser = makeUser(testID: i)
             let cacheKey = UserCacheKey.from(options, prefillUser, sdkKey)
 
-            if useMultiFile {
+            if useMultiFile, let storageService = storageService {
                 storageService.userPayload.write(key: cacheKey, payload: payload)
             }
 
@@ -117,7 +117,7 @@ final class StoragePerformanceSpec: XCTestCase {
         TestUtils.clearStorage()
         TestUtils.resetDefaultURLs()
         HTTPStubs.removeAllStubs()
-        StorageServiceMigrationStatus.migrationStatus = .initial
+        StorageServiceMigrationStatus.migrationStatus = .legacy
         try super.tearDownWithError()
     }
 
@@ -125,7 +125,7 @@ final class StoragePerformanceSpec: XCTestCase {
         // Comment next line to run benchmark
         try XCTSkipIf(true, "Benchmark skipped by default")
 
-        StorageServiceMigrationStatus.migrationStatus = .done
+        StorageServiceMigrationStatus.migrationStatus = .multiFile
         stubInitializeEndpoint()
         stubRegisterEndpoint()
         prefillStorage(userCount: 10, useMultiFile: true)
@@ -142,7 +142,7 @@ final class StoragePerformanceSpec: XCTestCase {
         // Comment next line to run benchmark
         try XCTSkipIf(true, "Benchmark skipped by default")
 
-        StorageServiceMigrationStatus.migrationStatus = .initial
+        StorageServiceMigrationStatus.migrationStatus = .legacy
         stubInitializeEndpoint()
         stubRegisterEndpoint()
         prefillStorage(userCount: 10, useMultiFile: false)

@@ -30,18 +30,21 @@ struct StatsigValuesCache {
 
     let storageServiceLock = NSLock()
     var storageService: StorageService?
-    internal mutating func activeStorageService() -> StorageService? {
-        storageServiceLock.withLock {
+    internal mutating func getStorageService(
+        migrationStatus: StorageServiceMigrationStatus = StorageServiceMigrationStatus
+            .migrationStatus
+    ) -> StorageService? {
+        let storageService: StorageService? = storageServiceLock.withLock {
+            guard migrationStatus != .legacy else {
+                return nil
+            }
+
             // Some stores initialize before multi-file storage is enabled and keep `storageService`
             // as nil. If another SDK key flips the global migration state later in the same session,
             // we still need this store to start using file-backed storage.
             // TODO: Remove this lazy fallback once multi-file storage is fully rolled out.
-            if let storageService = storageService {
+            if let storageService = self.storageService {
                 return storageService
-            }
-
-            guard StorageService.useMultiFileStorage else {
-                return nil
             }
 
             let storageService = StorageService.forSDKKey(
@@ -49,6 +52,7 @@ struct StatsigValuesCache {
             self.storageService = storageService
             return storageService
         }
+        return storageService
     }
 
     var userCache: [String: Any] {
@@ -107,14 +111,18 @@ struct StatsigValuesCache {
         _ userCacheKey: UserCacheKey,
         _ storageService: StorageService
     ) -> (cache: [String: [String: Any]], needsMigration: Bool) {
-        if StorageServiceMigrationStatus.migrationStatus == .done {
+        let migrationStatus = StorageServiceMigrationStatus.migrationStatus
+        if migrationStatus != .legacy {
             if let storageServicePayload = storageService.userPayload.read(
                 key: userCacheKey)
             {
                 return ([userCacheKey.fullUserWithSDKKey: storageServicePayload], false)
             }
 
-            return ([:], false)
+            // If fully migrated, skip reading from UserDefaults
+            if migrationStatus == .multiFile {
+                return ([:], false)
+            }
         }
 
         let userDefaultsDict = StatsigValuesCache.loadDictMigratingIfRequired(
@@ -347,7 +355,7 @@ struct StatsigValuesCache {
         }
 
         cacheByID[cacheKey.fullUserWithSDKKey] = cache
-        if activeStorageService() == nil {
+        if StorageServiceMigrationStatus.migrationStatus == .legacy {
             cacheKeyMapping[userCacheKey.v2] = userCacheKey.fullUserWithSDKKey
 
             runCacheEviction()
@@ -357,7 +365,7 @@ struct StatsigValuesCache {
     }
 
     mutating func persist(_ cacheKey: UserCacheKey, _ payload: [String: Any]) {
-        let storageService = activeStorageService()
+        let storageService = getStorageService()
         let cacheByID = cacheByID
         let cacheKeyMapping = cacheKeyMapping
         DispatchQueue.global().async {
@@ -423,8 +431,11 @@ struct StatsigValuesCache {
             return fullHashCachedValues
         }
 
+        let migrationStatus = StorageServiceMigrationStatus.migrationStatus
+        let storageService = getStorageService(migrationStatus: migrationStatus)
+
         // Cached mappedFullUserHash (v2 -> full user hash)
-        if let storageService = activeStorageService() {
+        if let storageService = storageService {
             // TODO: Move memoization to UserPayloadStore to avoid calling mappedFullUserHash
             if let mappedFullUserHash = storageService.userPayload.mappedFullUserHash(v2Key: key.v2)
             {
@@ -433,19 +444,25 @@ struct StatsigValuesCache {
                     return mappedCachedValues
                 }
             }
-        } else if let cacheMappedKey = cacheKeyMapping[key.v2],
+        }
+
+        // Legacy cached mappedFullUserHash (v2 -> full user hash)
+        if migrationStatus != .multiFile,
+            let cacheMappedKey = cacheKeyMapping[key.v2],
             let cachedValues = cacheByID[cacheMappedKey]
         {
             return cachedValues
         }
 
         // Legacy Keys (v2 or v1)
-        if let v2KeyCachedValues = cacheByID[key.v2] ?? cacheByID[key.v1] {
+        if migrationStatus != .multiFile,
+            let v2KeyCachedValues = cacheByID[key.v2] ?? cacheByID[key.v1]
+        {
             return v2KeyCachedValues
         }
 
         // Read from file
-        if let storageService = activeStorageService(),
+        if let storageService = storageService,
             let payload = storageService.userPayload.read(key: key)
         {
             cacheByID[key.fullUserWithSDKKey] = payload
@@ -466,7 +483,7 @@ struct StatsigValuesCache {
 
     private mutating func saveToUserDefaults() {
         cacheByID[userCacheKey.fullUserWithSDKKey] = userCache
-        if let storageService = activeStorageService() {
+        if let storageService = getStorageService() {
             storageService.userPayload.write(key: userCacheKey, payload: userCache)
         } else {
             StatsigUserDefaults.defaults.setDictionarySafe(
@@ -491,7 +508,7 @@ struct StatsigValuesCache {
         // Bootstrap
         if let bootstrapValues = bootstrapValues {
             cacheByID[userCacheKey.fullUserWithSDKKey] = bootstrapValues
-            if activeStorageService() == nil {
+            if StorageServiceMigrationStatus.migrationStatus == .legacy {
                 cacheKeyMapping[userCacheKey.v2] = userCacheKey.fullUserWithSDKKey
             }
             userCache = bootstrapValues

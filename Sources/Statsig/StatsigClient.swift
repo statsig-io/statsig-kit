@@ -43,9 +43,11 @@ public class StatsigClient {
         Diagnostics.mark?.overall.start()
 
         self.sdkKey = sdkKey
+        self.statsigOptions = options ?? StatsigOptions()
+        StorageServiceMigrationStatus.applyStorageTypeOption(
+            statsigOptions.EXPERIMENTAL_storageType)
         let normalizedUser = StatsigClient.normalizeUser(user, options: options)
         self.currentUser = normalizedUser
-        self.statsigOptions = options ?? StatsigOptions()
         if let handler = self.statsigOptions.printHandler {
             PrintHandler.setPrintHandler(handler)
         }

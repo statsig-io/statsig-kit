@@ -100,17 +100,17 @@ class StatsigSpec: BaseSpec {
             }
 
             it("parses sdk configs from initialize response") {
-                StorageServiceMigrationStatus.migrationStatus = .initial
+                StorageServiceMigrationStatus.resetState()
                 var response = StatsigSpec.mockUserValues
                 response[InternalStore.sdkConfigsKey] = ["store_g": "gate_name_2"]
                 response[InternalStore.hashUsedKey] = "sha256"
 
                 _ = TestUtils.startWithResponseAndWait(response)
 
-                expect(StorageService.useMultiFileStorage).toEventually(beTrue())
-                expect(StorageServiceMigrationStatus.migrationStatus).toEventually(equal(.done))
+                expect(StorageServiceMigrationStatus.migrationStatus)
+                    .toEventually(equal(.multiFile))
 
-                StorageServiceMigrationStatus.migrationStatus = .initial
+                StorageServiceMigrationStatus.resetState()
             }
 
             it("make only 1 network request in 0.1 seconds when enableAutoValueUpdate is FALSE") {

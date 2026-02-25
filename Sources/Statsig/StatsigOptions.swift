@@ -57,11 +57,7 @@ public class StatsigOptions {
      - legacy: Forces legacy storage behavior.
      - multiFile: Forces multi-file storage behavior.
      */
-    public var EXPERIMENTAL_storageType: EXPERIMENTAL_StorageType = .auto {
-        didSet {
-            applyExperimentalStorageType()
-        }
-    }
+    public var EXPERIMENTAL_storageType: EXPERIMENTAL_StorageType = .auto
 
     /**
      Provide a Dictionary representing the "initiailize response" required  to synchronously initialize the SDK.
@@ -252,7 +248,6 @@ public class StatsigOptions {
 
         if let EXPERIMENTAL_storageType = EXPERIMENTAL_storageType {
             self.EXPERIMENTAL_storageType = EXPERIMENTAL_storageType
-            applyExperimentalStorageType()
         }
 
         if let eventLoggingEnabled = eventLoggingEnabled {
@@ -330,12 +325,6 @@ public class StatsigOptions {
         self.overrideAdapter = overrideAdapter
 
         self.printHandler = printHandler
-    }
-
-    private func applyExperimentalStorageType() {
-        if EXPERIMENTAL_storageType == .multiFile {
-            StorageServiceMigrationStatus.setNeedsMigration()
-        }
     }
 }
 

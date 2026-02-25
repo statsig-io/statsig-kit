@@ -46,7 +46,7 @@ class InternalStore {
         Diagnostics.mark?.initialize.readCache.start()
         self.sdkKey = sdkKey
         self.storageTypeOption = options.EXPERIMENTAL_storageType
-        storageService = StorageService.forSDKKeyIfEnabled(
+        storageService = StorageService.forSDKKey(
             sdkKey, storageProvider: options.storageProvider)
         cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
@@ -262,6 +262,8 @@ class InternalStore {
         StatsigUserDefaults.defaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localOverridesKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.storageMigrationStatusKey)
         _ = StatsigUserDefaults.defaults.synchronize()
 
         // Storage Service
@@ -271,6 +273,7 @@ class InternalStore {
 
         UserPayloadStore.clearCachedInstances()
         StorageService.clearCachedInstances()
+        StorageServiceMigrationStatus.resetState()
     }
 
     // Local overrides functions
@@ -405,7 +408,11 @@ class InternalStore {
     }
 
     func migrateIfNeeded() {
-        guard let storageService = self.cache.activeStorageService() else {
+        guard
+            StorageServiceMigrationStatus.beginMigrationIfNeeded(),
+            let storageService = self.cache.getStorageService(
+                migrationStatus: .migrating(started: true))
+        else {
             return
         }
 

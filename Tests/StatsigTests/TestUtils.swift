@@ -31,6 +31,8 @@ class TestUtils {
         StatsigUserDefaults.defaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
         StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localOverridesKey)
+        StatsigUserDefaults.defaults.removeObject(
+            forKey: UserDefaultsKeys.storageMigrationStatusKey)
         _ = StatsigUserDefaults.defaults.synchronize()
 
         // Storage Service
@@ -40,6 +42,7 @@ class TestUtils {
 
         UserPayloadStore.clearCachedInstances()
         StorageService.clearCachedInstances()
+        StorageServiceMigrationStatus.resetState()
     }
 
     static func startStatsigAndWait(

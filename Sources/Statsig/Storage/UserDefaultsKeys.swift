@@ -5,6 +5,7 @@ enum UserDefaultsKeys {
     static let stickyDeviceExperimentsKey = "com.Statsig.InternalStore.stickyDeviceExperimentsKey"
     static let networkFallbackInfoKey = "com.Statsig.InternalStore.networkFallbackInfoKey"
     static let stableIDKey = "com.Statsig.InternalStore.stableIDKey"
+    static let storageMigrationStatusKey = "com.Statsig.StorageService.migrationStatus"
 
     static let DEPRECATED_localStorageKey = "com.Statsig.InternalStore.localStorageKey"
     static let DEPRECATED_stickyUserExperimentsKey =

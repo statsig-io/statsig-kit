@@ -243,14 +243,13 @@ final class UserPayloadStore {
 
     // MARK: Migration and Compatibility
 
+    // NOTE: Only call this function from InternalStore.migrateIfNeeded
     static func migrateIfNeeded(
         _ cacheByID: [String: [String: Any]],
         _ cacheKeyMapping: [String: String],
         _ defaults: DefaultsLike,
         _ storageAdapter: StorageAdapter
     ) {
-        guard StorageServiceMigrationStatus.beginMigrationIfNeeded() else { return }
-
         var parsedEntriesBySDK: [String: [(fullUserHash: String, payload: [String: Any])]] = [:]
         var legacyEntries: [(fullUserHash: String, payload: [String: Any])] = []
         for (key, payload) in cacheByID {
