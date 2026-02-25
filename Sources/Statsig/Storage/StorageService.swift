@@ -58,7 +58,8 @@ final class StorageService {
         let hashUsed = payload[InternalStore.hashUsedKey] as? String
         guard
             let gates = payload[InternalStore.gatesKey] as? [String: Any],
-            let gate = gates[multiFileStoreGate.hashSpecName(hashUsed)] as? [String: Any],
+            let gate = gates[multiFileStoreGate] as? [String: Any] ?? gates[
+                multiFileStoreGate.hashSpecName(hashUsed)] as? [String: Any],
             let gateValue: Bool = gate["value"] as? Bool,
             gateValue
         else {
