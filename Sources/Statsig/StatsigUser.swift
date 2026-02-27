@@ -220,6 +220,10 @@ extension StatsigUser {
             return jsonValue
         }
 
+        if let strValue = self.getEnvironmentValueString(lowered) {
+            return .string(strValue)
+        }
+
         return nil
     }
 
@@ -239,7 +243,13 @@ extension StatsigUser {
     private func getEnvironmentValueString(_ field: String) -> String? {
         switch field {
         case "tier":
-            return self.statsigEnvironment["tier"] ?? self.deviceEnvironment["tier"] as? String
+            return self.statsigEnvironment["tier"] ?? self.deviceEnvironment["tier"] ?? nil
+        case "os_name", "osname":
+            return self.deviceEnvironment[StatsigMetadata.SYS_NAME_KEY] ?? nil
+        case "os_version", "osversion":
+            return self.deviceEnvironment[StatsigMetadata.SYS_VERSION_KEY] ?? nil
+        case "app_version", "appversion":
+            return self.deviceEnvironment[StatsigMetadata.APP_VERSION_KEY] ?? nil
         default: return nil
         }
     }

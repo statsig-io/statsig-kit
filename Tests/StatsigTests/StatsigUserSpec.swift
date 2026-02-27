@@ -71,6 +71,21 @@ class StatsigUserSpec: BaseSpec {
                 expect(NSDictionary(dictionary: json["customIDs"] as! [String: String])).to(
                     equal(NSDictionary(dictionary: ["company_id": "998877"])))
             }
+
+            it("resolves ua_based fields from the user") {
+                let user = StatsigUser(userID: "12345")
+                let deviceEnvironment = user.deviceEnvironment
+                let expectedOSName = deviceEnvironment[StatsigMetadata.SYS_NAME_KEY] as? String
+                let expectedOSVersion =
+                    deviceEnvironment[StatsigMetadata.SYS_VERSION_KEY] as? String
+
+                expect(expectedOSName).toNot(beNil())
+                expect(expectedOSVersion).toNot(beNil())
+                expect(user.getUserValue("os_name")) == .string(expectedOSName!)
+                expect(user.getUserValue("os_version")) == .string(expectedOSVersion!)
+                expect(user.getUserValue("osname")) == .string(expectedOSName!)
+                expect(user.getUserValue("osversion")) == .string(expectedOSVersion!)
+            }
         }
     }
 }
