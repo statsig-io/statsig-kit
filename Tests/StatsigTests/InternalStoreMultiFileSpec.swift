@@ -667,6 +667,74 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         .toEventuallyNot(beNil())
                 }
 
+                let possibleStatuses: [StorageServiceMigrationStatus] = [
+                    .legacy,
+                    .migrating(started: false),
+                    .migrating(started: true),
+                    .multiFile,
+                ]
+
+                possibleStatuses.forEach { initialStatus in
+                    it(
+                        "does not process sdk configs when has_updates is false and status is \(initialStatus)"
+                    ) {
+                        StorageServiceMigrationStatus.resetState(migrationStatus: initialStatus)
+                        let user = StatsigUser(userID: "user_a")
+                        let store = InternalStore(sdkKey, user, options: options)
+                        let cacheKey = UserCacheKey.from(options, user, sdkKey)
+
+                        let payload = ["has_updates": false]
+
+                        waitUntil { done in
+                            store.saveValues(payload, cacheKey, user.getFullUserHash(), done)
+                        }
+
+                        expect(StorageServiceMigrationStatus.migrationStatus)
+                            .to(equal(initialStatus))
+
+                        switch initialStatus {
+                        case .legacy:
+                            expect(
+                                defaults.string(forKey: UserDefaultsKeys.storageMigrationStatusKey)
+                            )
+                            .toEventually(beNil())
+                        case .migrating:
+                            expect(
+                                defaults.string(forKey: UserDefaultsKeys.storageMigrationStatusKey)
+                            )
+                            .toEventually(equal("migrating"))
+                        case .multiFile:
+                            expect(
+                                defaults.string(forKey: UserDefaultsKeys.storageMigrationStatusKey)
+                            )
+                            .toEventually(equal("multi-file"))
+                        }
+
+                    }
+                }
+
+                it("does not process sdk configs when has_updates is missing") {
+                    let user = StatsigUser(userID: "user_a")
+                    let store = InternalStore(sdkKey, user, options: options)
+                    let cacheKey = UserCacheKey.from(options, user, sdkKey)
+
+                    var payload = StatsigSpec.mockUserValues
+                    let multiFileStoreGate = "multi_file_store_gate"
+                    payload[InternalStore.gatesKey] = [
+                        multiFileStoreGate: ["value": true, "rule_id": "rule_id_multi_file"]
+                    ]
+                    payload[InternalStore.sdkConfigsKey] = ["store_g": multiFileStoreGate]
+                    payload[InternalStore.hashUsedKey] = "none"
+                    payload.removeValue(forKey: "has_updates")
+
+                    store.saveValues(payload, cacheKey, user.getFullUserHash())
+
+                    expect(StorageServiceMigrationStatus.migrationStatus).toEventually(
+                        equal(.legacy))
+                    expect(defaults.string(forKey: UserDefaultsKeys.storageMigrationStatusKey))
+                        .toEventually(beNil())
+                }
+
                 it("uses the new storage in the current session") {
                     let userA = StatsigUser(userID: "user_a")
                     let userB = StatsigUser(userID: "user_b")

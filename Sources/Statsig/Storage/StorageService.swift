@@ -46,6 +46,8 @@ final class StorageService {
     // NOTE: In auto mode, missing sdk config rolls back the migration status to legacy.
     // NOTE: For the scenario where multiple clients have diverging values, the migration status is shared process-wide.
     static func processSDKConfigs(payload: [String: Any]) {
+        guard payload["has_updates"] as? Bool == true else { return }
+
         guard
             let configs = payload[InternalStore.sdkConfigsKey] as? [String: Any],
             let multiFileStoreGate = configs["store_g"] as? String,
