@@ -434,16 +434,17 @@ struct StatsigValuesCache {
         let migrationStatus = StorageServiceMigrationStatus.migrationStatus
         let storageService = getStorageService(migrationStatus: migrationStatus)
 
-        // Cached mappedFullUserHash (v2 -> full user hash)
-        if let storageService = storageService {
-            // TODO: Move memoization to UserPayloadStore to avoid calling mappedFullUserHash
-            if let mappedFullUserHash = storageService.userPayload.mappedFullUserHash(v2Key: key.v2)
-            {
-                let mappedFullKey = "\(mappedFullUserHash):\(sdkKey)"
-                if let mappedCachedValues = cacheByID[mappedFullKey] {
-                    return mappedCachedValues
-                }
-            }
+        // Read from new storage
+        if let storageService = storageService,
+            let payload = storageService.userPayload.read(key: key, legacyMemoryCache: cacheByID)
+        {
+            cacheByID[key.fullUserWithSDKKey] = payload
+            return payload
+        }
+
+        // Fallback to legacy if migration didn't complete yet
+        guard migrationStatus != .multiFile else {
+            return nil
         }
 
         // Legacy cached mappedFullUserHash (v2 -> full user hash)
@@ -454,19 +455,11 @@ struct StatsigValuesCache {
             return cachedValues
         }
 
-        // Legacy Keys (v2 or v1)
+        // Legacy Keys from memory (v2 or v1)
         if migrationStatus != .multiFile,
             let v2KeyCachedValues = cacheByID[key.v2] ?? cacheByID[key.v1]
         {
             return v2KeyCachedValues
-        }
-
-        // Read from file
-        if let storageService = storageService,
-            let payload = storageService.userPayload.read(key: key)
-        {
-            cacheByID[key.fullUserWithSDKKey] = payload
-            return payload
         }
 
         return nil

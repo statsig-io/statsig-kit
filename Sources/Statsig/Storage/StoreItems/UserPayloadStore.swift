@@ -131,8 +131,11 @@ final class UserPayloadStore {
 
     // MARK: Read
 
-    func read(key: UserCacheKey) -> [String: Any]? {
-        guard let payload = readPayload(key: key) else {
+    func read(
+        key: UserCacheKey,
+        legacyMemoryCache: [String: [String: Any]]? = nil
+    ) -> [String: Any]? {
+        guard let payload = readPayload(key: key, legacyMemoryCache: legacyMemoryCache) else {
             indexStore.removeMissingPayload(fullUserHash: key.fullUserHash)
             return nil
         }
@@ -148,7 +151,10 @@ final class UserPayloadStore {
         return payload
     }
 
-    private func readPayload(key: UserCacheKey) -> [String: Any]? {
+    private func readPayload(
+        key: UserCacheKey,
+        legacyMemoryCache: [String: [String: Any]]?
+    ) -> [String: Any]? {
         if let payload = UserPayloadStore.read(
             key: userPayloadKey(key),
             storageAdapter: storageAdapter)
@@ -156,7 +162,7 @@ final class UserPayloadStore {
             return payload
         }
 
-        if let payload = readUsingMappedKey(key: key) {
+        if let payload = readUsingMappedKey(key: key, legacyMemoryCache: legacyMemoryCache) {
             return payload
         }
 
@@ -171,9 +177,16 @@ final class UserPayloadStore {
         return nil
     }
 
-    private func readUsingMappedKey(key: UserCacheKey) -> [String: Any]? {
+    private func readUsingMappedKey(
+        key: UserCacheKey,
+        legacyMemoryCache: [String: [String: Any]]?
+    ) -> [String: Any]? {
         guard let mappedKey = indexStore.mappedFullUserHash(v2Key: key.v2) else {
             return nil
+        }
+
+        if let mappedCachedValues = legacyMemoryCache?["\(mappedKey):\(sdkKey)"] {
+            return mappedCachedValues
         }
 
         let payloadKey = self.directoryKey + [mappedKey]
