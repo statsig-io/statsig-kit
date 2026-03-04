@@ -97,12 +97,11 @@ final class UserPayloadIndexStore {
     init(
         sdkKey: String,
         storageAdapter: StorageAdapter,
-        initialIndex: UserPayloadIndex = UserPayloadIndex.empty()
     ) {
         self.sdkKey = sdkKey
         self.indexFileKey = [sdkKey, USER_PAYLOAD_DIRNAME, USER_PAYLOAD_INDEX_FILENAME]
         self.storageAdapter = storageAdapter
-        self.index = initialIndex
+        self.index = Self.readIndex(sdkKey: sdkKey, storageAdapter: storageAdapter).index
         self.indexPersistenceQueue = DispatchQueue(
             label:
                 "com.statsig.userPayload.index.persistence.\(String(sdkKey.dropFirst(7).prefix(4)))",

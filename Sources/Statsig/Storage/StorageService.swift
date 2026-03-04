@@ -22,8 +22,6 @@ final class StorageService {
                 storageProvider.map { StorageProviderToAdapter(storageProvider: $0) }
                 ?? FileStorageAdapter()
 
-            // If multi-file storage is already enabled by another sdk key in this session,
-            // create a service with an empty index for this sdk key.
             if StorageServiceMigrationStatus.migrationStatus != .legacy {
                 let created = StorageService(sdkKey: sdkKey, storageAdapter: storageAdapter)
                 servicesBySDKKey[sdkKey] = created
@@ -34,13 +32,9 @@ final class StorageService {
         }
     }
 
-    init(
-        sdkKey: String, storageAdapter: StorageAdapter,
-        index: UserPayloadIndex = UserPayloadIndex.empty()
-    ) {
+    init(sdkKey: String, storageAdapter: StorageAdapter) {
         self.sdkKey = sdkKey
-        self.userPayload = UserPayloadStore.forSDKKey(
-            sdkKey, storageAdapter: storageAdapter, index: index)
+        self.userPayload = UserPayloadStore.forSDKKey(sdkKey, storageAdapter: storageAdapter)
     }
 
     // NOTE: In auto mode, missing sdk config rolls back the migration status to legacy.

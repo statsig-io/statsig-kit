@@ -39,14 +39,14 @@ struct StatsigValuesCache {
                 return nil
             }
 
-            // Some stores initialize before multi-file storage is enabled and keep `storageService`
-            // as nil. If another SDK key flips the global migration state later in the same session,
-            // we still need this store to start using file-backed storage.
-            // TODO: Remove this lazy fallback once multi-file storage is fully rolled out.
             if let storageService = self.storageService {
                 return storageService
             }
 
+            // Some stores initialize before multi-file storage is enabled and keep `storageService`
+            // as nil. If another SDK key flips the global migration state later in the same session,
+            // we still need this store to start using file-backed storage.
+            // TODO: Remove this lazy fallback once multi-file storage is fully rolled out.
             let storageService = StorageService.forSDKKey(
                 sdkKey, storageProvider: options.storageProvider)
             self.storageService = storageService

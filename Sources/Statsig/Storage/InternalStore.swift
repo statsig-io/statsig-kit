@@ -46,8 +46,7 @@ class InternalStore {
         Diagnostics.mark?.initialize.readCache.start()
         self.sdkKey = sdkKey
         self.storageTypeOption = options.EXPERIMENTAL_storageType
-        storageService = StorageService.forSDKKey(
-            sdkKey, storageProvider: options.storageProvider)
+        storageService = StorageService.forSDKKey(sdkKey, storageProvider: options.storageProvider)
         cache = StatsigValuesCache(sdkKey, user, storageService, options)
         let savedOverrides =
             StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)

@@ -13,6 +13,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
     private final class InMemoryStorageProvider: NSObject, StorageProvider {
         private let lock = NSLock()
         private var dataByKey: [String: Data] = [:]
+        private(set) var didReadIndexFile = false
 
         private(set) var readKeys: [String] = []
         private(set) var writeKeys: [String] = []
@@ -20,6 +21,9 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
         func read(_ key: String) -> Data? {
             return lock.withLock {
+                if key.hasSuffix(USER_PAYLOAD_INDEX_FILENAME) {
+                    didReadIndexFile = true
+                }
                 readKeys.append(key)
                 return dataByKey[key]
             }
@@ -508,6 +512,15 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
                     let reloadedStore = InternalStore(sdkKey, user, options: optionsWithProvider)
                     expect(reloadedStore.checkGate(forName: "gate_name_2").value).to(beTrue())
+                }
+
+                it("reads index on initialization") {
+                    let provider = InMemoryStorageProvider()
+                    let optionsWithProvider = StatsigOptions(storageProvider: provider)
+                    let indexedUser = StatsigUser(userID: "index_lookup_user")
+
+                    let _ = InternalStore(sdkKey, indexedUser, options: optionsWithProvider)
+                    expect(provider.didReadIndexFile).to(beTrue())
                 }
             }
 

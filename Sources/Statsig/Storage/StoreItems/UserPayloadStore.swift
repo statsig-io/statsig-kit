@@ -20,8 +20,7 @@ final class UserPayloadStore {
 
     static func forSDKKey(
         _ sdkKey: String,
-        storageAdapter: StorageAdapter,
-        index: UserPayloadIndex = UserPayloadIndex.empty()
+        storageAdapter: StorageAdapter
     )
         -> UserPayloadStore
     {
@@ -31,8 +30,7 @@ final class UserPayloadStore {
             }
             let created = UserPayloadStore(
                 sdkKey: sdkKey,
-                storageAdapter: storageAdapter,
-                index: index
+                storageAdapter: storageAdapter
             )
             storesBySDKKey[sdkKey] = created
             return created
@@ -49,10 +47,7 @@ final class UserPayloadStore {
     private let indexStore: UserPayloadIndexStore
     private let directoryKey: [String]
 
-    private init(
-        sdkKey: String, storageAdapter: StorageAdapter,
-        index: UserPayloadIndex = UserPayloadIndex.empty()
-    ) {
+    private init(sdkKey: String, storageAdapter: StorageAdapter) {
         self.sdkKey = sdkKey
         self.storageAdapter = storageAdapter
         self.directoryKey = Self.sdkDirectoryKey(sdkKey: sdkKey)
@@ -65,8 +60,7 @@ final class UserPayloadStore {
             qos: .utility)
         self.indexStore = UserPayloadIndexStore(
             sdkKey: sdkKey,
-            storageAdapter: storageAdapter,
-            initialIndex: index
+            storageAdapter: storageAdapter
         )
     }
 
