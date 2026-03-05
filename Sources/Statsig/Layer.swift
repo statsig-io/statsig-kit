@@ -55,6 +55,7 @@ public struct Layer: ConfigBase, ConfigProtocol {
     internal let explicitParameters: Set<String>
     internal var isDeviceBased: Bool = false
     internal var rawValue: [String: Any] = [:]
+    internal let parameterRuleIDs: [String: String]?
 
     internal let value: [String: Any]
 
@@ -83,6 +84,7 @@ public struct Layer: ConfigBase, ConfigProtocol {
         self.isExperimentActive = configObj["is_experiment_active"] as? Bool ?? false
         self.allocatedExperimentName = configObj["allocated_experiment_name"] as? String ?? ""
         self.explicitParameters = Set(configObj["explicit_parameters"] as? [String] ?? [])
+        self.parameterRuleIDs = configObj["parameter_rule_ids"] as? [String: String]
         self.rawValue = configObj
 
         self.evaluationDetails = evalDetails
@@ -100,7 +102,8 @@ public struct Layer: ConfigBase, ConfigProtocol {
         explicitParameters: Set<String> = Set(),
         allocatedExperimentName: String? = nil,
         isExperimentActive: Bool? = nil,
-        isUserInExperiment: Bool? = nil
+        isUserInExperiment: Bool? = nil,
+        parameterRuleIDs: [String: String]? = nil
     ) {
         self.client = client
         self.name = name
@@ -113,6 +116,7 @@ public struct Layer: ConfigBase, ConfigProtocol {
         self.allocatedExperimentName = allocatedExperimentName ?? ""
         self.isExperimentActive = isExperimentActive ?? false
         self.isUserInExperiment = isUserInExperiment ?? false
+        self.parameterRuleIDs = parameterRuleIDs
 
         self.hashedName = ""
 
@@ -172,6 +176,10 @@ public struct Layer: ConfigBase, ConfigProtocol {
         return result
     }
 
+    public func getRuleIDForParameter(_ parameterName: String) -> String {
+        return parameterRuleIDs?[parameterName] ?? ruleID
+    }
+
     internal static func empty(
         _ client: StatsigClient?,
         _ name: String,
@@ -196,6 +204,7 @@ extension Layer: Codable {
         case evaluationDetails
         case explicitParameters
         case allocatedExperimentName
+        case parameterRuleIDs
     }
 
     public init(from decoder: Decoder) throws {
@@ -219,6 +228,8 @@ extension Layer: Codable {
             EvaluationDetails.self, forKey: .evaluationDetails)
         self.explicitParameters = try container.decode(
             Set<String>.self, forKey: .explicitParameters)
+        self.parameterRuleIDs = try container.decodeIfPresent(
+            [String: String].self, forKey: .parameterRuleIDs)
 
         self.hashedName = ""
         self.isExperimentActive = false
@@ -240,5 +251,6 @@ extension Layer: Codable {
         try container.encode(undelegatedSecondaryExposures, forKey: .undelegatedSecondaryExposures)
         try container.encode(evaluationDetails, forKey: .evaluationDetails)
         try container.encode(explicitParameters, forKey: .explicitParameters)
+        try container.encodeIfPresent(parameterRuleIDs, forKey: .parameterRuleIDs)
     }
 }

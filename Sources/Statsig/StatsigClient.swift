@@ -650,7 +650,7 @@ extension StatsigClient {
             Event.layerExposure(
                 user: currentUser,
                 configName: layer.name,
-                ruleID: layer.ruleID,
+                ruleID: layer.getRuleIDForParameter(parameterName),
                 secondaryExposures: exposures,
                 disableCurrentVCLogging: statsigOptions.disableCurrentVCLogging,
                 allocatedExperimentName: allocatedExperiment,
