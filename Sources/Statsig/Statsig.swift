@@ -396,7 +396,7 @@ public class Statsig {
      */
     public static func logEvent(
         _ withName: String,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         client?.logEvent(withName, metadata: metadata, userOverride: userOverride)
@@ -414,7 +414,7 @@ public class Statsig {
     public static func logEvent(
         _ withName: String,
         value: String,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         client?.logEvent(withName, value: value, metadata: metadata, userOverride: userOverride)
@@ -432,7 +432,7 @@ public class Statsig {
     public static func logEvent(
         _ withName: String,
         value: Double,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         client?.logEvent(withName, value: value, metadata: metadata, userOverride: userOverride)

@@ -710,7 +710,7 @@ extension StatsigClient {
      */
     public func logEvent(
         _ withName: String,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         logEventImpl(withName, value: nil, metadata: metadata, userOverride: userOverride)
@@ -728,7 +728,7 @@ extension StatsigClient {
     public func logEvent(
         _ withName: String,
         value: String,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         logEventImpl(withName, value: value, metadata: metadata, userOverride: userOverride)
@@ -746,7 +746,7 @@ extension StatsigClient {
     public func logEvent(
         _ withName: String,
         value: Double,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         logEventImpl(withName, value: value, metadata: metadata, userOverride: userOverride)
@@ -755,7 +755,7 @@ extension StatsigClient {
     private func logEventImpl(
         _ withName: String,
         value: Any? = nil,
-        metadata: [String: String]? = nil,
+        metadata: [String: Any]? = nil,
         userOverride: StatsigUser? = nil
     ) {
         var eventName = withName
