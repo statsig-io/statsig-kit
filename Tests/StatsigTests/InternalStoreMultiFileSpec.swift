@@ -71,32 +71,36 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
             let legacyPayloadDirectory: () -> URL? = {
                 tempDir?
-                    .appendingPathComponent("_legacy")
-                    .appendingPathComponent(USER_PAYLOAD_DIRNAME)
+                    .appendingPathComponent("_legacy", isDirectory: true)
+                    .appendingPathComponent(USER_PAYLOAD_DIRNAME, isDirectory: true)
             }
 
-            func url(for key: [String]) -> URL? {
+            func url(for key: [String], isDirectory: Bool) -> URL? {
                 guard let rootDirectory = tempDir, !key.isEmpty else {
                     return nil
                 }
 
-                return key.reduce(rootDirectory) { partial, component in
-                    partial.appendingPathComponent(component)
+                let lastIndex = key.index(before: key.endIndex)
+                return key.indices.reduce(rootDirectory) { partial, index in
+                    partial.appendingPathComponent(
+                        key[index],
+                        isDirectory: index == lastIndex ? isDirectory : true
+                    )
                 }
             }
 
             func sdkPayloadDirectory(_ sdkKey: String) -> URL? {
-                return url(for: UserPayloadStore.sdkDirectoryKey(sdkKey: sdkKey))
+                return url(for: UserPayloadStore.sdkDirectoryKey(sdkKey: sdkKey), isDirectory: true)
             }
 
             func userPayloadFileURL(_ sdkKey: String, _ cacheKey: UserCacheKey) -> URL? {
                 return sdkPayloadDirectory(sdkKey)?
-                    .appendingPathComponent(cacheKey.fullUserHash)
+                    .appendingPathComponent(cacheKey.fullUserHash, isDirectory: false)
             }
 
             func getIndexFileURL(_ sdkKey: String) -> URL? {
                 return sdkPayloadDirectory(sdkKey)?
-                    .appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME)
+                    .appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME, isDirectory: false)
             }
 
             func readJSONPayload(_ url: URL?) -> [String: Any]? {
@@ -111,7 +115,8 @@ final class InternalStoreMultiFileSpec: BaseSpec {
             }
 
             func legacyPayload(_ key: String) -> [String: Any]? {
-                return readJSONPayload(legacyPayloadDirectory()?.appendingPathComponent(key))
+                return readJSONPayload(
+                    legacyPayloadDirectory()?.appendingPathComponent(key, isDirectory: false))
             }
 
             func makePayload(withTimestamp timestamp: UInt64) -> [String: Any] {
@@ -134,7 +139,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 )
 
                 for (key, payload) in payloads {
-                    let fileURL = dir.appendingPathComponent(key.fullUserHash)
+                    let fileURL = dir.appendingPathComponent(key.fullUserHash, isDirectory: false)
                     let data = UserPayloadStore.encode(payload)
                     try data?.write(to: fileURL)
                 }
@@ -142,7 +147,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                 let index = UserPayloadIndex(userPayloads: payloads)
 
                 try index.encode()?.write(
-                    to: dir.appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME))
+                    to: dir.appendingPathComponent(USER_PAYLOAD_INDEX_FILENAME, isDirectory: false))
             }
 
             func setUseMultiFileStorage(_ value: Bool) {
@@ -158,8 +163,8 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
             beforeSuite {
                 let tempDirectoryURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("statsig-tests")
-                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathComponent("statsig-tests", isDirectory: true)
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
                     .appendingPathComponent("statsig-cache", isDirectory: true)
                 do {
                     try FileManager.default.createDirectory(
@@ -359,7 +364,10 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                         at: dir,
                         withIntermediateDirectories: true
                     )
-                    let fileURL = dir.appendingPathComponent(cacheKey.fullUserHash)
+                    let fileURL = dir.appendingPathComponent(
+                        cacheKey.fullUserHash,
+                        isDirectory: false
+                    )
                     let garbage = "not-json".data(using: .utf8)!
                     try garbage.write(to: fileURL)
 

@@ -4,7 +4,7 @@ final class FileStorageAdapter: StorageAdapter {
     static var defaultRootDirectory = FileManager
         .default.urls(for: .cachesDirectory, in: .userDomainMask)
         .first?
-        .appendingPathComponent("statsig-cache")
+        .appendingPathComponent("statsig-cache", isDirectory: true)
 
     private enum StorageAdapterError: Error {
         case invalidKey
@@ -17,7 +17,7 @@ final class FileStorageAdapter: StorageAdapter {
     }
 
     func read(_ key: [String]) -> StorageAdapterReadResult {
-        guard let url = url(for: key) else {
+        guard let url = url(for: key, isDirectory: false) else {
             return .error(StorageAdapterError.invalidKey)
         }
 
@@ -32,7 +32,7 @@ final class FileStorageAdapter: StorageAdapter {
     }
 
     func write(_ value: Data, _ key: [String], options: StorageAdapterWriteOptions = []) {
-        guard let url = url(for: key) else {
+        guard let url = url(for: key, isDirectory: false) else {
             return
         }
 
@@ -50,7 +50,7 @@ final class FileStorageAdapter: StorageAdapter {
     }
 
     func remove(_ key: [String]) {
-        guard let url = url(for: key) else {
+        guard let url = url(for: key, isDirectory: false) else {
             return
         }
 
@@ -58,7 +58,7 @@ final class FileStorageAdapter: StorageAdapter {
     }
 
     func createFolderIfNeeded(_ key: [String]) {
-        guard let url = url(for: key) else { return }
+        guard let url = url(for: key, isDirectory: true) else { return }
 
         try? FileManager.default.createDirectory(
             at: url,
@@ -66,13 +66,17 @@ final class FileStorageAdapter: StorageAdapter {
         )
     }
 
-    private func url(for key: [String]) -> URL? {
+    private func url(for key: [String], isDirectory: Bool) -> URL? {
         guard let rootDirectory = rootDirectory, !key.isEmpty else {
             return nil
         }
 
-        return key.reduce(rootDirectory) { partial, component in
-            partial.appendingPathComponent(component)
+        let lastIndex = key.index(before: key.endIndex)
+        return key.enumerated().reduce(rootDirectory) { (partial, tuple) in
+            partial.appendingPathComponent(
+                tuple.element,
+                isDirectory: tuple.offset == lastIndex ? isDirectory : true
+            )
         }
     }
 }
