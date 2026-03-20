@@ -137,6 +137,30 @@ class EventSpec: BaseSpec {
                 expect(internalEvent.metadata).to(beNil())
                 expect(Int(internalEvent.time / 1000)) == Int(Date().timeIntervalSince1970)
             }
+
+        }
+
+        describe("addStatsigMetadata") {
+            it("merges statsig metadata instead of overwriting existing values") {
+                let event = Event(
+                    user: StatsigUser(),
+                    name: "purchase",
+                    statsigMetadata: [
+                        StatsigEnabledNetworkMetadataProvider.netTypeKey: "wifi",
+                        StatsigEnabledNetworkMetadataProvider.hasInternetKey: "true",
+                    ],
+                    disableCurrentVCLogging: false)
+
+                event.addStatsigMetadata([Event.currentVCKey: "HomeViewController"])
+
+                expect(event.statsigMetadata?[StatsigEnabledNetworkMetadataProvider.netTypeKey])
+                    == "wifi"
+                expect(
+                    event.statsigMetadata?[
+                        StatsigEnabledNetworkMetadataProvider.hasInternetKey])
+                    == "true"
+                expect(event.statsigMetadata?[Event.currentVCKey]) == "HomeViewController"
+            }
         }
     }
 }

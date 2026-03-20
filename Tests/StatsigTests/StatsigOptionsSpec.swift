@@ -18,6 +18,7 @@ class StatsigOptionsSpec: BaseSpec {
                 let opts = StatsigOptions(
                     initTimeout: 1.23,
                     disableCurrentVCLogging: true,
+                    logNetworkMetadata: true,
                     environment: StatsigEnvironment(tier: "test"),
                     enableAutoValueUpdate: true,
                     overrideStableID: "an-override-id",
@@ -29,6 +30,7 @@ class StatsigOptionsSpec: BaseSpec {
 
                 expect(opts.initTimeout).to(equal(1.23))
                 expect(opts.disableCurrentVCLogging).to(beTrue())
+                expect(opts.logNetworkMetadata).to(beTrue())
                 expect(opts.environment).to(equal(["tier": "test"]))
                 expect(opts.enableAutoValueUpdate).to(beTrue())
                 expect(opts.overrideStableID).to(equal("an-override-id"))
@@ -43,6 +45,7 @@ class StatsigOptionsSpec: BaseSpec {
 
                 opts.initTimeout = 1.23
                 opts.disableCurrentVCLogging = true
+                opts.logNetworkMetadata = true
                 opts.environment = ["tier": "test"]
                 opts.enableAutoValueUpdate = true
                 opts.overrideStableID = "an-override-id"
@@ -53,6 +56,7 @@ class StatsigOptionsSpec: BaseSpec {
 
                 expect(opts.initTimeout).to(equal(1.23))
                 expect(opts.disableCurrentVCLogging).to(beTrue())
+                expect(opts.logNetworkMetadata).to(beTrue())
                 expect(opts.environment).to(equal(["tier": "test"]))
                 expect(opts.enableAutoValueUpdate).to(beTrue())
                 expect(opts.overrideStableID).to(equal("an-override-id"))
@@ -68,6 +72,7 @@ class StatsigOptionsSpec: BaseSpec {
                 let options = StatsigOptions(
                     initTimeout: 11,
                     disableCurrentVCLogging: true,
+                    logNetworkMetadata: true,
                     environment: StatsigEnvironment(
                         tier: StatsigEnvironment.EnvironmentTier.Development,
                         additionalParams: [:]

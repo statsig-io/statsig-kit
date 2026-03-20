@@ -32,6 +32,11 @@ public class StatsigOptions {
     public var disableCurrentVCLogging = false
 
     /**
+     Controls whether the SDK adds network status metadata to individual log events.
+     */
+    public var logNetworkMetadata = false
+
+    /**
      By default, feature values for a user are fetched once during Statsig.start and don't change throughout the session. Setting this value to true will make Statsig periodically fetch updated values for the current user.
      */
     public var enableAutoValueUpdate = false
@@ -198,6 +203,7 @@ public class StatsigOptions {
     public init(
         initTimeout: Double? = 3.0,
         disableCurrentVCLogging: Bool? = false,
+        logNetworkMetadata: Bool? = false,
         environment: StatsigEnvironment? = nil,
         enableAutoValueUpdate: Bool? = false,
         autoValueUpdateIntervalSec: Double? = nil,
@@ -232,6 +238,10 @@ public class StatsigOptions {
 
         if let disableCurrentVCLogging = disableCurrentVCLogging {
             self.disableCurrentVCLogging = disableCurrentVCLogging
+        }
+
+        if let logNetworkMetadata = logNetworkMetadata {
+            self.logNetworkMetadata = logNetworkMetadata
         }
 
         if let environment = environment {
@@ -385,6 +395,9 @@ extension StatsigOptions {
         }
         if disableCurrentVCLogging != defaultOptions.disableCurrentVCLogging {
             dict["disableCurrentVCLogging"] = disableCurrentVCLogging
+        }
+        if logNetworkMetadata != defaultOptions.logNetworkMetadata {
+            dict["logNetworkMetadata"] = logNetworkMetadata
         }
         if eventLoggingEnabled != defaultOptions.eventLoggingEnabled {
             dict["eventLoggingEnabled"] = eventLoggingEnabled

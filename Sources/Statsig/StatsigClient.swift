@@ -3,6 +3,7 @@ import Foundation
 public class StatsigClient {
     internal var logger: EventLogger
     internal var statsigOptions: StatsigOptions
+    internal var networkMetadataProvider: StatsigNetworkMetadataProvider
 
     private var sdkKey: String
     private var currentUser: StatsigUser
@@ -48,6 +49,10 @@ public class StatsigClient {
             statsigOptions.EXPERIMENTAL_storageType)
         let normalizedUser = StatsigClient.normalizeUser(user, options: options)
         self.currentUser = normalizedUser
+        self.networkMetadataProvider =
+            self.statsigOptions.logNetworkMetadata
+            ? StatsigEnabledNetworkMetadataProvider()
+            : StatsigNoOpNetworkMetadataProvider()
         if let handler = self.statsigOptions.printHandler {
             PrintHandler.setPrintHandler(handler)
         }
@@ -171,6 +176,7 @@ public class StatsigClient {
      Stops all Statsig activity and flushes any pending events.
      */
     public func shutdown() {
+        networkMetadataProvider.shutdown()
         logger.stop()
         Diagnostics.shutdown()
         syncTimer?.invalidate()
@@ -181,6 +187,7 @@ public class StatsigClient {
      Currently it's only available for tests.
      */
     internal func shutdown(completion: @escaping (() -> Void)) {
+        networkMetadataProvider.shutdown()
         Diagnostics.shutdown()
         syncTimer?.invalidate()
         logger.stop(completion: completion)
@@ -760,6 +767,11 @@ extension StatsigClient {
     ) {
         var eventName = withName
         let eventUser = userOverride ?? currentUser
+        let networkMetadata =
+            statsigOptions.logNetworkMetadata
+            ? networkMetadataProvider.getLogEventNetworkMetadata()
+            : nil
+        let eventStatsigMetadata = networkMetadata?.isEmpty == false ? networkMetadata : nil
 
         if eventName.isEmpty {
             PrintHandler.log("[Statsig]: Must log with a non-empty event name.")
@@ -773,25 +785,25 @@ extension StatsigClient {
         if let metadata = metadata, !JSONSerialization.isValidJSONObject(metadata) {
             PrintHandler.log(
                 "[Statsig]: metadata is not a valid JSON object. Event is logged without metadata.")
-            logger.log(
-                Event(
-                    user: eventUser,
-                    name: eventName,
-                    value: value,
-                    metadata: nil,
-                    disableCurrentVCLogging: statsigOptions.disableCurrentVCLogging)
-            )
-            return
-        }
-
-        logger.log(
-            Event(
+            let event = Event(
                 user: eventUser,
                 name: eventName,
                 value: value,
-                metadata: metadata,
+                metadata: nil,
+                statsigMetadata: eventStatsigMetadata,
                 disableCurrentVCLogging: statsigOptions.disableCurrentVCLogging)
-        )
+            logger.log(event)
+            return
+        }
+
+        let event = Event(
+            user: eventUser,
+            name: eventName,
+            value: value,
+            metadata: metadata,
+            statsigMetadata: eventStatsigMetadata,
+            disableCurrentVCLogging: statsigOptions.disableCurrentVCLogging)
+        logger.log(event)
     }
 }
 

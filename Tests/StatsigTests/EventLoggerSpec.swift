@@ -9,6 +9,22 @@ import Quick
 import OHHTTPStubsSwift
 #endif
 
+fileprivate final class MockNetworkMetadataProvider: StatsigNetworkMetadataProvider {
+    private(set) var callCount = 0
+    private let metadata: [String: String]
+
+    init(metadata: [String: String]) {
+        self.metadata = metadata
+    }
+
+    func getLogEventNetworkMetadata() -> [String: String] {
+        callCount += 1
+        return metadata
+    }
+
+    func shutdown() {}
+}
+
 class EventLoggerSpec: BaseSpec {
 
     override func spec() {
@@ -626,6 +642,132 @@ class EventLoggerSpec: BaseSpec {
 
                     expect(dataDuringRequest).to(beEmpty())
                     expect(readRetryQueue()).to(beEmpty())
+                }
+            }
+
+            describe("log network metadata") {
+                var client: StatsigClient?
+
+                beforeEach {
+                    stub(condition: isHost(ApiHost) && isPath("/v1/initialize")) { _ in
+                        HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+                    stub(condition: isHost(LogEventHost)) { _ in
+                        HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+                }
+
+                afterEach {
+                    client?.shutdown()
+                    client = nil
+                }
+
+                it("adds network metadata to events when enabled") {
+                    let provider = MockNetworkMetadataProvider(
+                        metadata: ["netType": "wifi", "hasInternet": "true"])
+
+                    waitUntil { done in
+                        client = StatsigClient(
+                            sdkKey: "client-key",
+                            user: user,
+                            options: StatsigOptions(
+                                logNetworkMetadata: true,
+                                disableDiagnostics: true),
+                            completionWithResult: { _ in
+                                done()
+                            })
+                    }
+
+                    expect(client?.networkMetadataProvider is StatsigEnabledNetworkMetadataProvider)
+                        .to(beTrue())
+
+                    client?.networkMetadataProvider = provider
+                    client?.logEvent("network_event")
+
+                    waitUntil { done in
+                        client?.logger.logQueue.async {
+                            done()
+                        }
+                    }
+
+                    let networkEvent = client?.logger.events.first(where: { event in
+                        event.name == "network_event"
+                    })
+
+                    expect(networkEvent?.statsigMetadata).to(
+                        equal([
+                            "netType": "wifi",
+                            "hasInternet": "true",
+                        ]))
+                    expect(provider.callCount).to(equal(1))
+                }
+
+                it("does not add network metadata to events when disabled") {
+                    let provider = MockNetworkMetadataProvider(
+                        metadata: ["netType": "wifi", "hasInternet": "true"])
+
+                    waitUntil { done in
+                        client = StatsigClient(
+                            sdkKey: "client-key",
+                            user: user,
+                            options: StatsigOptions(
+                                logNetworkMetadata: false,
+                                disableDiagnostics: true),
+                            completionWithResult: { _ in
+                                done()
+                            })
+                    }
+
+                    expect(client?.networkMetadataProvider is StatsigNoOpNetworkMetadataProvider)
+                        .to(beTrue())
+
+                    client?.networkMetadataProvider = provider
+                    client?.logEvent("network_event")
+
+                    waitUntil { done in
+                        client?.logger.logQueue.async {
+                            done()
+                        }
+                    }
+
+                    let networkEvent = client?.logger.events.first(where: { event in
+                        event.name == "network_event"
+                    })
+
+                    expect(networkEvent?.statsigMetadata).to(beNil())
+                    expect(provider.callCount).to(equal(0))
+                }
+
+                it("does not add empty network metadata to events when enabled") {
+                    let provider = MockNetworkMetadataProvider(metadata: [:])
+
+                    waitUntil { done in
+                        client = StatsigClient(
+                            sdkKey: "client-key",
+                            user: user,
+                            options: StatsigOptions(
+                                logNetworkMetadata: true,
+                                disableDiagnostics: true),
+                            completionWithResult: { _ in
+                                done()
+                            })
+                    }
+
+                    client?.networkMetadataProvider = provider
+                    client?.logEvent("network_event")
+
+                    waitUntil { done in
+                        client?.logger.logQueue.async {
+                            done()
+                        }
+                    }
+
+                    let networkEvent = client?.logger.events.first(where: { event in
+                        event.name == "network_event"
+                    })
+
+                    expect(networkEvent?.statsigMetadata).to(beNil())
+                    expect(provider.callCount).to(equal(1))
                 }
             }
         }

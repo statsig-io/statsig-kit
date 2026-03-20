@@ -11,6 +11,8 @@ class Event {
     var allocatedExperimentHash: String?
     var isManualExposure: Bool = false
 
+    private let statsigMetadataLock = NSLock()
+
     static let statsigPrefix = "statsig::"
     static let configExposureEventName = "config_exposure"
     static let layerExposureEventName = "layer_exposure"
@@ -23,6 +25,7 @@ class Event {
         value: Any? = nil,
         metadata: [String: Any]? = nil,
         secondaryExposures: [[String: String]]? = nil,
+        statsigMetadata: [String: String]? = nil,
         disableCurrentVCLogging: Bool
     ) {
         self.time = Time.now()
@@ -31,13 +34,24 @@ class Event {
         self.value = value
         self.metadata = metadata
         self.secondaryExposures = secondaryExposures
+        self.statsigMetadata = statsigMetadata
 
         if !disableCurrentVCLogging {
             PlatformCompatibility.getRootViewControllerClassName { name in
                 if let name = name {
-                    self.statsigMetadata = [Event.currentVCKey: "\(name)"]
+                    self.addStatsigMetadata([Event.currentVCKey: "\(name)"])
                 }
             }
+        }
+    }
+
+    func addStatsigMetadata(_ metadata: [String: String]) {
+        guard !metadata.isEmpty else {
+            return
+        }
+
+        statsigMetadataLock.withLock {
+            statsigMetadata = (statsigMetadata ?? [:]).merging(metadata) { _, new in new }
         }
     }
 
