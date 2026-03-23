@@ -365,20 +365,15 @@ struct StatsigValuesCache {
     }
 
     mutating func persist(_ cacheKey: UserCacheKey, _ payload: [String: Any]) {
-        let storageService = getStorageService()
-        let cacheByID = cacheByID
-        let cacheKeyMapping = cacheKeyMapping
-        DispatchQueue.global().async {
-            if let storageService = storageService {
-                storageService.userPayload.write(
-                    key: cacheKey, payload: payload)
-            } else {
-                StatsigUserDefaults.defaults.setDictionarySafe(
-                    cacheByID, forKey: UserDefaultsKeys.localStorageKey)
-                StatsigUserDefaults.defaults.setDictionarySafe(
-                    cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
-            }
+        if let storageService = getStorageService() {
+            storageService.userPayload.write(key: cacheKey, payload: payload)
+            return
         }
+
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            cacheByID, forKey: UserDefaultsKeys.localStorageKey)
+        StatsigUserDefaults.defaults.setDictionarySafe(
+            cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
     }
 
     mutating func runCacheEviction() {

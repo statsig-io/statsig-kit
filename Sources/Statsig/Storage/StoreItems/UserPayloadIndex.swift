@@ -73,18 +73,6 @@ struct UserPayloadIndex: Equatable {
     }
 }
 
-fileprivate func payloadTimestamp(_ payload: [String: Any]) -> UInt64? {
-    if let raw = payload[InternalStore.evalTimeKey] {
-        let parsed = Time.parse(raw)
-        return parsed == 0 ? nil : parsed
-    }
-    return nil
-}
-
-fileprivate func resolvedTimestamp(_ payload: [String: Any]) -> UInt64 {
-    return payloadTimestamp(payload) ?? UInt64(Date().timeIntervalSince1970 * 1000)
-}
-
 final class UserPayloadIndexStore {
     let sdkKey: String
     let indexFileKey: [String]
@@ -119,10 +107,9 @@ final class UserPayloadIndexStore {
     // MARK: Update index after payload read/write
 
     @discardableResult
-    func updateIndexForWrite(key: UserCacheKey, payload: [String: Any]) -> Int {
-        let timestamp = payloadTimestamp(payload)
+    func updateIndexForWrite(key: UserCacheKey, payloadTimestamp: UInt64?) -> Int {
         return indexLock.withLock {
-            index.entries[key.fullUserHash] = IndexEntry(timestamp: timestamp)
+            index.entries[key.fullUserHash] = IndexEntry(timestamp: payloadTimestamp)
             index.cacheKeyMapping[key.v2] = key.fullUserHash
             return index.entries.count
         }
@@ -134,7 +121,7 @@ final class UserPayloadIndexStore {
         payload: [String: Any],
         maxCachedPayloads: Int
     ) -> Bool {
-        let timestamp = resolvedTimestamp(payload)
+        let timestamp = Self.resolvedTimestamp(payload)
         var hasChanges = false
         var didIncreasePayloadCount = false
         let payloadCount = indexLock.withLock {
@@ -270,5 +257,17 @@ final class UserPayloadIndexStore {
                 index.cacheKeyMapping.filter { !evictedSet.contains($0.value) }
             return evicted
         }
+    }
+
+    static func payloadTimestamp(_ payload: [String: Any]) -> UInt64? {
+        if let raw = payload[InternalStore.evalTimeKey] {
+            let parsed = Time.parse(raw)
+            return parsed == 0 ? nil : parsed
+        }
+        return nil
+    }
+
+    static func resolvedTimestamp(_ payload: [String: Any]) -> UInt64 {
+        return payloadTimestamp(payload) ?? UInt64(Date().timeIntervalSince1970 * 1000)
     }
 }

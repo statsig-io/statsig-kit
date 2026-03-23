@@ -91,13 +91,21 @@ final class UserPayloadStore {
             // TODO: Handle errors
             return
         }
+        let payloadTimestamp = UserPayloadIndexStore.payloadTimestamp(payload)
+
+        DispatchQueue.global().async { [weak self] in
+            self?.write(key: key, payloadData: data, payloadTimestamp: payloadTimestamp)
+        }
+    }
+
+    func write(key: UserCacheKey, payloadData data: Data, payloadTimestamp: UInt64?) {
         let payloadKey = userPayloadKey(key)
         let storageAdapter = self.storageAdapter
 
         // Update index
         let payloadCount = indexStore.updateIndexForWrite(
             key: key,
-            payload: payload
+            payloadTimestamp: payloadTimestamp
         )
 
         // Persist payload
