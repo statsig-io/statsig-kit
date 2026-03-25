@@ -84,7 +84,7 @@ final class UserPayloadIndexStore {
 
     init(
         sdkKey: String,
-        storageAdapter: StorageAdapter,
+        storageAdapter: StorageAdapter
     ) {
         self.sdkKey = sdkKey
         self.indexFileKey = [sdkKey, USER_PAYLOAD_DIRNAME, USER_PAYLOAD_INDEX_FILENAME]
