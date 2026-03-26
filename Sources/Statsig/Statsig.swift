@@ -634,6 +634,21 @@ public class Statsig {
         return result
     }
 
+    /**
+     Returns the raw values that the SDK is using internally to provide gate/config/layer results
+     */
+    public static func getInitializeResponseJson(
+        completion: @escaping (ExternalInitializeResponse) -> Void
+    ) {
+        guard let client = client else {
+            PrintHandler.log("[Statsig]: \(getUnstartedErrorMessage()).")
+            completion(.uninitialized())
+            return
+        }
+
+        client.getInitializeResponseJson(completion: completion)
+    }
+
     //
     // MARK: - Private
     //

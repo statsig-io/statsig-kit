@@ -99,6 +99,22 @@ class InternalStore {
         }
     }
 
+    func getInitializeResponseSnapshot() -> (
+        values: [String: Any?], evaluationDetails: EvaluationDetails
+    ) {
+        storeQueue.sync {
+            return (cache.getInitializeResponseValues(), cache.getEvaluationDetails())
+        }
+    }
+
+    func getInitializeResponseSnapshot(
+        completion: @escaping ([String: Any?], EvaluationDetails) -> Void
+    ) {
+        storeQueue.async {
+            completion(self.cache.getInitializeResponseValues(), self.cache.getEvaluationDetails())
+        }
+    }
+
     func checkGate(forName: String) -> FeatureGate {
         storeQueue.sync {
             if let override = (localOverrides[InternalStore.gatesKey] as? [String: Bool])?[forName]

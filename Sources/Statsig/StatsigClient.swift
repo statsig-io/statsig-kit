@@ -249,23 +249,11 @@ public class StatsigClient {
      Returns the raw values that the SDK is using internally to provide gate/config/layer results
      */
     public func getInitializeResponseJson() -> ExternalInitializeResponse {
+        let snapshot = store.getInitializeResponseSnapshot()
         var values: String? = nil
-        let dict: [String: Any?] = [
-            "feature_gates": self.store.cache.gates,
-            "dynamic_configs": self.store.cache.configs,
-            "layer_configs": self.store.cache.layers,
-            "param_stores": self.store.cache.paramStores,
-            "hash_used": self.store.cache.hashUsed,
-            "time": self.store.cache.userCache["time"],
-            "derived_fields": self.store.cache.userCache["derived_fields"],
-            "full_checksum": self.store.cache.userCache["full_checksum"],
-            "sdk_flags": self.store.cache.userCache["sdk_flags"],
-            "sdk_configs": self.store.cache.userCache["sdk_configs"],
-            "has_updates": true,
-        ]
 
-        if JSONSerialization.isValidJSONObject(dict),
-            let data = try? JSONSerialization.data(withJSONObject: dict),
+        if JSONSerialization.isValidJSONObject(snapshot.values),
+            let data = try? JSONSerialization.data(withJSONObject: snapshot.values),
             let json = data.text
         {
             values = json
@@ -273,8 +261,32 @@ public class StatsigClient {
 
         return ExternalInitializeResponse(
             values: values,
-            evaluationDetails: store.cache.getEvaluationDetails()
+            evaluationDetails: snapshot.evaluationDetails
         )
+    }
+
+    /**
+     Returns the raw values that the SDK is using internally to provide gate/config/layer results
+     */
+    public func getInitializeResponseJson(
+        completion: @escaping (ExternalInitializeResponse) -> Void
+    ) {
+        store.getInitializeResponseSnapshot { valuesDict, evaluationDetails in
+            var values: String? = nil
+
+            if JSONSerialization.isValidJSONObject(valuesDict),
+                let data = try? JSONSerialization.data(withJSONObject: valuesDict),
+                let json = data.text
+            {
+                values = json
+            }
+
+            completion(
+                ExternalInitializeResponse(
+                    values: values,
+                    evaluationDetails: evaluationDetails
+                ))
+        }
     }
 }
 

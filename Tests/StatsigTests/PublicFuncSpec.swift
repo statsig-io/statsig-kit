@@ -117,7 +117,18 @@ final class PublicFuncSpec: BaseSpec {
                     // Misc
                     (t(Statsig.shutdown as () -> Void), t(client.shutdown as () -> Void)),
                     (t(Statsig.flush as () -> Void), t(client.flush as () -> Void)),
-                    (t(Statsig.getInitializeResponseJson), t(client.getInitializeResponseJson)),
+                    (
+                        t(Statsig.getInitializeResponseJson as () -> ExternalInitializeResponse),
+                        t(client.getInitializeResponseJson as () -> ExternalInitializeResponse)
+                    ),
+                    (
+                        t(
+                            Statsig.getInitializeResponseJson
+                                as (@escaping (ExternalInitializeResponse) -> Void) -> Void),
+                        t(
+                            client.getInitializeResponseJson
+                                as (@escaping (ExternalInitializeResponse) -> Void) -> Void)
+                    ),
                     (t(Statsig.updateUserWithResult), t(client.updateUserWithResult)),
                     (t(Statsig.getStableID), t(client.getStableID)),
                     (t(Statsig.isInitialized), t(client.isInitialized)),

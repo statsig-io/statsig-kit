@@ -275,6 +275,22 @@ struct StatsigValuesCache {
         )
     }
 
+    func getInitializeResponseValues() -> [String: Any?] {
+        [
+            InternalStore.gatesKey: gates,
+            InternalStore.configsKey: configs,
+            InternalStore.layerConfigsKey: layers,
+            InternalStore.paramStoresKey: paramStores,
+            InternalStore.hashUsedKey: hashUsed,
+            InternalStore.lcutKey: userCache[InternalStore.lcutKey],
+            InternalStore.derivedFieldsKey: userCache[InternalStore.derivedFieldsKey],
+            InternalStore.fullChecksum: userCache[InternalStore.fullChecksum],
+            InternalStore.sdkFlagsKey: userCache[InternalStore.sdkFlagsKey],
+            InternalStore.sdkConfigsKey: userCache[InternalStore.sdkConfigsKey],
+            "has_updates": true,
+        ]
+    }
+
     func getLastUpdatedTime(user: StatsigUser) -> UInt64 {
         if userCache[InternalStore.userHashKey] as? String == user.getFullUserHash() {
             let cachedValue = userCache[InternalStore.lcutKey]
