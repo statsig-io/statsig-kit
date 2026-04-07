@@ -26,17 +26,24 @@ fileprivate final class MockNetworkMetadataProvider: StatsigNetworkMetadataProvi
 }
 
 class EventLoggerSpec: BaseSpec {
+    private static func makeTaggedData(size: Int, marker: Int) -> Data {
+        var data = withUnsafeBytes(of: UInt32(marker).bigEndian, Array.init)
+        if size > data.count {
+            data.append(contentsOf: repeatElement(UInt8(marker % 255), count: size - data.count))
+        } else {
+            data = Array(data.prefix(size))
+        }
+        return Data(data)
+    }
 
     override func spec() {
         super.spec()
 
         describe("using EventLogger") {
             let sdkKey = "client-api-key"
+            let loggerSDKKey = sdkKey
             let opts = StatsigOptions()
-
-            let store = InternalStore(sdkKey, StatsigUser(userID: "jkw"), options: opts)
-
-            let ns = NetworkService(sdkKey: sdkKey, options: opts, store: store)
+            var ns: NetworkService!
             let user = StatsigUser(userID: "jkw")
             let event1 = Event(
                 user: user, name: "test_event1", value: 1, disableCurrentVCLogging: false)
@@ -44,9 +51,21 @@ class EventLoggerSpec: BaseSpec {
                 user: user, name: "test_event2", value: 2, disableCurrentVCLogging: false)
             let event3 = Event(
                 user: user, name: "test_event3", value: "3", disableCurrentVCLogging: false)
+
+            func makeNetworkService(options: StatsigOptions = opts) -> NetworkService {
+                let store = InternalStore(sdkKey, StatsigUser(userID: "jkw"), options: options)
+                return NetworkService(sdkKey: sdkKey, options: options, store: store)
+            }
+
+            beforeEach {
+                TestUtils.clearStorage()
+                ns = makeNetworkService()
+            }
+
             afterEach {
                 HTTPStubs.removeAllStubs()
-                EventLogger.deleteLocalStorage(sdkKey: "client-key")
+                EventLogger.deleteLocalStorage(sdkKey: sdkKey)
+                TestUtils.clearStorage()
             }
 
             it("should add events to internal queue and send once flush timer hits") {
@@ -63,8 +82,7 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 let logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns,
-                    userDefaults: MockDefaults())
+                    sdkKey: sdkKey, user: user, networkService: ns)
                 logger.start(flushInterval: 1)
                 logger.log(event1)
                 logger.log(event2)
@@ -103,8 +121,7 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 let logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns,
-                    userDefaults: MockDefaults())
+                    sdkKey: sdkKey, user: user, networkService: ns)
                 logger.maxEventQueueSize = 3
                 logger.log(event1)
                 logger.log(event2)
@@ -136,8 +153,7 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 let logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns,
-                    userDefaults: MockDefaults())
+                    sdkKey: sdkKey, user: user, networkService: ns)
                 logger.start(flushInterval: 10)
                 logger.maxEventQueueSize = 10
                 logger.log(event1)
@@ -162,10 +178,7 @@ class EventLoggerSpec: BaseSpec {
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 403, headers: nil)
                 }
 
-                let userDefaults = MockDefaults()
-                let logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
-                )
+                let logger = EventLogger(sdkKey: loggerSDKKey, user: user, networkService: ns)
                 logger.start(flushInterval: 10)
                 logger.log(event1)
                 logger.log(event2)
@@ -175,16 +188,21 @@ class EventLoggerSpec: BaseSpec {
 
                 expect(isPendingRequest).toEventually(beFalse())
                 expect(
-                    userDefaults.data[UserDefaultsKeys.getFailedEventsStorageKey("client-key")]
-                        as? [Data]
+                    readPersistedFailedRequests(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: loggerSDKKey
+                    )
                 )
-                .toEventuallyNot(beNil())
+                .toEventuallyNot(beEmpty())
 
                 isPendingRequest = true
 
                 let savedData =
-                    userDefaults.data[UserDefaultsKeys.getFailedEventsStorageKey("client-key")]
-                    as? [Data]
+                    readPersistedFailedRequests(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: loggerSDKKey
+                    )
+                    .map(\.body)
                 var resendData: [Data] = []
 
                 stub(condition: isHost(LogEventHost)) { request in
@@ -193,13 +211,13 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 let newLogger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                    sdkKey: sdkKey, user: user, networkService: ns
                 )
                 // initialize calls retryFailedRequests
                 newLogger.retryFailedRequests(forUser: user)
 
                 expect(resendData.isEmpty).toEventually(beFalse())
-                expect(savedData).toEventuallyNot(beNil())
+                expect(savedData).toNot(beEmpty())
                 expect(savedData).toEventually(equal(resendData))
             }
 
@@ -282,14 +300,12 @@ class EventLoggerSpec: BaseSpec {
                 }
             }
 
-            it("should limit file size save to user defaults") {
+            it("should drop oversized failed requests instead of persisting them") {
                 var logEndpointCalled = false
                 stub(condition: isHost(LogEventHost)) { req in
                     logEndpointCalled = true
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 500, headers: nil)
                 }
-
-                let userDefaults = MockDefaults()
 
                 var text = ""
                 for _ in 0...100000 {
@@ -297,7 +313,7 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 var logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                    sdkKey: sdkKey, user: user, networkService: ns
                 )
                 logger.start(flushInterval: 10)
                 logger.log(
@@ -305,19 +321,27 @@ class EventLoggerSpec: BaseSpec {
                         user: user, name: "a", value: 1, metadata: ["text": text],
                         disableCurrentVCLogging: false))
                 waitUntil { done in logger.stop(completion: done) }
-                let failedEventsStorageKey = logger.storageKey
 
                 // Fail to save because event is too big
                 expect(logEndpointCalled).to(equal(true))
-                expect(userDefaults.data[failedEventsStorageKey] as? [Data])
-                    .toEventuallyNot(beNil())
-                expect((userDefaults.data[failedEventsStorageKey] as? [Data])?.count).to(equal(0))
-
-                userDefaults.reset()
-
-                logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
+                expect(
+                    decodeFailedLogRequestStore(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: sdkKey
+                    )
                 )
+                .toEventuallyNot(beNil())
+                expect(
+                    readPersistedFailedRequests(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: sdkKey
+                    ).count
+                )
+                .to(equal(0))
+                expect(logger.failedRequestStore.pendingDroppedRequestSummary?.eventCount).to(
+                    equal(1))
+
+                logger = EventLogger(sdkKey: sdkKey, user: user, networkService: ns)
                 logger.retryFailedRequests(forUser: user)
                 logger.start(flushInterval: 2)
                 logger.log(
@@ -327,9 +351,20 @@ class EventLoggerSpec: BaseSpec {
                 waitUntil { done in logger.stop(completion: done) }
 
                 // Successfully save event
-                expect(userDefaults.data[failedEventsStorageKey] as? [Data])
-                    .toEventuallyNot(beNil())
-                expect((userDefaults.data[failedEventsStorageKey] as? [Data])?.count).to(equal(1))
+                expect(
+                    decodeFailedLogRequestStore(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: sdkKey
+                    )
+                )
+                .toEventuallyNot(beNil())
+                expect(
+                    readPersistedFailedRequests(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: sdkKey
+                    ).count
+                )
+                .to(equal(1))
             }
 
             describe("with threads") {
@@ -340,35 +375,65 @@ class EventLoggerSpec: BaseSpec {
                             error: NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled))
                     }
 
-                    let userDefaults = MockDefaults()
                     let logger = EventLogger(
-                        sdkKey: "client-key", user: user, networkService: ns,
-                        userDefaults: userDefaults)
+                        sdkKey: loggerSDKKey, user: user, networkService: ns)
 
                     expect(Thread.isMainThread).to(beTrue())
 
-                    logger.addFailedLogRequest([Data()])
-                    logger.saveFailedLogRequestsToDisk()
+                    logger.failedRequestStore.addRequests(
+                        from: [Data()],
+                        lastFailedAtMs: 0,
+                        requestEventCount: 0,
+                        persist: false
+                    )
+                    logger.failedRequestStore.persist()
 
-                    expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
-                    expect(userDefaults.array(forKey: logger.storageKey)?.count).to(equal(1))
+                    expect(
+                        decodeFailedLogRequestStore(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        )
+                    )
+                    .toEventuallyNot(beNil())
+                    expect(
+                        readPersistedFailedRequests(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        ).count
+                    )
+                    .to(equal(1))
                 }
 
                 it("should save to disk from a background thread") {
-                    let userDefaults = MockDefaults()
                     let logger = EventLogger(
-                        sdkKey: "client-key", user: user, networkService: ns,
-                        userDefaults: userDefaults)
+                        sdkKey: loggerSDKKey, user: user, networkService: ns)
 
                     DispatchQueue.global().async {
                         expect(Thread.isMainThread).to(beFalse())
 
-                        logger.addFailedLogRequest([Data()])
-                        logger.saveFailedLogRequestsToDisk()
+                        logger.failedRequestStore.addRequests(
+                            from: [Data()],
+                            lastFailedAtMs: 0,
+                            requestEventCount: 0,
+                            persist: false
+                        )
+                        logger.failedRequestStore.persist()
                     }
 
-                    expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
-                    expect(userDefaults.array(forKey: logger.storageKey)?.count).to(equal(1))
+                    expect(
+                        decodeFailedLogRequestStore(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        )
+                    )
+                    .toEventuallyNot(beNil())
+                    expect(
+                        readPersistedFailedRequests(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        ).count
+                    )
+                    .to(equal(1))
                 }
 
                 it("should handle concurrent saves without deadlocks or corruption") {
@@ -380,10 +445,8 @@ class EventLoggerSpec: BaseSpec {
                         queues.append(DispatchQueue(label: "com.statsig.task_\(i)"))
                     }
 
-                    let userDefaults = MockDefaults()
                     let logger = EventLogger(
-                        sdkKey: "client-key", user: user, networkService: ns,
-                        userDefaults: userDefaults)
+                        sdkKey: loggerSDKKey, user: user, networkService: ns)
 
                     var i = 0
 
@@ -391,22 +454,41 @@ class EventLoggerSpec: BaseSpec {
                         let queue = queues[j % numberOfTasks]
 
                         queue.async {
-                            logger.addFailedLogRequest([Data([UInt8(j % 256)])])
-                            logger.saveFailedLogRequestsToDisk()
+                            logger.failedRequestStore.addRequests(
+                                from: [Data([UInt8(j % 256)])],
+                                lastFailedAtMs: 0,
+                                requestEventCount: 0,
+                                persist: false
+                            )
+                            logger.failedRequestStore.persist()
                             i += 1
                         }
                     }
 
                     expect(i).toEventually(equal(iterations), timeout: .seconds(5))
-                    expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
-                    expect(userDefaults.array(forKey: logger.storageKey)?.count)
-                        .to(equal(iterations))
+                    expect(
+                        decodeFailedLogRequestStore(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        )
+                    )
+                    .toEventuallyNot(beNil())
+                    expect(
+                        readPersistedFailedRequests(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        ).count
+                    )
+                    .to(equal(iterations))
 
                     var counters = Array(repeating: UInt8(0), count: 256)
 
-                    let requests = userDefaults.array(forKey: logger.storageKey) as? [Data]
+                    let requests = readPersistedFailedRequests(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: loggerSDKKey
+                    ).map(\.body)
 
-                    for req in requests ?? [] {
+                    for req in requests {
                         if let firstByte = req.first {
                             counters[Int(firstByte)] += 1
                         }
@@ -418,8 +500,8 @@ class EventLoggerSpec: BaseSpec {
                 }
 
                 it("should not save to disk while addFailedLogRequest is running") {
-                    let numberOfRequest = 1005
-                    let requestSize = 1000
+                    let numberOfRequest = 250
+                    let requestSize = 4000
 
                     let addQueue = DispatchQueue(
                         label: "com.statsig.add_failed_requests", qos: .userInitiated,
@@ -428,104 +510,166 @@ class EventLoggerSpec: BaseSpec {
                         label: "com.statsig.save_failed_requests", qos: .userInitiated,
                         attributes: .concurrent)
 
-                    let userDefaults = MockDefaults()
                     let logger = EventLogger(
-                        sdkKey: "client-key", user: user, networkService: ns,
-                        userDefaults: userDefaults)
+                        sdkKey: loggerSDKKey, user: user, networkService: ns)
                     logger.retryFailedRequests(forUser: user)
 
                     saveQueue.async {
                         // Wait for the addFailedLogRequest to start adding requests to the queue
-                        while logger.failedRequestQueue.count == 0 {
+                        while logger.failedRequestStore.requests.count == 0 {
                             Thread.sleep(forTimeInterval: 0.001)
                         }
-                        while logger.failedRequestLock.try() {
-                            logger.failedRequestLock.unlock()
+                        while logger.failedRequestStore.lock.try() {
+                            logger.failedRequestStore.lock.unlock()
                             Thread.sleep(forTimeInterval: 0.001)
                         }
                         // Once we fail to get the lock, try saving to disk
-                        logger.saveFailedLogRequestsToDisk()
+                        logger.failedRequestStore.persist()
                     }
 
                     addQueue.async {
                         // Continuously add requests to ensure we have the lock
-                        while userDefaults.array(forKey: logger.storageKey) == nil {
-                            let requests = (0..<numberOfRequest).map { _ in
-                                Data(repeating: 0, count: requestSize)
+                        while decodeFailedLogRequestStore(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        ) == nil {
+                            let requests = (0..<numberOfRequest).map { index in
+                                Self.makeTaggedData(size: requestSize, marker: index)
                             }
-                            logger.addFailedLogRequest(requests)
+                            logger.failedRequestStore.addRequests(
+                                from: requests,
+                                lastFailedAtMs: 0,
+                                requestEventCount: 0,
+                                persist: false
+                            )
                             // Test that the queue is not empty
-                            expect(logger.failedRequestQueue.count).to(beGreaterThan(0))
-                            // Test that the requests didn't fit the queue
-                            expect(logger.failedRequestQueue.count).to(beLessThan(numberOfRequest))
+                            expect(logger.failedRequestStore.requests.count).to(beGreaterThan(0))
+                            let totalBodyBytes = logger.failedRequestStore.requests.reduce(0) {
+                                $0 + $1.body.count
+                            }
+                            expect(totalBodyBytes).to(
+                                beLessThanOrEqualTo(
+                                    FailedLogRequestStore.defaultMaxStoreSizeBytes))
                             Thread.sleep(forTimeInterval: 0.001)
                         }
                     }
 
-                    expect(userDefaults.array(forKey: logger.storageKey)).toEventuallyNot(beNil())
-                    expect(userDefaults.array(forKey: logger.storageKey)?.count)
-                        .to(beGreaterThan(0))
+                    expect(
+                        decodeFailedLogRequestStore(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        )
+                    )
+                    .toEventuallyNot(beNil(), timeout: .seconds(5))
+                    expect(
+                        readPersistedFailedRequests(
+                            storageAdapter: logger.failedRequestStore.storageAdapter,
+                            sdkKey: loggerSDKKey
+                        ).count
+                    )
+                    .to(beGreaterThan(0))
                 }
             }
 
-            describe("addFailedLogRequest") {
-                var logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns,
-                    userDefaults: MockDefaults())
-                let limit = logger.MAX_SAVED_LOG_REQUEST_SIZE
-
-                let bigdata = Data(count: limit + 100)
-                let mediumdata = Data(count: limit / 2 + 100)
-                let smalldata = Data(count: 100)
+            describe("dropped request summary") {
+                var logger: EventLogger!
 
                 beforeEach {
-                    logger = EventLogger(
-                        sdkKey: "client-key", user: user, networkService: ns,
-                        userDefaults: MockDefaults())
+                    logger = EventLogger(sdkKey: loggerSDKKey, user: user, networkService: ns)
                 }
 
-                it("accepts data under the limit") {
-                    logger.addFailedLogRequest([smalldata, smalldata, smalldata])
-                    expect(logger.failedRequestQueue.count).to(equal(3))
-                }
-                it("clears first queue items until it reaches the limit") {
-                    logger.addFailedLogRequest([smalldata, smalldata, smalldata])
-                    logger.addFailedLogRequest([mediumdata])
-                    logger.addFailedLogRequest([smalldata, smalldata, smalldata, mediumdata])
-                    expect(logger.failedRequestQueue.count).to(equal(4))
-                }
-                it("can clear the first item of the queue") {
-                    logger.addFailedLogRequest([mediumdata])
-                    logger.addFailedLogRequest([smalldata, smalldata, smalldata, mediumdata])
-                    expect(logger.failedRequestQueue.count).to(equal(4))
-                }
-                it("can keep the last item of the queue") {
-                    logger.addFailedLogRequest([mediumdata, smalldata, smalldata])
-                    logger.addFailedLogRequest([mediumdata, mediumdata])
-                    expect(logger.failedRequestQueue.count).to(equal(1))
-                }
-                it("keeps part of the data array if it's above the limit") {
-                    logger.addFailedLogRequest([
-                        smalldata, mediumdata, smalldata, smalldata, smalldata, mediumdata,
+                it("flushes dropped request summaries as a count event") {
+                    var requestEvents: [[String: Any]]?
+                    stub(condition: isHost(LogEventHost)) { request in
+                        let requestBody =
+                            try! JSONSerialization.jsonObject(
+                                with: request.ohhttpStubs_httpBody!,
+                                options: []) as! [String: Any]
+                        requestEvents = requestBody["events"] as? [[String: Any]]
+                        return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
+                    }
+
+                    logger.failedRequestStore.addRequests([
+                        FailedLogRequest(
+                            body: Data(
+                                count: FailedLogRequestStore.defaultMaxStoreSizeBytes + 100),
+                            lastFailedAtMs: 456,
+                            requestEventCount: 9
+                        )
                     ])
-                    expect(logger.failedRequestQueue.count).to(equal(4))
+                    logger.failedRequestStore.persist()
+
+                    waitUntil { done in logger.flush(completion: done) }
+
+                    let droppedEvent = requestEvents?.first {
+                        $0["eventName"] as? String == "dropped_log_event.count"
+                    }
+
+                    expect(droppedEvent).toNot(beNil())
+                    expect((droppedEvent?["value"] as? NSNumber)?.doubleValue).to(equal(9))
+                    expect(Time.parse(droppedEvent?["time"])).to(equal(456))
+                    expect(droppedEvent?["metadata"]).to(beNil())
                 }
-                it("clears the entire queue if the last item is above the limit") {
-                    logger.addFailedLogRequest([smalldata, smalldata, smalldata])
-                    logger.addFailedLogRequest([mediumdata])
-                    logger.addFailedLogRequest([bigdata])
-                    expect(logger.failedRequestQueue.count).to(equal(0))
+
+                it(
+                    "restores pending dropped request summaries and accounts for current events when encoding fails"
+                ) {
+                    logger.failedRequestStore.restorePendingDroppedRequestSummary(
+                        DroppedLogRequestSummary(eventCount: 9, lastFailedAtMs: 456)
+                    )
+                    logger.log(
+                        Event(
+                            user: user,
+                            name: "bad_event",
+                            value: Date(),
+                            disableCurrentVCLogging: true
+                        ))
+
+                    waitUntil { done in logger.flush(completion: done) }
+
+                    expect(logger.failedRequestStore.requests).to(beEmpty())
+                    expect(logger.failedRequestStore.pendingDroppedRequestSummary?.eventCount).to(
+                        equal(10))
+                    expect(logger.failedRequestStore.pendingDroppedRequestSummary?.lastFailedAtMs)
+                        .to(beGreaterThanOrEqualTo(456))
+                }
+
+                it("counts pending dropped request summaries when persisting a new failed request")
+                {
+                    let disabledOptions = StatsigOptions(eventLoggingEnabled: false)
+                    let disabledNetworkService = makeNetworkService(options: disabledOptions)
+                    logger = EventLogger(
+                        sdkKey: loggerSDKKey,
+                        user: user,
+                        networkService: disabledNetworkService
+                    )
+                    logger.failedRequestStore.restorePendingDroppedRequestSummary(
+                        DroppedLogRequestSummary(eventCount: 9, lastFailedAtMs: 456)
+                    )
+                    logger.log(
+                        Event(
+                            user: user,
+                            name: "new_event",
+                            disableCurrentVCLogging: true
+                        ))
+
+                    waitUntil { done in logger.flush(completion: done) }
+
+                    expect(logger.failedRequestStore.requests).to(haveCount(1))
+                    expect(logger.failedRequestStore.requests.first?.requestEventCount).to(
+                        equal(10))
+                    expect(logger.failedRequestStore.pendingDroppedRequestSummary).to(beNil())
                 }
             }
 
             describe("with pending events") {
-                let userDefaults = MockDefaults()
-                var logger = EventLogger(
-                    sdkKey: "client-key", user: user, networkService: ns, userDefaults: userDefaults
-                )
+                var logger: EventLogger!
 
                 func readRetryQueue() -> [Data] {
-                    return userDefaults.array(forKey: logger.storageKey) as? [Data] ?? []
+                    return readPersistedFailedRequests(
+                        storageAdapter: logger.failedRequestStore.storageAdapter,
+                        sdkKey: loggerSDKKey
+                    ).map(\.body)
                 }
 
                 func flushAndWait(persistPendingEvents: Bool = false) {
@@ -538,21 +682,28 @@ class EventLoggerSpec: BaseSpec {
                     }
                 }
 
+                beforeEach {
+                    logger = EventLogger(sdkKey: loggerSDKKey, user: user, networkService: ns)
+                }
+
                 afterEach {
-                    userDefaults.reset()
                     logger.stop()
-                    userDefaults.removeObject(
-                        forKey: UserDefaultsKeys.getFailedEventsStorageKey(sdkKey))
-                    logger = EventLogger(
-                        sdkKey: "client-key", user: user, networkService: ns,
-                        userDefaults: userDefaults)
+                    logger = EventLogger(sdkKey: loggerSDKKey, user: user, networkService: ns)
                 }
 
                 it("should persist pending events while the request is in progress") {
                     var dataDuringRequest: [Data]?
 
                     stub(condition: isHost(LogEventHost)) { request in
-                        dataDuringRequest = readRetryQueue()
+                        let timeout = Date().addingTimeInterval(0.5)
+                        repeat {
+                            dataDuringRequest = readRetryQueue()
+                            if dataDuringRequest?.isEmpty == false {
+                                break
+                            }
+                            Thread.sleep(forTimeInterval: 0.001)
+                        } while Date() < timeout
+
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
 
@@ -604,11 +755,25 @@ class EventLoggerSpec: BaseSpec {
 
                     // Add something to the retry queue
                     let mockFailedRequests = [Data(count: 16), Data(count: 12), Data(count: 24)]
-                    logger.addFailedLogRequest(mockFailedRequests)
-                    logger.saveFailedLogRequestsToDisk()
+                    logger.failedRequestStore.addRequests(
+                        from: mockFailedRequests,
+                        lastFailedAtMs: 0,
+                        requestEventCount: 0,
+                        persist: false
+                    )
+                    logger.failedRequestStore.persist()
 
                     stub(condition: isHost(LogEventHost)) { request in
-                        dataDuringRequest = readRetryQueue()
+                        let expectedCount = mockFailedRequests.count + 1
+                        let timeout = Date().addingTimeInterval(0.5)
+                        repeat {
+                            dataDuringRequest = readRetryQueue()
+                            if dataDuringRequest?.count == expectedCount {
+                                break
+                            }
+                            Thread.sleep(forTimeInterval: 0.001)
+                        } while Date() < timeout
+
                         return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                     }
 

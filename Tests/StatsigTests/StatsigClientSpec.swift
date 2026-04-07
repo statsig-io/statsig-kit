@@ -84,6 +84,8 @@ class StatsigClientSpec: BaseSpec {
             var requestUser: [String: Any]?
 
             beforeEach {
+                TestUtils.clearStorage()
+                BaseSpec.resetUserDefaults()
                 events = []
                 requestUser = nil
                 stub(condition: isPath("/v1/initialize")) { _ in
@@ -103,6 +105,9 @@ class StatsigClientSpec: BaseSpec {
 
             afterEach {
                 HTTPStubs.removeAllStubs()
+                Statsig.shutdown()
+                TestUtils.clearStorage()
+                BaseSpec.resetUserDefaults()
             }
 
             it("logs events using the overridden user while preserving the current user") {

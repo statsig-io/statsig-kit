@@ -3,9 +3,11 @@ import Foundation
 fileprivate let FileBasedUserDefaultsQueue = "com.Statsig.FileBasedUserDefaults"
 
 class FileBasedUserDefaults: DefaultsLike {
-    private let cacheURL = FileManager
+    internal static let cacheURL = FileManager
         .default.urls(for: .cachesDirectory, in: .userDomainMask)
         .first?.appendingPathComponent("statsig-cache-data")
+
+    private let cacheURL = FileBasedUserDefaults.cacheURL
 
     private var dict: AtomicDictionary<Any?> = AtomicDictionary(label: FileBasedUserDefaultsQueue)
 
@@ -16,6 +18,14 @@ class FileBasedUserDefaults: DefaultsLike {
 
     init() {
         readFromDisk()
+    }
+
+    internal static func clearLocalStorage() {
+        guard let cacheURL = cacheURL else {
+            return
+        }
+
+        try? FileManager.default.removeItem(at: cacheURL)
     }
 
     func array(forKey defaultName: String) -> [Any]? {

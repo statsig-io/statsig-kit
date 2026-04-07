@@ -26,9 +26,10 @@ class Event {
         metadata: [String: Any]? = nil,
         secondaryExposures: [[String: String]]? = nil,
         statsigMetadata: [String: String]? = nil,
+        time: UInt64? = nil,
         disableCurrentVCLogging: Bool
     ) {
-        self.time = Time.now()
+        self.time = time ?? Time.now()
         self.userData = user?.toDictionary(forLogging: true) ?? [:]
         self.name = name
         self.value = value

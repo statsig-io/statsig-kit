@@ -19,21 +19,11 @@ func skipFrame() {
 class TestUtils {
     static func clearStorage(rootDir: URL? = FileStorageAdapter.defaultRootDirectory) {
         // User Defaults
-        StatsigUserDefaults.defaults.removeObject(
-            forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
-        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
-        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
-        StatsigUserDefaults.defaults.removeObject(
-            forKey: UserDefaultsKeys.DEPRECATED_stickyUserExperimentsKey)
-        StatsigUserDefaults.defaults.removeObject(
-            forKey: UserDefaultsKeys.stickyDeviceExperimentsKey)
-        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.networkFallbackInfoKey)
-        StatsigUserDefaults.defaults.removeObject(
-            forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
-        StatsigUserDefaults.defaults.removeObject(forKey: UserDefaultsKeys.localOverridesKey)
-        StatsigUserDefaults.defaults.removeObject(
-            forKey: UserDefaultsKeys.storageMigrationStatusKey)
+        for key in StatsigUserDefaults.defaults.keys() where key.starts(with: "com.Statsig") {
+            StatsigUserDefaults.defaults.removeObject(forKey: key)
+        }
         _ = StatsigUserDefaults.defaults.synchronize()
+        FileBasedUserDefaults.clearLocalStorage()
 
         // Storage Service
         if let rootDir = rootDir {
@@ -41,6 +31,7 @@ class TestUtils {
         }
 
         UserPayloadStore.clearCachedInstances()
+        FailedLogRequestStore.clearCachedInstances()
         StorageService.clearCachedInstances()
         StorageServiceMigrationStatus.resetState()
     }

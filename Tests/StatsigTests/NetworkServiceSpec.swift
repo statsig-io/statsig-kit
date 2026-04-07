@@ -161,7 +161,7 @@ class NetworkServiceSpec: BaseSpec {
                 var actualRequestHttpBody: [String: Any]?
 
                 var actualRequestData: [Data] = []
-                var returnedRequestData: [Data] = []
+                var returnedRequestData: [FailedLogRequest] = []
 
                 stub(condition: isHost(LogEventHost)) { request in
                     actualRequest = request
@@ -177,7 +177,7 @@ class NetworkServiceSpec: BaseSpec {
                 let store = InternalStore(sdkKey, user, options: opts)
                 let ns = NetworkService(sdkKey: sdkKey, options: opts, store: store)
 
-                var data = [Data]()
+                var requests = [FailedLogRequest]()
                 for index in 1...10 {
                     let params: [String: Any] = [
                         "user": StatsigUser(userID: String(index)).toDictionary(forLogging: true),
@@ -189,12 +189,18 @@ class NetworkServiceSpec: BaseSpec {
                         ],
                     ]
                     let d = try! JSONSerialization.data(withJSONObject: params)
-                    data.append(d)
+                    requests.append(
+                        FailedLogRequest(
+                            body: d,
+                            lastFailedAtMs: UInt64(index),
+                            requestEventCount: 1
+                        )
+                    )
                 }
 
                 waitUntil { done in
-                    ns.sendRequestsWithData(data, forUser: user) { failedData in
-                        returnedRequestData = failedData!
+                    ns.sendRequestsWithData(requests, forUser: user) { failedRequests in
+                        returnedRequestData = failedRequests
                         done()
                     }
                 }
@@ -206,6 +212,7 @@ class NetworkServiceSpec: BaseSpec {
                 expect(actualRequest?.url?.absoluteString).toEventually(
                     equal("https://prodregistryv2.org/v1/rgstr"))
                 expect(actualRequestData.count).toEventually(equal(returnedRequestData.count))
+                expect(returnedRequestData.map(\.body)).toEventually(equal(requests.map(\.body)))
             }
 
             it("does not retry requests after timeout") {

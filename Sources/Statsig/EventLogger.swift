@@ -5,11 +5,9 @@ class EventLogger {
     private static let nonExposedChecksEvent = "non_exposed_checks"
 
     let networkService: NetworkService
-    let userDefaults: DefaultsLike
+    let failedRequestStore: FailedLogRequestStore
 
     let logQueue = DispatchQueue(label: eventQueueLabel, qos: .userInitiated)
-    let failedRequestLock = NSLock()
-    let storageKey: String
 
     // Test utils
     var maxEventQueueSize: Int = 50
@@ -19,9 +17,6 @@ class EventLogger {
     private var nonExposedChecks: [String: Int]
     private var exposuresDedupeDict = [DedupeKey: TimeInterval]()
 
-    // Locked by failedRequestLock
-    var failedRequestQueue: [Data]
-
     // Only on main thread
     var flushTimer: Timer?
 
@@ -30,12 +25,6 @@ class EventLogger {
     @LockedValue
     private var loggedErrorMessage: Set<String>
 
-    #if os(tvOS)
-    let MAX_SAVED_LOG_REQUEST_SIZE = 100_000  //100 KB
-    #else
-    let MAX_SAVED_LOG_REQUEST_SIZE = 1_000_000  //1 MB
-    #endif
-
     init(
         sdkKey: String,
         user: StatsigUser,
@@ -43,12 +32,14 @@ class EventLogger {
         userDefaults: DefaultsLike = StatsigUserDefaults.defaults
     ) {
         self.events = [Event]()
-        self.failedRequestQueue = [Data]()
         self.user = user
         self.networkService = networkService
         self.loggedErrorMessage = Set<String>()
-        self.userDefaults = userDefaults
-        self.storageKey = UserDefaultsKeys.getFailedEventsStorageKey(sdkKey)
+        self.failedRequestStore = FailedLogRequestStore.forSDKKey(
+            sdkKey,
+            storageProvider: networkService.statsigOptions.storageProvider,
+            userDefaults: userDefaults
+        )
         self.nonExposedChecks = [String: Int]()
     }
 
@@ -58,16 +49,16 @@ class EventLogger {
                 let self = self,
                 self.networkService.statsigOptions.eventLoggingEnabled
             else { return }
-            if let failedRequestsCache = userDefaults.array(forKey: storageKey) as? [Data],
-                !failedRequestsCache.isEmpty
-            {
-                userDefaults.removeObject(forKey: storageKey)
 
-                networkService.sendRequestsWithData(failedRequestsCache, forUser: user) {
-                    [weak self] failedRequestsData in
-                    guard let failedRequestsData = failedRequestsData else { return }
-                    self?.addFailedLogRequest(failedRequestsData)
-                    self?.saveFailedLogRequestsToDisk()
+            let requestsToRetry = self.failedRequestStore.takeRequestsForRetry()
+            guard !requestsToRetry.isEmpty else { return }
+
+            let failedRequestStore = self.failedRequestStore
+            let logQueue = self.logQueue
+            self.networkService.sendRequestsWithData(requestsToRetry, forUser: user) {
+                failedRequests in
+                logQueue.async {
+                    failedRequestStore.addRequests(failedRequests)
                 }
             }
         }
@@ -135,22 +126,12 @@ class EventLogger {
         }
     }
 
-    func removePendingEventsData(_ requestData: Data) {
-        failedRequestLock.withLock {
-            for (i, req) in failedRequestQueue.enumerated() {
-                if req == requestData {
-                    failedRequestQueue.remove(at: i)
-                    return
-                }
-            }
-        }
-    }
-
     private func flushInternal(
         isShuttingDown: Bool = false, persistPendingEvents: Bool = false,
         completion: (() -> Void)? = nil
     ) {
-        if events.isEmpty {
+        let pendingDroppedRequestSummary = failedRequestStore.takePendingDroppedRequestSummary()
+        if events.isEmpty && pendingDroppedRequestSummary == nil {
             completion?()
             return
         }
@@ -158,30 +139,47 @@ class EventLogger {
         let user = self.user
         let oldEvents = events
         events = []
-
-        if !networkService.statsigOptions.eventLoggingEnabled {
-            addFailedLogEvents(oldEvents, forUser: user)
-            saveFailedLogRequestsToDisk()
-            completion?()
-            return
+        let requestEvents: [Event]
+        if let pendingDroppedRequestSummary {
+            requestEvents = oldEvents + [pendingDroppedRequestSummary.makeEvent()]
+        } else {
+            requestEvents = oldEvents
         }
 
         let capturedSelf = isShuttingDown ? self : nil
 
         let requestData: Data
+        let requestEventCount = oldEvents.count + (pendingDroppedRequestSummary?.eventCount ?? 0)
         do {
             requestData = try networkService.prepareEventRequestBody(
-                forUser: user, events: oldEvents
+                forUser: user, events: requestEvents
             ).get()
         } catch {
+            restoreDroppedRequestSummary(
+                pendingDroppedRequestSummary,
+                droppedEventCount: oldEvents.count
+            )
             logErrorMessageOnce(error.localizedDescription)
             completion?()
             return
         }
 
+        if !networkService.statsigOptions.eventLoggingEnabled {
+            failedRequestStore.addRequest(
+                requestData,
+                lastFailedAtMs: Time.now(),
+                requestEventCount: requestEventCount
+            )
+            completion?()
+            return
+        }
+
         if persistPendingEvents {
-            self.addSingleFailedLogRequest(requestData)
-            self.saveFailedLogRequestsToDisk()
+            failedRequestStore.addRequest(
+                requestData,
+                lastFailedAtMs: Time.now(),
+                requestEventCount: requestEventCount
+            )
         }
 
         networkService.sendEvents(forUser: user, uncompressedBody: requestData) {
@@ -191,19 +189,42 @@ class EventLogger {
                 return
             }
 
-            if let errorMessage = errorMessage {
+            self.logQueue.async {
+                let queuedRequest =
+                    persistPendingEvents
+                    ? self.failedRequestStore.takeRequest(requestData)
+                    : nil
 
-                self.addSingleFailedLogRequest(requestData)
-                self.saveFailedLogRequestsToDisk()
+                if let errorMessage = errorMessage {
+                    self.failedRequestStore.addOrUpdateRequest(
+                        queuedRequest?.body ?? requestData,
+                        lastFailedAtMs: Time.now(),
+                        requestEventCount: queuedRequest?.requestEventCount ?? requestEventCount
+                    )
+                    self.logErrorMessageOnce(errorMessage)
+                }
 
-                self.logErrorMessageOnce(errorMessage)
-            } else if persistPendingEvents {
-                self.removePendingEventsData(requestData)
-                self.saveFailedLogRequestsToDisk()
+                DispatchQueue.global().async {
+                    completion?()
+                }
             }
-
-            completion?()
         }
+    }
+
+    private func restoreDroppedRequestSummary(
+        _ pendingDroppedRequestSummary: DroppedLogRequestSummary?,
+        droppedEventCount: Int
+    ) {
+        guard pendingDroppedRequestSummary != nil || droppedEventCount > 0 else {
+            return
+        }
+
+        var restoredSummary =
+            pendingDroppedRequestSummary
+            ?? DroppedLogRequestSummary(eventCount: 0, lastFailedAtMs: 0)
+        restoredSummary.eventCount += droppedEventCount
+        restoredSummary.lastFailedAtMs = max(restoredSummary.lastFailedAtMs, Time.now())
+        failedRequestStore.restorePendingDroppedRequestSummary(restoredSummary)
     }
 
     func logErrorMessageOnce(_ errorMessage: String, user: StatsigUser? = nil) {
@@ -267,58 +288,8 @@ class EventLogger {
         self.nonExposedChecks = [String: Int]()
     }
 
-    private func addFailedLogEvents(_ events: [Event], forUser user: StatsigUser) {
-        let bodyResult = networkService.prepareEventRequestBody(forUser: user, events: events)
-        do {
-            addSingleFailedLogRequest(try bodyResult.get())
-        } catch {
-            logErrorMessageOnce(error.localizedDescription, user: user)
-        }
-    }
-
-    private func addSingleFailedLogRequest(_ requestData: Data?) {
-        guard let data = requestData else { return }
-
-        addFailedLogRequest([data])
-    }
-
-    internal func addFailedLogRequest(_ requestData: [Data]) {
-        failedRequestLock.lock()
-        defer { failedRequestLock.unlock() }
-
-        failedRequestQueue += requestData
-
-        // Find the cut-off point where total size exceeds the maximum
-        var cutoffIndex: Int? = nil
-        var cumulativeSize: Int = 0
-        for (index, data) in failedRequestQueue.enumerated().reversed() {
-            cumulativeSize += data.count
-            if cumulativeSize > MAX_SAVED_LOG_REQUEST_SIZE {
-                cutoffIndex = index
-                break
-            }
-        }
-
-        // If we exceeded the size limit, remove older entries
-        if let cutoffIndex = cutoffIndex {
-            failedRequestQueue.removeSubrange(0...cutoffIndex)
-        }
-    }
-
-    internal func saveFailedLogRequestsToDisk() {
-        // `self` is strongly captured explictly to ensure we save to disk
-        ensureMainThread { [self] in
-            failedRequestLock.lock()
-            defer { failedRequestLock.unlock() }
-
-            userDefaults.setValue(
-                failedRequestQueue,
-                forKey: storageKey
-            )
-        }
-    }
-
     static func deleteLocalStorage(sdkKey: String) {
+        FailedLogRequestStore.deleteLocalStorage(sdkKey: sdkKey)
         StatsigUserDefaults.defaults.removeObject(
             forKey: UserDefaultsKeys.getFailedEventsStorageKey(sdkKey))
     }

@@ -328,26 +328,30 @@ class NetworkService {
     }
 
     func sendRequestsWithData(
-        _ dataArray: [Data],
+        _ requests: [FailedLogRequest],
         forUser user: StatsigUser,
-        completion: @escaping ((_ failedRequestsData: [Data]?) -> Void)
+        completion: @escaping ((_ failedRequests: [FailedLogRequest]) -> Void)
     ) {
-        var failedRequests: [Data] = []
+        var failedRequests: [FailedLogRequest?] = Array(repeating: nil, count: requests.count)
+        let failedRequestsLock = NSLock()
         let dispatchGroup = DispatchGroup()
-        for data in dataArray {
+        for (index, request) in requests.enumerated() {
             dispatchGroup.enter()
-            let compressed = tryCompress(body: data, forUser: user)
+            let compressed = tryCompress(body: request.body, forUser: user)
             makeAndSendRequest(
                 .logEvent, body: compressed.body, compression: compressed.compression
             ) { _, response, error in
                 if error != nil || response?.isOK != true {
-                    failedRequests.append(data)
+                    failedRequestsLock.withLock {
+                        failedRequests[index] =
+                            request.withLastFailedAtMs(Time.now())
+                    }
                 }
                 dispatchGroup.leave()
             }
         }
         dispatchGroup.notify(queue: .main) {
-            completion(failedRequests)
+            completion(failedRequests.compactMap { $0 })
         }
     }
 
