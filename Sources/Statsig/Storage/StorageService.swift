@@ -5,6 +5,9 @@ final class StorageService {
     private static let servicesLock = NSLock()
     private static var servicesBySDKKey: [String: StorageService] = [:]
 
+    static let persistenceQueue = DispatchQueue(
+        label: "com.statsig.persistence", attributes: .concurrent)
+
     let sdkKey: String
     let userPayload: UserPayloadStore
 

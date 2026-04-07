@@ -77,7 +77,6 @@ final class UserPayloadIndexStore {
     let sdkKey: String
     let indexFileKey: [String]
     private let storageAdapter: StorageAdapter
-    private let indexPersistenceQueue: DispatchQueue
 
     private let indexLock = NSLock()
     private var index: UserPayloadIndex
@@ -90,11 +89,6 @@ final class UserPayloadIndexStore {
         self.indexFileKey = [sdkKey, USER_PAYLOAD_DIRNAME, USER_PAYLOAD_INDEX_FILENAME]
         self.storageAdapter = storageAdapter
         self.index = Self.readIndex(sdkKey: sdkKey, storageAdapter: storageAdapter).index
-        self.indexPersistenceQueue = DispatchQueue(
-            label:
-                "com.statsig.userPayload.index.persistence.\(String(sdkKey.dropFirst(7).prefix(4)))",
-            qos: .utility
-        )
     }
 
     // MARK: Cache Key Mapping
@@ -184,7 +178,7 @@ final class UserPayloadIndexStore {
         }
         let storageAdapter = self.storageAdapter
         let indexFileKey = self.indexFileKey
-        indexPersistenceQueue.async {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             storageAdapter.write(indexData, indexFileKey, options: .createFolderIfNeeded)
         }
     }
@@ -198,7 +192,10 @@ final class UserPayloadIndexStore {
         let key = UserPayloadStore.sdkDirectoryKey(sdkKey: sdkKey) + [USER_PAYLOAD_INDEX_FILENAME]
 
         let data: Data
-        switch storageAdapter.read(key) {
+        let readResult = StorageService.persistenceQueue.sync {
+            storageAdapter.read(key)
+        }
+        switch readResult {
         case .data(let readData):
             data = readData
         case .notFound:
@@ -213,15 +210,13 @@ final class UserPayloadIndexStore {
         return (decoded, true)
     }
 
-    // FIXME: writeForMigration uses a different queue than persistIndexNow.
     public static func writeForMigration(
         key: [String],
         index: UserPayloadIndex,
-        storageAdapter: StorageAdapter,
-        persistenceQueue: DispatchQueue
+        storageAdapter: StorageAdapter
     ) {
         guard let data = index.encode(), !key.isEmpty else { return }
-        persistenceQueue.async {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             storageAdapter.write(data, key)
         }
     }

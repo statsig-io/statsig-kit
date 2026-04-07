@@ -12,11 +12,6 @@ final class UserPayloadStore {
 
     private static let storesLock = NSLock()
     private static var storesBySDKKey: [String: UserPayloadStore] = [:]
-    private static var migrationPersistenceQueue = DispatchQueue(
-        label: "com.statsig.userPayload.persistence.migration",
-        qos: .utility,
-        attributes: .concurrent
-    )
 
     static func forSDKKey(
         _ sdkKey: String,
@@ -42,7 +37,6 @@ final class UserPayloadStore {
     let sdkKey: String
     let storageAdapter: StorageAdapter
 
-    private let persistenceQueue: DispatchQueue
     private let evictionQueue: DispatchQueue
     private let indexStore: UserPayloadIndexStore
     private let directoryKey: [String]
@@ -54,9 +48,6 @@ final class UserPayloadStore {
         self.storageAdapter = storageAdapter
         self.directoryKey = Self.sdkDirectoryKey(sdkKey: sdkKey)
         let sdkKeyPrefix = String(sdkKey.dropFirst(7).prefix(4))
-        self.persistenceQueue = DispatchQueue(
-            label: "com.statsig.userPayload.persistence.\(sdkKeyPrefix)",
-            qos: .utility)
         self.evictionQueue = DispatchQueue(
             label: "com.statsig.userPayload.eviction.\(sdkKeyPrefix)",
             qos: .utility)
@@ -110,7 +101,7 @@ final class UserPayloadStore {
         )
 
         // Persist payload
-        persistenceQueue.async {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             storageAdapter.write(data, payloadKey, options: .createFolderIfNeeded)
         }
 
@@ -133,7 +124,7 @@ final class UserPayloadStore {
             return
         }
 
-        migrationPersistenceQueue.async {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             storageAdapter.write(data, key, options: [.withoutOverwriting])
         }
     }
@@ -242,7 +233,10 @@ final class UserPayloadStore {
         }
 
         let data: Data
-        switch storageAdapter.read(key) {
+        let readResult = StorageService.persistenceQueue.sync {
+            storageAdapter.read(key)
+        }
+        switch readResult {
         case .data(let readData):
             data = readData
         case .notFound, .error:
@@ -266,7 +260,7 @@ final class UserPayloadStore {
         payloadCacheByFilename.removeValue(forKey: filename(for: key))
 
         // TODO: Handle errors
-        persistenceQueue.async {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             storageAdapter.remove(payloadKey)
         }
     }
@@ -321,7 +315,9 @@ final class UserPayloadStore {
                 }
                 .prefix(MAX_CACHED_USER_PAYLOADS_PER_KEY)
             let sdkDirectoryKey = Self.sdkDirectoryKey(sdkKey: sdkKey)
-            storageAdapter.createFolderIfNeeded(sdkDirectoryKey)
+            StorageService.persistenceQueue.async(flags: .barrier) {
+                storageAdapter.createFolderIfNeeded(sdkDirectoryKey)
+            }
 
             for entry in selectedEntries {
                 index.entries[entry.fullUserHash] = IndexEntry(
@@ -339,8 +335,7 @@ final class UserPayloadStore {
             UserPayloadIndexStore.writeForMigration(
                 key: sdkDirectoryKey + [USER_PAYLOAD_INDEX_FILENAME],
                 index: index,
-                storageAdapter: storageAdapter,
-                persistenceQueue: migrationPersistenceQueue
+                storageAdapter: storageAdapter
             )
         }
 
@@ -353,7 +348,9 @@ final class UserPayloadStore {
             .prefix(MAX_CACHED_USER_PAYLOADS_PER_KEY)
 
         if selectedLegacyEntries.count > 0 {
-            storageAdapter.createFolderIfNeeded(LEGACY_DIRECTORY_KEY)
+            StorageService.persistenceQueue.async(flags: .barrier) {
+                storageAdapter.createFolderIfNeeded(LEGACY_DIRECTORY_KEY)
+            }
 
             for entry in selectedLegacyEntries {
                 Self.writeForMigration(
@@ -364,7 +361,7 @@ final class UserPayloadStore {
             }
         }
 
-        migrationPersistenceQueue.async(flags: .barrier) {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             defaults.removeObject(forKey: UserDefaultsKeys.localStorageKey)
             defaults.removeObject(forKey: UserDefaultsKeys.cacheKeyMappingKey)
             StorageServiceMigrationStatus.markMigrationDone()
@@ -411,7 +408,7 @@ final class UserPayloadStore {
 
         let storageAdapter = self.storageAdapter
         let sdkDirectoryKey = self.directoryKey
-        persistenceQueue.async {
+        StorageService.persistenceQueue.async(flags: .barrier) {
             for filename in evicted {
                 storageAdapter.remove(sdkDirectoryKey + [filename])
             }
