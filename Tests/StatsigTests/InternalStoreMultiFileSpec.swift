@@ -48,6 +48,46 @@ final class InternalStoreMultiFileSpec: BaseSpec {
         }
     }
 
+    private final class BlockingStorageProvider: NSObject, StorageProvider {
+        private let lock = NSCondition()
+        private var dataByKey: [String: Data] = [:]
+        private var blockedPayloadKeys: Set<String> = []
+
+        func blockPayloadWrite(for key: String) {
+            lock.lock()
+            blockedPayloadKeys.insert(key)
+            lock.unlock()
+        }
+
+        func allowPayloadWrite(for key: String) {
+            lock.lock()
+            blockedPayloadKeys.remove(key)
+            lock.broadcast()
+            lock.unlock()
+        }
+
+        func read(_ key: String) -> Data? {
+            lock.lock()
+            defer { lock.unlock() }
+            return dataByKey[key]
+        }
+
+        func write(_ value: Data, _ key: String) {
+            lock.lock()
+            while blockedPayloadKeys.contains(key) {
+                lock.wait()
+            }
+            dataByKey[key] = value
+            lock.unlock()
+        }
+
+        func remove(_ key: String) {
+            lock.lock()
+            dataByKey.removeValue(forKey: key)
+            lock.unlock()
+        }
+    }
+
     private func cacheIsEmpty(_ cache: [String: Any]) -> Bool {
         return
             (cache[InternalStore.gatesKey] as? [String: Any])?.count == 0
@@ -372,6 +412,7 @@ final class InternalStoreMultiFileSpec: BaseSpec {
                     try garbage.write(to: fileURL)
 
                     StorageService.clearCachedInstances()
+                    UserPayloadStore.clearCachedInstances()
 
                     let reloaded = InternalStore(sdkKey, user, options: options)
                     expect(reloaded.checkGate(forName: "gate_name_2").value).to(beFalse())
@@ -529,6 +570,38 @@ final class InternalStoreMultiFileSpec: BaseSpec {
 
                     let _ = InternalStore(sdkKey, indexedUser, options: optionsWithProvider)
                     expect(provider.didReadIndexFile).to(beTrue())
+                }
+
+                it("reads payloads from shared memory while a payload write is still pending") {
+                    let provider = BlockingStorageProvider()
+                    let adapter = StorageProviderToAdapter(storageProvider: provider)
+                    let payloadStore = UserPayloadStore.forSDKKey(
+                        sdkKey,
+                        storageAdapter: adapter
+                    )
+                    let user = StatsigUser(userID: "pending_write_user")
+                    let cacheKey = UserCacheKey.from(options, user, sdkKey)
+                    let payloadStorageKey =
+                        "\(sdkKey).\(USER_PAYLOAD_DIRNAME).\(cacheKey.fullUserHash)"
+
+                    provider.blockPayloadWrite(for: payloadStorageKey)
+                    payloadStore.write(
+                        key: cacheKey,
+                        payload: makePayload(withTimestamp: 321)
+                    )
+
+                    expect(payloadStore.mappedFullUserHash(v2Key: cacheKey.v2))
+                        .toEventually(equal(cacheKey.fullUserHash))
+
+                    expect(payloadStore.read(key: cacheKey)?[InternalStore.evalTimeKey] as? UInt64)
+                        .to(equal(321))
+                    expect(payloadStore.mappedFullUserHash(v2Key: cacheKey.v2))
+                        .to(equal(cacheKey.fullUserHash))
+
+                    provider.allowPayloadWrite(for: payloadStorageKey)
+
+                    expect(payloadStore.read(key: cacheKey)?[InternalStore.evalTimeKey] as? UInt64)
+                        .toEventually(equal(321))
                 }
             }
 

@@ -46,6 +46,8 @@ final class UserPayloadStore {
     private let evictionQueue: DispatchQueue
     private let indexStore: UserPayloadIndexStore
     private let directoryKey: [String]
+    @LockedValue
+    private var payloadCacheByFilename: [String: [String: Any]] = [:]
 
     private init(sdkKey: String, storageAdapter: StorageAdapter) {
         self.sdkKey = sdkKey
@@ -92,6 +94,7 @@ final class UserPayloadStore {
             return
         }
         let payloadTimestamp = UserPayloadIndexStore.payloadTimestamp(payload)
+        payloadCacheByFilename[filename(for: key)] = payload
 
         DispatchQueue.global().async { [weak self] in
             self?.write(key: key, payloadData: data, payloadTimestamp: payloadTimestamp)
@@ -163,6 +166,26 @@ final class UserPayloadStore {
         key: UserCacheKey,
         legacyMemoryCache: [String: [String: Any]]?
     ) -> [String: Any]? {
+        let filename = filename(for: key)
+        if let payload = payloadCacheByFilename[filename] {
+            return payload
+        }
+
+        guard
+            let payload = readPayloadFromStorage(key: key, legacyMemoryCache: legacyMemoryCache)
+        else {
+            return nil
+        }
+
+        setCachedPayloadIfEmpty(payload, forFilename: filename)
+
+        return payload
+    }
+
+    private func readPayloadFromStorage(
+        key: UserCacheKey,
+        legacyMemoryCache: [String: [String: Any]]?
+    ) -> [String: Any]? {
         if let payload = UserPayloadStore.read(
             key: userPayloadKey(key),
             storageAdapter: storageAdapter)
@@ -197,8 +220,13 @@ final class UserPayloadStore {
             return mappedCachedValues
         }
 
+        if let payload = payloadCacheByFilename[mappedKey] {
+            return payload
+        }
+
         let payloadKey = self.directoryKey + [mappedKey]
         if let payload = Self.read(key: payloadKey, storageAdapter: storageAdapter) {
+            setCachedPayloadIfEmpty(payload, forFilename: mappedKey)
             return payload
         }
 
@@ -237,6 +265,7 @@ final class UserPayloadStore {
             return
         }
         let storageAdapter = self.storageAdapter
+        payloadCacheByFilename.removeValue(forKey: filename(for: key))
 
         // TODO: Handle errors
         persistenceQueue.async {
@@ -376,6 +405,12 @@ final class UserPayloadStore {
             return
         }
 
+        $payloadCacheByFilename.withLock { payloadCacheByFilename in
+            for filename in evicted {
+                payloadCacheByFilename.removeValue(forKey: filename)
+            }
+        }
+
         let storageAdapter = self.storageAdapter
         let sdkDirectoryKey = self.directoryKey
         persistenceQueue.async {
@@ -389,6 +424,13 @@ final class UserPayloadStore {
     private func scheduleEviction() {
         evictionQueue.async { [weak self] in
             self?.runEviction()
+        }
+    }
+
+    func setCachedPayloadIfEmpty(_ payload: [String: Any], forFilename filename: String) {
+        $payloadCacheByFilename.withLock { payloadCacheByFilename in
+            guard payloadCacheByFilename[filename] == nil else { return }
+            payloadCacheByFilename[filename] = payload
         }
     }
 

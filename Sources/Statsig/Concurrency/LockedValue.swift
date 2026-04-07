@@ -27,7 +27,19 @@ import Foundation
         return snapshot
     }
 
- 3. IMPORTANT: Accessing multiple times doesn't keep the lock, and could result
+ 3. This does support mutating operations on structs and values. Normally
+    they'd be considered separate get and set operations, but thanks to
+    `_modify`, Swift hold the lock for the operation. Examples:
+
+    @LockedValue var dict: [String: Int] = [:]
+    @LockedValue var size: Double = 0
+
+    dict.removeValue(forKey: "foo") // OK
+    size += 1 // OK
+    size = size + 1 // LOCKED TWICE! Use `$size.withLock { ... }` instead
+    size = pow(size, 2) // LOCKED TWICE! Use `$size.withLock { ... }` instead
+
+ 4. IMPORTANT: Accessing multiple times doesn't keep the lock, and could result
     in race conditions:
 
     @LockedValue var counts: [String: Int] = [:]
@@ -35,7 +47,7 @@ import Foundation
     counts.removeAll() // uses a lock to write
     // counts could've changed between the write and the read by another thread
 
- 4. IMPORTANT: Don't use the locked property from inside `.withLock { ... }`:
+ 5. IMPORTANT: Don't use the locked property from inside `.withLock { ... }`:
 
 
     @LockedValue var counts: [String: Int] = [:]
@@ -49,7 +61,7 @@ import Foundation
         return snapshot
     }
 
- 5. If you have a great reason to access the value without a lock:
+ 6. If you have a great reason to access the value without a lock:
 
     @LockedValue var user: StatsigUser
     let currentUser = $user.unsafeValue // Avoid this pattern!
@@ -64,45 +76,45 @@ import Foundation
 
  */
 @propertyWrapper
-struct LockedValue<Value> {
+final class LockedValue<Value> {
 
     var projectedValue: LockedValue {
-        get { self }
-        _modify { yield &self }
+        self
     }
 
     private let lock = NSLock()
 
     var wrappedValue: Value {
-        get {
-            return lock.withLock {
-                return unsafeValue
-            }
-        }
-        set(v) {
-            lock.withLock {
-                self.unsafeValue = v
-            }
+        get { get() }
+        set(v) { set(v) }
+        _modify {
+            lock.lock()
+            defer { lock.unlock() }
+            yield &unsafeValue
         }
     }
 
     var unsafeValue: Value
 
     init(wrappedValue: Value) {
-        self.unsafeValue = wrappedValue
+        unsafeValue = wrappedValue
     }
 
-    mutating func withLock<R>(_ body: (_ value: inout Value) throws -> R) rethrows -> R {
+    func withLock<R>(_ body: (_ value: inout Value) throws -> R) rethrows -> R {
         try lock.withLock {
-            try body(&unsafeValue)
+            return try body(&unsafeValue)
         }
     }
 
     func get() -> Value {
-        return self.wrappedValue
+        lock.withLock {
+            return unsafeValue
+        }
     }
 
-    mutating func set(_ v: Value) {
-        self.wrappedValue = v
+    func set(_ v: Value) {
+        lock.withLock {
+            unsafeValue = v
+        }
     }
 }
