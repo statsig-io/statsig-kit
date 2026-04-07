@@ -10,27 +10,25 @@ enum MarkerContext: String {
 }
 
 final class MarkerRecorder {
-    private let lock = NSLock()
+    @LockedValue
     private var markersByContext: [MarkerContext: [[String: Any]]] = [:]
 
     func append(context: MarkerContext, marker: [String: Any]) {
-        lock.withLock {
-            markersByContext[context, default: []].append(marker)
+        $markersByContext.withLock { unlocked in
+            unlocked[context, default: []].append(marker)
         }
     }
 
     func consumeMarkers(forContext context: MarkerContext) -> [[String: Any]] {
-        lock.withLock {
-            let markers = markersByContext[context] ?? []
-            markersByContext[context] = []
+        $markersByContext.withLock { unlocked in
+            let markers = unlocked[context] ?? []
+            unlocked[context] = []
             return markers
         }
     }
 
     func markerCount(forContext context: MarkerContext) -> Int {
-        lock.withLock {
-            markersByContext[context]?.count ?? 0
-        }
+        markersByContext[context]?.count ?? 0
     }
 }
 

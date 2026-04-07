@@ -11,15 +11,24 @@ class EventLogger {
     let failedRequestLock = NSLock()
     let storageKey: String
 
+    // Test utils
     var maxEventQueueSize: Int = 50
-    var events: [Event]
-    var failedRequestQueue: [Data]
-    var loggedErrorMessage: Set<String>
-    var flushTimer: Timer?
-    var user: StatsigUser
-    var nonExposedChecks: [String: Int]
 
+    // Only on logQueue
+    var events: [Event]
+    private var nonExposedChecks: [String: Int]
     private var exposuresDedupeDict = [DedupeKey: TimeInterval]()
+
+    // Locked by failedRequestLock
+    var failedRequestQueue: [Data]
+
+    // Only on main thread
+    var flushTimer: Timer?
+
+    @LockedValue
+    var user: StatsigUser
+    @LockedValue
+    private var loggedErrorMessage: Set<String>
 
     #if os(tvOS)
     let MAX_SAVED_LOG_REQUEST_SIZE = 100_000  //100 KB
@@ -146,6 +155,7 @@ class EventLogger {
             return
         }
 
+        let user = self.user
         let oldEvents = events
         events = []
 
@@ -197,8 +207,7 @@ class EventLogger {
     }
 
     func logErrorMessageOnce(_ errorMessage: String, user: StatsigUser? = nil) {
-        if !errorMessage.isEmpty && !self.loggedErrorMessage.contains(errorMessage) {
-            self.loggedErrorMessage.insert(errorMessage)
+        if shouldLogErrorMessage(errorMessage) {
             self.log(
                 Event.statsigInternalEvent(
                     user: user ?? self.user,
@@ -206,6 +215,19 @@ class EventLogger {
                     value: nil,
                     metadata: ["error": errorMessage])
             )
+        }
+    }
+
+    private func shouldLogErrorMessage(_ errorMessage: String) -> Bool {
+        if errorMessage.isEmpty { return false }
+
+        return $loggedErrorMessage.withLock { loggedErrorMessage in
+            if loggedErrorMessage.contains(errorMessage) {
+                return false
+            }
+
+            loggedErrorMessage.insert(errorMessage)
+            return true
         }
     }
 
