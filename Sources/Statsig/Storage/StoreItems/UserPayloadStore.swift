@@ -96,9 +96,7 @@ final class UserPayloadStore {
         let payloadTimestamp = UserPayloadIndexStore.payloadTimestamp(payload)
         payloadCacheByFilename[filename(for: key)] = payload
 
-        DispatchQueue.global().async { [weak self] in
-            self?.write(key: key, payloadData: data, payloadTimestamp: payloadTimestamp)
-        }
+        write(key: key, payloadData: data, payloadTimestamp: payloadTimestamp)
     }
 
     func write(key: UserCacheKey, payloadData data: Data, payloadTimestamp: UInt64?) {
