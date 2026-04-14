@@ -51,6 +51,10 @@ public final class StatsigOptionsObjC: NSObject {
         if let initializeOffline = args["initializeOffline"] as? Bool {
             self.optionsInternal.initializeOffline = initializeOffline
         }
+
+        if let sdkExceptionDiagnosticsURL = args["sdkExceptionDiagnosticsURL"] as? URL {
+            self.optionsInternal.sdkExceptionDiagnosticsURL = sdkExceptionDiagnosticsURL
+        }
     }
 
     @objc override public init() {

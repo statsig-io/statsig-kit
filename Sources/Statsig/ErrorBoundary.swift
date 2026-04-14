@@ -1,23 +1,24 @@
 import Foundation
 
 class ErrorBoundary {
+    private static let defaultExceptionURL = URL(string: "https://statsigapi.net/v1/sdk_exception")
+
     private var clientKey: String
     private var statsigOptions: StatsigOptions
     private var seen: Set<String>
-    private var url: String
+    private var url: URL?
 
     static func boundary(clientKey: String, statsigOptions: StatsigOptions) -> ErrorBoundary {
         let boundary = ErrorBoundary(
             clientKey: clientKey,
             statsigOptions: statsigOptions,
             seen: Set<String>(),
-            url: "https://statsigapi.net/v1/sdk_exception"
+            url: statsigOptions.sdkExceptionDiagnosticsURL ?? defaultExceptionURL
         )
         return boundary
     }
 
-    private init(clientKey: String, statsigOptions: StatsigOptions, seen: Set<String>, url: String)
-    {
+    private init(clientKey: String, statsigOptions: StatsigOptions, seen: Set<String>, url: URL?) {
         self.clientKey = clientKey
         self.statsigOptions = statsigOptions
         self.seen = seen
@@ -58,7 +59,7 @@ class ErrorBoundary {
         seen.insert(key)
 
         do {
-            guard let url = URL(string: self.url) else { return }
+            guard let url = self.url else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-type")
@@ -82,7 +83,7 @@ class ErrorBoundary {
 
             request.httpBody = jsonData
 
-            URLSession.shared.dataTask(with: request).resume()
+            statsigOptions.urlSession.dataTask(with: request).resume()
         } catch {}
     }
 }

@@ -91,6 +91,8 @@ class StatsigOptionsSpec: BaseSpec {
                     shutdownOnBackground: false,
                     initializationURL: URL(string: "http://ErrorBoundarySpec/v1/initialize"),
                     eventLoggingURL: URL(string: "http://ErrorBoundarySpec/v1/rgstr"),
+                    sdkExceptionDiagnosticsURL: URL(
+                        string: "http://ErrorBoundarySpec/v1/sdk_exception"),
                     evaluationCallback: { (_) in },
                     userValidationCallback: { $0 },
                     customCacheKey: { (_, _) in "cache_key" },

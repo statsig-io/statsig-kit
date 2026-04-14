@@ -17,12 +17,15 @@ final class ErrorBoundarySpec: BaseSpec {
         describe("ErrorBoundary") {
 
             var sdkExceptionsReceived = [[String: Any]]()
+            var sdkExceptionRequests = [URLRequest]()
 
             beforeEach {
                 sdkExceptionsReceived.removeAll()
+                sdkExceptionRequests.removeAll()
 
                 // Setup Event Exception
                 stub(condition: isPath("/v1/sdk_exception")) { request in
+                    sdkExceptionRequests.append(request)
                     sdkExceptionsReceived.append(request.statsig_body ?? [:])
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 200, headers: nil)
                 }
@@ -53,6 +56,35 @@ final class ErrorBoundarySpec: BaseSpec {
                 expect(sdkExceptionsReceived.count).toEventually(beGreaterThanOrEqualTo(1))
             }
 
+            it("uses the overridden api host for sdk_exception") {
+                let errorBoundary = ErrorBoundary.boundary(
+                    clientKey: "client-key",
+                    statsigOptions: StatsigOptions(
+                        sdkExceptionDiagnosticsURL: URL(
+                            string: "http://api.override.com/v1/sdk_exception")))
+                errorBoundary.capture("ErrorBoundarySpec") { () throws in
+                    throw StatsigError.unexpectedError("Override API Error")
+                }
+
+                expect(sdkExceptionRequests.count).toEventually(beGreaterThanOrEqualTo(1))
+                expect(sdkExceptionRequests.first?.url?.absoluteString)
+                    .toEventually(equal("http://api.override.com/v1/sdk_exception"))
+            }
+
+            it("does not derive sdk_exception from initialization url") {
+                let errorBoundary = ErrorBoundary.boundary(
+                    clientKey: "client-key",
+                    statsigOptions: StatsigOptions(
+                        initializationURL: URL(string: "http://api.override.com/custom_path")))
+                errorBoundary.capture("ErrorBoundarySpec") { () throws in
+                    throw StatsigError.unexpectedError("Override URL Error")
+                }
+
+                expect(sdkExceptionRequests.count).toEventually(beGreaterThanOrEqualTo(1))
+                expect(sdkExceptionRequests.first?.url?.absoluteString)
+                    .toEventually(equal("https://statsigapi.net/v1/sdk_exception"))
+            }
+
             it("logs statsig option to sdk_exception") {
                 let errorBoundary = ErrorBoundary.boundary(
                     clientKey: "client-key",
@@ -63,6 +95,8 @@ final class ErrorBoundarySpec: BaseSpec {
                         initializeValues: nil,  // Default value
                         shutdownOnBackground: true,  // Default value
                         initializationURL: URL(string: "http://ErrorBoundarySpec/v1/initialize"),
+                        sdkExceptionDiagnosticsURL: URL(
+                            string: "http://ErrorBoundarySpec/v1/sdk_exception"),
                         evaluationCallback: { (_) -> Void in },
                         storageProvider: MockStorageProvider(),
                         overrideAdapter: OnDeviceEvalAdapter(
@@ -90,6 +124,8 @@ final class ErrorBoundarySpec: BaseSpec {
                     .toEventually(equal("ErrorBoundarySpec"))
                 expect(exceptionOptions["initializationURL"] as? String)
                     .toEventually(equal("http://ErrorBoundarySpec/v1/initialize"))
+                expect(exceptionOptions["sdkExceptionDiagnosticsURL"] as? String)
+                    .toEventually(equal("http://ErrorBoundarySpec/v1/sdk_exception"))
                 expect(exceptionOptions["evaluationCallback"] as? String).toEventually(equal("set"))
                 expect(exceptionOptions["storageProvider"] as? String).toEventually(equal("set"))
                 expect(exceptionOptions["overrideAdapter"] as? String).toEventually(equal("set"))

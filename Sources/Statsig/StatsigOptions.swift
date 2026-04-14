@@ -114,6 +114,11 @@ public class StatsigOptions {
     public var eventLoggingURL: URL? = nil
 
     /**
+     The URL used for sdk_exception network requests. You should not need to override this unless you have another endpoint that implements the Statsig sdk_exception endpoint.
+     */
+    public var sdkExceptionDiagnosticsURL: URL? = nil
+
+    /**
      The API to use for initialization network requests. Any path will be replaced with /v1/initialize. If you need a custom path, set the full URL to initializationURL.
      You should not need to override this (unless you have another API that implements the Statsig API endpoints)
      */
@@ -221,6 +226,7 @@ public class StatsigOptions {
         eventLoggingApi: String? = nil,
         initializationURL: URL? = nil,
         eventLoggingURL: URL? = nil,
+        sdkExceptionDiagnosticsURL: URL? = nil,
         evaluationCallback: ((EvaluationCallbackData) -> Void)? = nil,
         userValidationCallback: ((StatsigUser) -> StatsigUser)? = nil,
         customCacheKey: ((String, StatsigUser) -> String)? = nil,
@@ -318,6 +324,10 @@ public class StatsigOptions {
             self.eventLoggingApi = eventLoggingApi
         }
 
+        if let sdkExceptionDiagnosticsURL = sdkExceptionDiagnosticsURL {
+            self.sdkExceptionDiagnosticsURL = sdkExceptionDiagnosticsURL
+        }
+
         if let customCacheKey = customCacheKey {
             self.customCacheKey = customCacheKey
         }
@@ -383,6 +393,11 @@ extension StatsigOptions {
             logURL.absoluteString != defaultOptions.eventLoggingURL?.absoluteString
         {
             dict["eventLoggingURL"] = logURL.absoluteString
+        }
+        if let exceptionURL = sdkExceptionDiagnosticsURL,
+            exceptionURL.absoluteString != defaultOptions.sdkExceptionDiagnosticsURL?.absoluteString
+        {
+            dict["sdkExceptionDiagnosticsURL"] = exceptionURL.absoluteString
         }
         if initTimeout != defaultOptions.initTimeout {
             dict["initTimeout"] = initTimeout
