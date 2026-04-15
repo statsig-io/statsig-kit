@@ -383,7 +383,7 @@ class EventLoggerSpec: BaseSpec {
                     logger.failedRequestStore.addRequests(
                         from: [Data()],
                         lastFailedAtMs: 0,
-                        requestEventCount: 0,
+                        potentialDroppedEventCount: 0,
                         persist: false
                     )
                     logger.failedRequestStore.persist()
@@ -414,7 +414,7 @@ class EventLoggerSpec: BaseSpec {
                         logger.failedRequestStore.addRequests(
                             from: [Data()],
                             lastFailedAtMs: 0,
-                            requestEventCount: 0,
+                            potentialDroppedEventCount: 0,
                             persist: false
                         )
                         logger.failedRequestStore.persist()
@@ -457,7 +457,7 @@ class EventLoggerSpec: BaseSpec {
                             logger.failedRequestStore.addRequests(
                                 from: [Data([UInt8(j % 256)])],
                                 lastFailedAtMs: 0,
-                                requestEventCount: 0,
+                                potentialDroppedEventCount: 0,
                                 persist: false
                             )
                             logger.failedRequestStore.persist()
@@ -539,7 +539,7 @@ class EventLoggerSpec: BaseSpec {
                             logger.failedRequestStore.addRequests(
                                 from: requests,
                                 lastFailedAtMs: 0,
-                                requestEventCount: 0,
+                                potentialDroppedEventCount: 0,
                                 persist: false
                             )
                             // Test that the queue is not empty
@@ -594,7 +594,7 @@ class EventLoggerSpec: BaseSpec {
                             body: Data(
                                 count: FailedLogRequestStore.defaultMaxStoreSizeBytes + 100),
                             lastFailedAtMs: 456,
-                            requestEventCount: 9
+                            potentialDroppedEventCount: 9
                         )
                     ])
                     logger.failedRequestStore.persist()
@@ -656,7 +656,7 @@ class EventLoggerSpec: BaseSpec {
                     waitUntil { done in logger.flush(completion: done) }
 
                     expect(logger.failedRequestStore.requests).to(haveCount(1))
-                    expect(logger.failedRequestStore.requests.first?.requestEventCount).to(
+                    expect(logger.failedRequestStore.requests.first?.potentialDroppedEventCount).to(
                         equal(10))
                     expect(logger.failedRequestStore.pendingDroppedRequestSummary).to(beNil())
                 }
@@ -758,7 +758,7 @@ class EventLoggerSpec: BaseSpec {
                     logger.failedRequestStore.addRequests(
                         from: mockFailedRequests,
                         lastFailedAtMs: 0,
-                        requestEventCount: 0,
+                        potentialDroppedEventCount: 0,
                         persist: false
                     )
                     logger.failedRequestStore.persist()

@@ -193,7 +193,7 @@ class NetworkServiceSpec: BaseSpec {
                         FailedLogRequest(
                             body: d,
                             lastFailedAtMs: UInt64(index),
-                            requestEventCount: 1
+                            potentialDroppedEventCount: 1
                         )
                     )
                 }

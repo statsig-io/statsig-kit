@@ -149,7 +149,11 @@ class EventLogger {
         let capturedSelf = isShuttingDown ? self : nil
 
         let requestData: Data
-        let requestEventCount = oldEvents.count + (pendingDroppedRequestSummary?.eventCount ?? 0)
+        // The request body may include a synthetic dropped_log_event.count event. If
+        // this body is later dropped from storage, count the original events it
+        // represents, not just the serialized events in requestEvents.
+        let potentialDroppedEventCount =
+            oldEvents.count + (pendingDroppedRequestSummary?.eventCount ?? 0)
         do {
             requestData = try networkService.prepareEventRequestBody(
                 forUser: user, events: requestEvents
@@ -168,7 +172,7 @@ class EventLogger {
             failedRequestStore.addRequest(
                 requestData,
                 lastFailedAtMs: Time.now(),
-                requestEventCount: requestEventCount
+                potentialDroppedEventCount: potentialDroppedEventCount
             )
             completion?()
             return
@@ -178,7 +182,7 @@ class EventLogger {
             failedRequestStore.addRequest(
                 requestData,
                 lastFailedAtMs: Time.now(),
-                requestEventCount: requestEventCount
+                potentialDroppedEventCount: potentialDroppedEventCount
             )
         }
 
@@ -199,7 +203,8 @@ class EventLogger {
                     self.failedRequestStore.addOrUpdateRequest(
                         queuedRequest?.body ?? requestData,
                         lastFailedAtMs: Time.now(),
-                        requestEventCount: queuedRequest?.requestEventCount ?? requestEventCount
+                        potentialDroppedEventCount: queuedRequest?.potentialDroppedEventCount
+                            ?? potentialDroppedEventCount
                     )
                     self.logErrorMessageOnce(errorMessage)
                 }

@@ -288,7 +288,7 @@ class LogEventFailureSpec: BaseSpec {
                         FailedLogRequest(
                             body: Data(count: 16),
                             lastFailedAtMs: initialLastFailedAtMs,
-                            requestEventCount: 3
+                            potentialDroppedEventCount: 3
                         )
                     ])
                     logger.failedRequestStore.persist()

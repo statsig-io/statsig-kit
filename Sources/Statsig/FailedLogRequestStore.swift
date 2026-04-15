@@ -5,28 +5,29 @@ fileprivate let failedRequestStoreFilename = "failed-log-requests"
 struct FailedLogRequest: Codable, Equatable {
     let body: Data
     let lastFailedAtMs: UInt64
-    // The number of events currently encoded in this request body. This is only used
-    // if the request itself is later trimmed out of the failed-request store.
-    let requestEventCount: Int
+    // If this request stays queued, its body carries the events to retry.
+    // If storage later drops this request, the count is merged into this
+    // count to record the data loss.
+    let potentialDroppedEventCount: Int
 
     func withLastFailedAtMs(_ lastFailedAtMs: UInt64) -> FailedLogRequest {
         FailedLogRequest(
             body: body,
             lastFailedAtMs: lastFailedAtMs,
-            requestEventCount: requestEventCount
+            potentialDroppedEventCount: potentialDroppedEventCount
         )
     }
 
     static func makeRequests(
         from bodies: [Data],
         lastFailedAtMs: UInt64,
-        requestEventCount: Int
+        potentialDroppedEventCount: Int
     ) -> [FailedLogRequest] {
         bodies.map {
             FailedLogRequest(
                 body: $0,
                 lastFailedAtMs: lastFailedAtMs,
-                requestEventCount: requestEventCount
+                potentialDroppedEventCount: potentialDroppedEventCount
             )
         }
     }
@@ -48,7 +49,7 @@ struct DroppedLogRequestSummary: Codable, Equatable {
     }
 
     mutating func merge(_ request: FailedLogRequest) {
-        eventCount += request.requestEventCount
+        eventCount += request.potentialDroppedEventCount
         lastFailedAtMs = max(lastFailedAtMs, request.lastFailedAtMs)
     }
 
@@ -58,7 +59,7 @@ struct DroppedLogRequestSummary: Codable, Equatable {
         }
 
         var summary = DroppedLogRequestSummary(
-            eventCount: firstRequest.requestEventCount,
+            eventCount: firstRequest.potentialDroppedEventCount,
             lastFailedAtMs: firstRequest.lastFailedAtMs
         )
         for request in requests.dropFirst() {
@@ -211,7 +212,7 @@ final class FailedLogRequestStore {
     func addRequest(
         _ requestData: Data?,
         lastFailedAtMs: UInt64,
-        requestEventCount: Int,
+        potentialDroppedEventCount: Int,
         persist: Bool = true
     ) {
         guard let requestData = requestData else {
@@ -223,7 +224,7 @@ final class FailedLogRequestStore {
                 FailedLogRequest(
                     body: requestData,
                     lastFailedAtMs: lastFailedAtMs,
-                    requestEventCount: requestEventCount
+                    potentialDroppedEventCount: potentialDroppedEventCount
                 )
             ],
             persist: persist
@@ -233,14 +234,14 @@ final class FailedLogRequestStore {
     func addRequests(
         from requestData: [Data],
         lastFailedAtMs: UInt64,
-        requestEventCount: Int,
+        potentialDroppedEventCount: Int,
         persist: Bool = true
     ) {
         addRequests(
             FailedLogRequest.makeRequests(
                 from: requestData,
                 lastFailedAtMs: lastFailedAtMs,
-                requestEventCount: requestEventCount
+                potentialDroppedEventCount: potentialDroppedEventCount
             ),
             persist: persist
         )
@@ -261,7 +262,7 @@ final class FailedLogRequestStore {
     func addOrUpdateRequest(
         _ requestData: Data?,
         lastFailedAtMs: UInt64,
-        requestEventCount: Int,
+        potentialDroppedEventCount: Int,
         persist: Bool = true
     ) {
         guard let requestData = requestData else {
@@ -283,7 +284,7 @@ final class FailedLogRequestStore {
                 FailedLogRequest(
                     body: requestData,
                     lastFailedAtMs: lastFailedAtMs,
-                    requestEventCount: requestEventCount
+                    potentialDroppedEventCount: potentialDroppedEventCount
                 )
             )
             trimToFitLocked()
@@ -463,7 +464,7 @@ final class FailedLogRequestStore {
             return FailedLogRequest(
                 body: requestBody,
                 lastFailedAtMs: migratedAtMs,
-                requestEventCount: 0
+                potentialDroppedEventCount: 0
             )
         }
     }

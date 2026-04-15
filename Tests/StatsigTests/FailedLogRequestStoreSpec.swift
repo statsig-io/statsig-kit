@@ -68,7 +68,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                         FailedLogRequest(
                             body: Data([1, 2, 3]),
                             lastFailedAtMs: 123,
-                            requestEventCount: 2
+                            potentialDroppedEventCount: 2
                         )
                     ]
                 )
@@ -79,14 +79,14 @@ class FailedLogRequestStoreSpec: BaseSpec {
                 )
 
                 expect(persistedStore?.requests.count).to(equal(1))
-                expect(persistedStore?.requests.first?.requestEventCount).to(equal(2))
+                expect(persistedStore?.requests.first?.potentialDroppedEventCount).to(equal(2))
             }
 
             it("migrates user defaults requests into the store and clears the old key") {
                 let persistedRequest = FailedLogRequest(
                     body: makeData(size: 10, marker: 7),
                     lastFailedAtMs: 456,
-                    requestEventCount: 5
+                    potentialDroppedEventCount: 5
                 )
                 storageAdapter.write(
                     FailedLogRequestStoreData(
@@ -113,7 +113,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                         persistedRequest.body,
                     ])
                 )
-                expect(store.requests.map(\.requestEventCount)).to(equal([0, 0, 5]))
+                expect(store.requests.map(\.potentialDroppedEventCount)).to(equal([0, 0, 5]))
                 expect(store.requests[0].lastFailedAtMs).to(beGreaterThan(0))
                 expect(store.requests[1].lastFailedAtMs).to(beGreaterThan(0))
                 expect(defaults.array(forKey: UserDefaultsKeys.getFailedEventsStorageKey(sdkKey)))
@@ -168,7 +168,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                         FailedLogRequest.makeRequests(
                             from: [data, data, data],
                             lastFailedAtMs: 0,
-                            requestEventCount: 0
+                            potentialDroppedEventCount: 0
                         )
                     )
 
@@ -181,18 +181,18 @@ class FailedLogRequestStoreSpec: BaseSpec {
                     store.addRequest(
                         data,
                         lastFailedAtMs: 123,
-                        requestEventCount: 4
+                        potentialDroppedEventCount: 4
                     )
 
                     store.addOrUpdateRequest(
                         data,
                         lastFailedAtMs: 456,
-                        requestEventCount: 9
+                        potentialDroppedEventCount: 9
                     )
 
                     expect(store.requests.count).to(equal(1))
                     expect(store.requests.first?.lastFailedAtMs).to(equal(456))
-                    expect(store.requests.first?.requestEventCount).to(equal(4))
+                    expect(store.requests.first?.potentialDroppedEventCount).to(equal(4))
                 }
 
                 it("takeRequest dequeues the matching request") {
@@ -202,7 +202,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                         FailedLogRequest.makeRequests(
                             from: [first, second],
                             lastFailedAtMs: 123,
-                            requestEventCount: 4
+                            potentialDroppedEventCount: 4
                         )
                     )
 
@@ -226,21 +226,21 @@ class FailedLogRequestStoreSpec: BaseSpec {
                         FailedLogRequest.makeRequests(
                             from: [small1, small2, small3],
                             lastFailedAtMs: 0,
-                            requestEventCount: 0
+                            potentialDroppedEventCount: 0
                         )
                     )
                     store.addRequests(
                         FailedLogRequest.makeRequests(
                             from: [medium1],
                             lastFailedAtMs: 0,
-                            requestEventCount: 0
+                            potentialDroppedEventCount: 0
                         )
                     )
                     store.addRequests(
                         FailedLogRequest.makeRequests(
                             from: [small4, small5, small6, medium2],
                             lastFailedAtMs: 0,
-                            requestEventCount: 0
+                            potentialDroppedEventCount: 0
                         )
                     )
 
@@ -255,7 +255,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                             FailedLogRequest(
                                 body: makeData(size: limit + 100, marker: 9),
                                 lastFailedAtMs: 123,
-                                requestEventCount: 7
+                                potentialDroppedEventCount: 7
                             )
                         ]
                     )
@@ -278,7 +278,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                             FailedLogRequest(
                                 body: makeData(size: limit + 100, marker: 10),
                                 lastFailedAtMs: 123,
-                                requestEventCount: 7
+                                potentialDroppedEventCount: 7
                             )
                         ]
                     )
@@ -287,7 +287,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                             FailedLogRequest(
                                 body: makeData(size: limit + 100, marker: 11),
                                 lastFailedAtMs: 456,
-                                requestEventCount: 9
+                                potentialDroppedEventCount: 9
                             )
                         ]
                     )
@@ -302,7 +302,7 @@ class FailedLogRequestStoreSpec: BaseSpec {
                             FailedLogRequest(
                                 body: makeData(size: limit + 100, marker: 10),
                                 lastFailedAtMs: 123,
-                                requestEventCount: 7
+                                potentialDroppedEventCount: 7
                             )
                         ]
                     )
@@ -323,22 +323,22 @@ class FailedLogRequestStoreSpec: BaseSpec {
                             FailedLogRequest(
                                 body: makeData(size: 100, marker: 1),
                                 lastFailedAtMs: 123,
-                                requestEventCount: 7
+                                potentialDroppedEventCount: 7
                             ),
                             FailedLogRequest(
                                 body: makeData(size: limit / 2, marker: 2),
                                 lastFailedAtMs: 234,
-                                requestEventCount: 11
+                                potentialDroppedEventCount: 11
                             ),
                             FailedLogRequest(
                                 body: makeData(size: limit / 2 + 100, marker: 3),
                                 lastFailedAtMs: 345,
-                                requestEventCount: 13
+                                potentialDroppedEventCount: 13
                             ),
                         ]
                     )
 
-                    expect(store.requests.map(\.requestEventCount)).to(equal([13]))
+                    expect(store.requests.map(\.potentialDroppedEventCount)).to(equal([13]))
                     expect(store.pendingDroppedRequestSummary?.eventCount).to(equal(18))
                     expect(store.pendingDroppedRequestSummary?.lastFailedAtMs).to(equal(234))
                 }
