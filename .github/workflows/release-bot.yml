@@ -12,6 +12,6 @@ jobs:
     if: startsWith(github.head_ref, 'releases/') || github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
-      - uses: statsig-io/statsig-publish-sdk-action@main
+      - uses: statsig-io/statsig-publish-sdk-action@c0740fb8a2d4813522cc09bb8c4e826bb78ce6ab # main
         with:
           kong-private-key: ${{ secrets.KONG_GH_APP_PRIVATE_KEY }}
