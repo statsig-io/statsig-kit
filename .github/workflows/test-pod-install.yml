@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Cache CocoaPods specs
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: ~/.cocoapods
           key: ${{ runner.os }}-cocoapods-specs-${{ hashFiles('**/Podfile') }}

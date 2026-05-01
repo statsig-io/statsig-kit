@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # main
 
       - name: Prepare Simulator
         id: simulator
