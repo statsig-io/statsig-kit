@@ -125,6 +125,26 @@ class StatsigOptionsSpec: BaseSpec {
                     expect(dict["overrideAdapter"] as? String).to(equal("set"))
                 }
 
+                it("redacts stable IDs from logging") {
+                    let opts = StatsigOptions(overrideStableID: "user@example.com")
+                    let dict = opts.getDictionaryForLogging()
+                    expect(dict["overrideStableID"] as? String).to(equal("set"))
+                }
+
+                it("removes credentials query and fragment from logged URLs") {
+                    let opts = StatsigOptions(
+                        initializationURL: URL(string: "https://user:pass@example.com/v1/initialize?token=secret#frag"),
+                        eventLoggingURL: URL(string: "https://user:pass@example.com/v1/rgstr?token=secret#frag"),
+                        sdkExceptionDiagnosticsURL: URL(string: "https://user:pass@example.com/v1/sdk_exception?token=secret#frag")
+                    )
+
+                    let dict = opts.getDictionaryForLogging()
+
+                    expect(dict["initializationURL"] as? String).to(equal("https://example.com/v1/initialize"))
+                    expect(dict["eventLoggingURL"] as? String).to(equal("https://example.com/v1/rgstr"))
+                    expect(dict["sdkExceptionDiagnosticsURL"] as? String).to(equal("https://example.com/v1/sdk_exception"))
+                }
+
                 it("creates a dictionary with every option") {
                     let ignoredKeys = [
                         "getDictionaryForLogging",
