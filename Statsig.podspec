@@ -17,7 +17,7 @@ Pod::Spec.new do |spec|
 
   spec.license      = { :type => "ISC", :file => "LICENSE" }
 
-  spec.author             = { "Jiakan Wang" => "jkw@statsig.com", "Daniel Loomb" => "daniel@statsig.com" }
+  spec.author             = { "Jiakan Wang" => "jkw@statsig.com" }
 
   spec.ios.deployment_target = "10.0"
   spec.osx.deployment_target = "10.13"

@@ -358,7 +358,7 @@ class InternalStore {
         ]
     }
 
-    // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402
+    // Sticky logic
     private func getPossiblyStickyValue<T: ConfigProtocol>(
         _ name: String,
         latestValue: T,
