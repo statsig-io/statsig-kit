@@ -25,3 +25,10 @@ This runs `xcodebuild test`, forwarding any extra arguments. For example, to run
 ```
 
 Running all tests can be flaky at the moment. When developing a feature, prefer running tests specific to the feature.
+
+## CI simulators
+
+`.github/actions/prepare-simulator/` resolves the simulator runtime and device type
+at runtime. Do not pin a device model there: a device type in
+`simctl list devicetypes` may be unsupported by the installed runtime, and
+`simctl create` then fails. Pair them from the runtime's `supportedDeviceTypes`.

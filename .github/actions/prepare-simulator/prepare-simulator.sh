@@ -13,18 +13,18 @@ case "${PLATFORM}" in
     ;;
   ios)
     PLATFORM_LABEL="iOS"
-    RUNTIME_REGEX="^iOS "
-    DEVICE_NAME="iPhone SE (3rd generation)"
+    RUNTIME_PREFIX="iOS"
+    DEVICE_REGEX="^iPhone"
     ;;
   tvos)
     PLATFORM_LABEL="tvOS"
-    RUNTIME_REGEX="^tvOS "
-    DEVICE_NAME="Apple TV"
+    RUNTIME_PREFIX="tvOS"
+    DEVICE_REGEX="^Apple TV"
     ;;
   visionos)
     PLATFORM_LABEL="visionOS"
-    RUNTIME_REGEX="^visionOS "
-    DEVICE_NAME="Apple Vision Pro"
+    RUNTIME_PREFIX="visionOS"
+    DEVICE_REGEX="^Apple Vision"
     ;;
   *)
     echo "Unsupported platform input: ${PLATFORM_RAW}"
@@ -33,51 +33,22 @@ case "${PLATFORM}" in
     ;;
 esac
 
-# Pick the first available runtime identifier for the selected platform, e.g.:
-# com.apple.CoreSimulator.SimRuntime.iOS-26-2
-RUNTIME_ID="$(
-  xcrun simctl list runtimes \
-    | awk -v re="${RUNTIME_REGEX}" '$0 ~ re && $0 !~ /unavailable/ {print $NF; exit}'
-)"
-RUNTIME_LABEL="$(
-  xcrun simctl list runtimes \
-    | awk -v re="${RUNTIME_REGEX}" '$0 ~ re && $0 !~ /unavailable/ {print $1" "$2; exit}'
+# Resolve the runtime and the device type together. A device type listed by
+# `simctl list devicetypes` is not necessarily supported by the runtime we pick,
+# and `simctl create` rejects an incompatible pair.
+SELECTION="$(
+  python3 "${ACTION_PATH}/select-simulator.py" "${RUNTIME_PREFIX}" "${DEVICE_REGEX}"
 )"
 
-if [ -z "${RUNTIME_ID}" ]; then
-  echo "No available ${PLATFORM_LABEL} simulator runtime found."
-  xcrun simctl list runtimes
-  exit 1
-fi
+IFS=$'\t' read -r RUNTIME_ID RUNTIME_LABEL DEVICE_TYPE DEVICE_NAME SIM_ID <<< "${SELECTION}"
 
-# Resolve the device type identifier dynamically from the device name.
-DEVICE_TYPE="$(
-  xcrun simctl list devicetypes \
-    | awk -v name="${DEVICE_NAME}" 'index($0, name) {print $NF; exit}'
-)"
-if [ -z "${DEVICE_TYPE}" ]; then
-  echo "No device type found for: ${DEVICE_NAME}"
-  xcrun simctl list devicetypes
-  exit 1
-fi
+echo "Selected ${DEVICE_NAME} on ${RUNTIME_LABEL}"
 
 SIM_NAME="Statsig-CI-${PLATFORM_LABEL}"
-
-# Prefer an existing compatible simulator in the selected runtime, if available.
-SIM_ID="$(
-  xcrun simctl list devices \
-    | awk -v runtime="${RUNTIME_LABEL}" -v name="${DEVICE_NAME}" '
-        $0 ~ "^-- "runtime" --" { in_runtime=1; next }
-        in_runtime && /^-- / { in_runtime=0 }
-        in_runtime && index($0, name) { print; exit }
-      ' \
-    | sed -E 's/.*\(([0-9A-F-]+)\).*/\1/'
-)"
 
 if [ -n "${SIM_ID}" ]; then
   echo "Using existing simulator ${DEVICE_NAME} (${SIM_ID}) in ${RUNTIME_LABEL}"
 else
-  # Fall back to creating a fresh simulator if none exists.
   SIM_ID="$(xcrun simctl create "${SIM_NAME}" "${DEVICE_TYPE}" "${RUNTIME_ID}")"
   echo "Created simulator ${SIM_NAME} (${SIM_ID}) using ${RUNTIME_ID}"
 fi
