@@ -381,23 +381,23 @@ extension StatsigOptions {
         if urlSession != URLSession.shared {
             dict["urlSession"] = "set"
         }
-        if let id = overrideStableID, id != defaultOptions.overrideStableID {
-            dict["overrideStableID"] = id.count < 50 ? id : "set"
+        if overrideStableID != defaultOptions.overrideStableID {
+            dict["overrideStableID"] = "set"
         }
         if let initURL = initializationURL,
             initURL.absoluteString != defaultOptions.initializationURL?.absoluteString
         {
-            dict["initializationURL"] = initURL.absoluteString
+            dict["initializationURL"] = initURL.loggingSafeAbsoluteString
         }
         if let logURL = eventLoggingURL,
             logURL.absoluteString != defaultOptions.eventLoggingURL?.absoluteString
         {
-            dict["eventLoggingURL"] = logURL.absoluteString
+            dict["eventLoggingURL"] = logURL.loggingSafeAbsoluteString
         }
         if let exceptionURL = sdkExceptionDiagnosticsURL,
             exceptionURL.absoluteString != defaultOptions.sdkExceptionDiagnosticsURL?.absoluteString
         {
-            dict["sdkExceptionDiagnosticsURL"] = exceptionURL.absoluteString
+            dict["sdkExceptionDiagnosticsURL"] = exceptionURL.loggingSafeAbsoluteString
         }
         if initTimeout != defaultOptions.initTimeout {
             dict["initTimeout"] = initTimeout
@@ -462,5 +462,16 @@ extension URL {
         urlComponents.host = host
         urlComponents.port = port
         return urlComponents.url
+    }
+
+    var loggingSafeAbsoluteString: String {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false) else {
+            return absoluteString
+        }
+        components.user = nil
+        components.password = nil
+        components.query = nil
+        components.fragment = nil
+        return components.url?.absoluteString ?? absoluteString
     }
 }
