@@ -12,7 +12,7 @@ env:
 jobs:
   main:
     name: Test
-    runs-on: macos-latest
+    runs-on: blacksmith-6vcpu-macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
