@@ -11,7 +11,7 @@ on:
 jobs:
   test-pod-install:
     name: Test Pod Install
-    runs-on: blacksmith-6vcpu-macos-latest
+    runs-on: macos-latest
 
     steps:
       - name: Checkout Code

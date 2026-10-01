@@ -14,7 +14,7 @@ env:
 jobs:
   main:
     name: Build
-    runs-on: blacksmith-6vcpu-macos-latest
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:

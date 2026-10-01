@@ -7,7 +7,7 @@ on:
 
 jobs:
   trigger-runs:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Trigger Scheduled Test Runs
         if: github.event.repository.private
