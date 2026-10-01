@@ -59,6 +59,70 @@ class NetworkFallbackResolverSpec: BaseSpec {
                 NetworkFallbackResolver.now = { Date() }
             }
 
+            it("handles concurrent domain failures and fallback reads and writes") {
+                let user = StatsigUser(userID: "concurrent-fallback")
+                let store = InternalStore(sdkKey, user, options: opts)
+                let resolver = NetworkFallbackResolver(
+                    sdkKey: sdkKey, store: store,
+                    errorBoundary: ErrorBoundary.boundary(clientKey: sdkKey, statsigOptions: opts))
+                let now = Date()
+                NetworkFallbackResolver.now = { now }
+                let completions = LockedValue(wrappedValue: [Endpoint: Int]())
+                let requests = LockedValue(wrappedValue: 0)
+                let failedUpdates = LockedValue(wrappedValue: 0)
+                let endpoints: [Endpoint] = [.initialize, .logEvent]
+
+                // Override the suite stub with a synchronized counter for concurrent DNS requests.
+                stub(condition: isHost("cloudflare-dns.com")) { _ in
+                    requests.withLock { $0 += 1 }
+                    return HTTPStubsResponse(data: Data(dnsResponse), statusCode: 200, headers: nil)
+                }
+
+                let group = DispatchGroup()
+                let start = DispatchSemaphore(value: 0)
+                for worker in 0..<8 {
+                    group.enter()
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        start.wait()
+                        let endpoint = endpoints[worker % endpoints.count]
+                        for _ in 0..<250 {
+                            // Mirror overlapping domain-failure completions from NetworkService.
+                            _ = resolver.getActiveFallbackURL(endpoint: endpoint)
+                            resolver.tryFetchUpdatedFallbackInfo(endpoint: endpoint) { updated in
+                                if !updated {
+                                    failedUpdates.withLock { $0 += 1 }
+                                }
+                                // Reenter the resolver to ensure callbacks run outside its lock.
+                                resolver.tryBumpExpiryTime(endpoint: endpoint)
+                                _ = resolver.getActiveFallbackURL(endpoint: endpoint)
+                                completions.withLock { $0[endpoint, default: 0] += 1 }
+                            }
+                            resolver.tryBumpExpiryTime(endpoint: endpoint)
+                            _ = resolver.getActiveFallbackURL(endpoint: endpoint)
+                        }
+                        group.leave()
+                    }
+                }
+                for _ in 0..<8 {
+                    start.signal()
+                }
+                waitUntil(timeout: .seconds(15)) { done in
+                    group.notify(queue: .main) { done() }
+                }
+                expect(completions.get().values.reduce(0, +)).toEventually(
+                    equal(2), timeout: .seconds(15))
+                expect(requests.get()).to(equal(2))
+                expect(failedUpdates.get()).to(equal(0))
+                expect(completions.get()[.initialize]).to(equal(1))
+                expect(completions.get()[.logEvent]).to(equal(1))
+                expect(resolver.getActiveFallbackURL(endpoint: .initialize)?.host).to(
+                    equal("assetsconfigcdn.org"))
+                expect(resolver.getActiveFallbackURL(endpoint: .logEvent)?.host).to(
+                    equal("beyondwickedmapping.org"))
+                // Drain asynchronous persistence before suite cleanup.
+                store.storeQueue.sync(flags: .barrier) {}
+            }
+
             it("should fallback on initialize") {
                 var triedRequestingApiHost = false
                 var fallbackURLReceivedRequest = false

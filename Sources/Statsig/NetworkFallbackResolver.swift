@@ -31,9 +31,9 @@ public class NetworkFallbackResolver {
     private let sdkKey: String
     private var store: InternalStore
     private var errorBoundary: ErrorBoundary
-    private var fallbackInfo: FallbackInfo? = nil
+    @LockedValue private var fallbackInfo: FallbackInfo? = nil
 
-    private var dnsQueryCooldowns: [Endpoint: Date] = [:]
+    @LockedValue private var dnsQueryCooldowns: [Endpoint: Date] = [:]
 
     /**
      Function to get the current Date. Used for tests.
@@ -49,36 +49,38 @@ public class NetworkFallbackResolver {
     }
 
     func tryBumpExpiryTime(endpoint: Endpoint) {
-        if var info = self.fallbackInfo?[endpoint] {
-            info.expiryTime = NetworkFallbackResolver.now().addingTimeInterval(DEFAULT_TTL_SECONDS)
-            self.fallbackInfo?[endpoint] = info
-            self.store.saveNetworkFallbackInfo(self.fallbackInfo)
+        $fallbackInfo.withLock { fallbackInfo in
+            if var info = fallbackInfo?[endpoint] {
+                info.expiryTime = NetworkFallbackResolver.now().addingTimeInterval(
+                    DEFAULT_TTL_SECONDS)
+                fallbackInfo?[endpoint] = info
+                // Saving inside the lock keeps persisted snapshots in mutation order.
+                self.store.saveNetworkFallbackInfo(fallbackInfo)
+            }
         }
     }
 
     internal func getActiveFallbackURL(
         endpoint: Endpoint
     ) -> URL? {
-        var info = self.fallbackInfo
-        if info == nil {
-            info = self.store.getNetworkFallbackInfo()
-            self.fallbackInfo = info
+        $fallbackInfo.withLock { fallbackInfo in
+            if fallbackInfo == nil {
+                fallbackInfo = self.store.getNetworkFallbackInfo()
+            }
+
+            guard let entry = fallbackInfo?[endpoint] else {
+                return nil
+            }
+
+            // If the entry exists, but is expired, we remove that endpoint from fallbackInfo
+            guard NetworkFallbackResolver.now() <= entry.expiryTime else {
+                fallbackInfo?.removeValue(forKey: endpoint)
+                self.store.saveNetworkFallbackInfo(fallbackInfo)
+                return nil
+            }
+
+            return entry.url
         }
-
-        guard let entry = info?[endpoint] else {
-            return nil
-        }
-
-        // If the entry exists, but is expired, we remove that endpoint from fallbackInfo
-        guard NetworkFallbackResolver.now() <= entry.expiryTime else {
-            self.fallbackInfo?.removeValue(forKey: endpoint)
-            self.store.saveNetworkFallbackInfo(self.fallbackInfo)
-            return nil
-        }
-
-        self.fallbackInfo = info
-
-        return entry.url
     }
 
     func isDomainFailure(error: (any Error)?) -> Bool {
@@ -98,11 +100,16 @@ public class NetworkFallbackResolver {
         completion: @escaping (_ fallbackUpdated: Bool) -> Void
     ) {
         let now = NetworkFallbackResolver.now()
-        if let cooldown = self.dnsQueryCooldowns[endpoint], now < cooldown {
+        let shouldFetch = $dnsQueryCooldowns.withLock { cooldowns in
+            if let cooldown = cooldowns[endpoint], now < cooldown {
+                return false
+            }
+            cooldowns[endpoint] = now.addingTimeInterval(COOLDOWN_TIME_SECONDS)
+            return true
+        }
+        guard shouldFetch else {
             return
         }
-
-        self.dnsQueryCooldowns[endpoint] = now.addingTimeInterval(COOLDOWN_TIME_SECONDS)
 
         fetchTxtRecords { [weak self] result in
             guard let self = self else {
@@ -135,25 +142,29 @@ public class NetworkFallbackResolver {
 
         let urls = parseURLsFromRecords(
             records, endpoint: endpoint, defaultURLComponents: defaultURLComponents)
-        guard
-            let newURL = pickNewFallbackUrl(
-                currentFallbackInfo: self.fallbackInfo?[endpoint], urls: urls)
-        else {
-            return false
-        }
+        return $fallbackInfo.withLock { fallbackInfo in
+            guard
+                let newURL = pickNewFallbackUrl(
+                    currentFallbackInfo: fallbackInfo?[endpoint], urls: urls)
+            else {
+                return false
+            }
 
-        updateFallbackInfoWithNewURL(endpoint: endpoint, newURL: newURL)
-        return true
+            updateFallbackInfoWithNewURL(&fallbackInfo, endpoint: endpoint, newURL: newURL)
+            return true
+        }
     }
 
-    private func updateFallbackInfoWithNewURL(endpoint: Endpoint, newURL: URL) {
+    private func updateFallbackInfoWithNewURL(
+        _ fallbackInfo: inout FallbackInfo?, endpoint: Endpoint, newURL: URL
+    ) {
         var newFallbackInfo = FallbackInfoEntry(
             url: newURL,
             previous: [],
             expiryTime: NetworkFallbackResolver.now().addingTimeInterval(DEFAULT_TTL_SECONDS)
         )
 
-        if let previousInfo = self.fallbackInfo?[endpoint] {
+        if let previousInfo = fallbackInfo?[endpoint] {
             newFallbackInfo.previous.append(contentsOf: previousInfo.previous)
             newFallbackInfo.previous.append(previousInfo.url.absoluteString)
         }
@@ -162,9 +173,9 @@ public class NetworkFallbackResolver {
             newFallbackInfo.previous = []
         }
 
-        self.fallbackInfo?[endpoint] = newFallbackInfo
+        fallbackInfo?[endpoint] = newFallbackInfo
 
-        self.store.saveNetworkFallbackInfo(self.fallbackInfo)
+        self.store.saveNetworkFallbackInfo(fallbackInfo)
     }
 
     private func parseURLsFromRecords(
