@@ -8,6 +8,8 @@ public class StatsigClient {
     private var sdkKey: String
     private var currentUser: StatsigUser
     private var store: InternalStore
+    internal let userDefaults: DefaultsLike
+    private let rebindStableID: Bool
     private var networkService: NetworkService
     private var syncTimer: Timer?
     // We use a list of functions to keep a weak reference to each listener. Using
@@ -33,21 +35,44 @@ public class StatsigClient {
     
      SeeAlso: [Initialization Documentation](https://docs.statsig.com/client/iosClientSDK#step-3---initialize-the-sdk)
      */
-    public init(
+    public convenience init(
         sdkKey: String,
         user: StatsigUser? = nil,
         options: StatsigOptions? = nil,
         completionWithResult: ResultCompletionBlock? = nil,
         completion: ((_ error: String?) -> Void)? = nil
     ) {
+        let storage = StatsigUserDefaults.resolve(options)
+        self.init(
+            sdkKey: sdkKey, user: user, options: options, userDefaults: storage.defaults,
+            cacheType: storage.type, rebindStableID: true,
+            completionWithResult: completionWithResult,
+            completion: completion)
+    }
+
+    internal init(
+        sdkKey: String,
+        user: StatsigUser?,
+        options: StatsigOptions?,
+        userDefaults: DefaultsLike,
+        cacheType: CacheType,
+        rebindStableID: Bool = false,
+        completionWithResult: ResultCompletionBlock?,
+        completion: ((_ error: String?) -> Void)? = nil
+    ) {
         Diagnostics.boot(options)
         Diagnostics.mark?.overall.start()
+        Diagnostics.mark?.initialize.createCache.start(type: cacheType)
 
         self.sdkKey = sdkKey
         self.statsigOptions = options ?? StatsigOptions()
+        self.userDefaults = userDefaults
+        self.rebindStableID = rebindStableID
+        Diagnostics.mark?.initialize.createCache.end(success: true)
         StorageServiceMigrationStatus.applyStorageTypeOption(
             statsigOptions.EXPERIMENTAL_storageType)
-        let normalizedUser = StatsigClient.normalizeUser(user, options: options)
+        let normalizedUser = StatsigClient.normalizeUser(
+            user, options: options, userDefaults: userDefaults, rebindStableID: rebindStableID)
         self.currentUser = normalizedUser
         self.networkMetadataProvider =
             self.statsigOptions.logNetworkMetadata
@@ -56,10 +81,15 @@ public class StatsigClient {
         if let handler = self.statsigOptions.printHandler {
             PrintHandler.setPrintHandler(handler)
         }
-        self.store = InternalStore(sdkKey, normalizedUser, options: statsigOptions)
-        self.networkService = NetworkService(sdkKey: sdkKey, options: statsigOptions, store: store)
+        self.store = InternalStore(
+            sdkKey, normalizedUser, options: statsigOptions, userDefaults: userDefaults)
+        self.networkService = NetworkService(
+            sdkKey: sdkKey, options: statsigOptions, store: store,
+            deviceEnvironment: normalizedUser.deviceEnvironment)
         Diagnostics.mark?.initialize.loggerStart.start()
-        self.logger = EventLogger(sdkKey: sdkKey, user: currentUser, networkService: networkService)
+        self.logger = EventLogger(
+            sdkKey: sdkKey, user: currentUser, networkService: networkService,
+            userDefaults: userDefaults)
         self.logger.start()
         Diagnostics.mark?.initialize.loggerStart.end(success: true)
 
@@ -991,15 +1021,23 @@ extension StatsigClient {
         }
     }
 
-    private static func normalizeUser(_ user: StatsigUser?, options: StatsigOptions?) -> StatsigUser
-    {
-        var normalized = user ?? StatsigUser()
+    private static func normalizeUser(
+        _ user: StatsigUser?, options: StatsigOptions?, userDefaults: DefaultsLike,
+        rebindStableID: Bool
+    ) -> StatsigUser {
+        let usesSelectedStorage =
+            options?.enableCacheByFile == true
+            || options?.storageProvider != nil
+        var normalized =
+            user ?? (usesSelectedStorage ? StatsigUser(userDefaults: userDefaults) : StatsigUser())
         if let validationCallback = options?.userValidationCallback {
             normalized = validationCallback(normalized)
         }
         normalized.statsigEnvironment = options?.environment ?? [:]
-        if let stableID = options?.overrideStableID {
-            normalized.setStableID(stableID)
+        if (usesSelectedStorage && rebindStableID) || options?.overrideStableID != nil {
+            normalized.deviceEnvironment[StatsigMetadata.STABLE_ID_KEY] =
+                DeviceEnvironment.getStableID(
+                    options?.overrideStableID, userDefaults: userDefaults)
         }
         return normalized
     }
@@ -1007,8 +1045,11 @@ extension StatsigClient {
     private func updateUserImpl(
         _ user: StatsigUser, values: [String: Any]? = nil, completion: ResultCompletionBlock? = nil
     ) {
-        let normalizedUser = StatsigClient.normalizeUser(user, options: statsigOptions)
+        let normalizedUser = StatsigClient.normalizeUser(
+            user, options: statsigOptions, userDefaults: userDefaults,
+            rebindStableID: rebindStableID)
         currentUser = normalizedUser
+        networkService.updateDeviceEnvironment(normalizedUser.deviceEnvironment)
         store.updateUser(currentUser, values: values)
         logger.user = currentUser
 

@@ -64,13 +64,22 @@ class NetworkService {
 
     private let errorBoundary: ErrorBoundary
 
-    init(sdkKey: String, options: StatsigOptions, store: InternalStore) {
+    init(
+        sdkKey: String, options: StatsigOptions, store: InternalStore,
+        deviceEnvironment: [String: String?]? = nil
+    ) {
         self.sdkKey = sdkKey
         self.statsigOptions = options
         self.store = store
-        self.errorBoundary = ErrorBoundary.boundary(clientKey: sdkKey, statsigOptions: options)
+        self.errorBoundary = ErrorBoundary.boundary(
+            clientKey: sdkKey, statsigOptions: options,
+            deviceEnvironment: deviceEnvironment)
         self.networkFallbackResolver = NetworkFallbackResolver(
             sdkKey: sdkKey, store: store, errorBoundary: self.errorBoundary)
+    }
+
+    func updateDeviceEnvironment(_ environment: [String: String?]) {
+        errorBoundary.updateDeviceEnvironment(environment)
     }
 
     func fetchUpdatedValues(

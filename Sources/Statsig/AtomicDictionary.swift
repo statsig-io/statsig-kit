@@ -55,6 +55,20 @@ class AtomicDictionary<T> {
         }
     }
 
+    internal func updateAndGetDataAsync(
+        dispatchQueue: DispatchQueue,
+        update: @escaping (inout [String: T]) -> Void,
+        completion: ((_: Data?) -> Void)? = nil
+    ) {
+        self.queue.async(flags: .barrier) {
+            update(&self.internalDictionary)
+            let dict = self.internalDictionary
+            dispatchQueue.async {
+                completion?(dataFromDict(dict))
+            }
+        }
+    }
+
     func removeValue(forKey key: String) {
         self.queue.async(flags: .barrier) {
             self.internalDictionary.removeValue(forKey: key)

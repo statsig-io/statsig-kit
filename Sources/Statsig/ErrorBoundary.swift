@@ -7,22 +7,36 @@ class ErrorBoundary {
     private var statsigOptions: StatsigOptions
     private var seen: Set<String>
     private var url: URL?
+    private let environmentLock = NSLock()
+    private var deviceEnvironment: [String: String?]?
 
-    static func boundary(clientKey: String, statsigOptions: StatsigOptions) -> ErrorBoundary {
+    static func boundary(
+        clientKey: String, statsigOptions: StatsigOptions,
+        deviceEnvironment: [String: String?]? = nil
+    ) -> ErrorBoundary {
         let boundary = ErrorBoundary(
             clientKey: clientKey,
             statsigOptions: statsigOptions,
             seen: Set<String>(),
-            url: statsigOptions.sdkExceptionDiagnosticsURL ?? defaultExceptionURL
+            url: statsigOptions.sdkExceptionDiagnosticsURL ?? defaultExceptionURL,
+            deviceEnvironment: deviceEnvironment
         )
         return boundary
     }
 
-    private init(clientKey: String, statsigOptions: StatsigOptions, seen: Set<String>, url: URL?) {
+    private init(
+        clientKey: String, statsigOptions: StatsigOptions, seen: Set<String>, url: URL?,
+        deviceEnvironment: [String: String?]?
+    ) {
         self.clientKey = clientKey
         self.statsigOptions = statsigOptions
         self.seen = seen
         self.url = url
+        self.deviceEnvironment = deviceEnvironment
+    }
+
+    func updateDeviceEnvironment(_ environment: [String: String?]) {
+        environmentLock.withLock { deviceEnvironment = environment }
     }
 
     func capture(_ tag: String, task: () throws -> Void, recovery: (() -> Void)? = nil) {
@@ -67,10 +81,11 @@ class ErrorBoundary {
             let body: [String: Any] = [
                 "exception": errorDetails.name,
                 "info": errorDetails.info,
-                // TODO: Use user.deviceEnvironment instead of DeviceEnvironment.getSDKMetadata().
-                "statsigMetadata": DeviceEnvironment.getSDKMetadata().merging(
-                    self.statsigOptions.environment, uniquingKeysWith: { $1 }
-                ),
+                "statsigMetadata":
+                    (environmentLock.withLock { deviceEnvironment }
+                    ?? DeviceEnvironment.getSDKMetadata()).merging(
+                        self.statsigOptions.environment, uniquingKeysWith: { $1 }
+                    ),
                 "tag": tag,
                 "statsigOptions": self.statsigOptions.getDictionaryForLogging(),
             ]

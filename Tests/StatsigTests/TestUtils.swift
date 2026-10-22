@@ -23,6 +23,10 @@ class TestUtils {
             StatsigUserDefaults.defaults.removeObject(forKey: key)
         }
         _ = StatsigUserDefaults.defaults.synchronize()
+        for key in StatsigUserDefaults.fileDefaults.keys() where key.starts(with: "com.Statsig") {
+            StatsigUserDefaults.fileDefaults.removeObject(forKey: key)
+        }
+        _ = StatsigUserDefaults.fileDefaults.synchronize()
         FileBasedUserDefaults.clearLocalStorage()
 
         // Storage Service

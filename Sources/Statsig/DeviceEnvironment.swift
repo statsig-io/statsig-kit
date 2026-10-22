@@ -35,14 +35,16 @@ struct DeviceEnvironment {
     private init() {
     }
 
-    func getStableID(_ overrideStableID: String? = nil) -> String {
+    func getStableID(
+        _ overrideStableID: String? = nil,
+        userDefaults: DefaultsLike = StatsigUserDefaults.defaults
+    ) -> String {
         if let overrideStableID = overrideStableID {
-            StatsigUserDefaults.defaults.setValue(
-                overrideStableID, forKey: UserDefaultsKeys.stableIDKey)
+            userDefaults.setValue(overrideStableID, forKey: UserDefaultsKeys.stableIDKey)
             return overrideStableID
         }
 
-        if let storedStableID = StatsigUserDefaults.defaults.string(
+        if let storedStableID = userDefaults.string(
             forKey: UserDefaultsKeys.stableIDKey),
             storedStableID != ""
         {
@@ -50,25 +52,44 @@ struct DeviceEnvironment {
         }
 
         let newStableID = UUID().uuidString
-        StatsigUserDefaults.defaults.setValue(newStableID, forKey: UserDefaultsKeys.stableIDKey)
+        userDefaults.setValue(newStableID, forKey: UserDefaultsKeys.stableIDKey)
         return newStableID
     }
 
-    static func get(_ overrideStableID: String? = nil) -> [String: String?] {
-        return instance.get(overrideStableID)
+    static func get(
+        _ overrideStableID: String? = nil,
+        userDefaults: DefaultsLike = StatsigUserDefaults.defaults
+    ) -> [String: String?] {
+        return instance.get(overrideStableID, userDefaults: userDefaults)
     }
 
-    static func getSDKMetadata(_ overrideStableID: String? = nil) -> [String: String?] {
-        return instance.getSDKMetadata(overrideStableID)
+    static func getStableID(
+        _ overrideStableID: String? = nil,
+        userDefaults: DefaultsLike = StatsigUserDefaults.defaults
+    ) -> String {
+        instance.lock.withLock {
+            instance.getStableID(overrideStableID, userDefaults: userDefaults)
+        }
+    }
+
+    static func getSDKMetadata(
+        _ overrideStableID: String? = nil,
+        userDefaults: DefaultsLike = StatsigUserDefaults.defaults
+    ) -> [String: String?] {
+        return instance.getSDKMetadata(overrideStableID, userDefaults: userDefaults)
     }
 
     static func explicitGet(_ overrideStableID: String? = nil) -> [String: String] {
-        return instance.get(overrideStableID).mapValues { val in
+        return instance.get(
+            overrideStableID, userDefaults: StatsigUserDefaults.defaults
+        ).mapValues { val in
             return val ?? ""
         }
     }
 
-    private func getSDKMetadata(_ overrideStableID: String? = nil) -> [String: String?] {
+    private func getSDKMetadata(
+        _ overrideStableID: String? = nil, userDefaults: DefaultsLike
+    ) -> [String: String?] {
         lock.lock()
         defer { lock.unlock() }
 
@@ -76,11 +97,14 @@ struct DeviceEnvironment {
             StatsigMetadata.SDK_TYPE_KEY: DeviceEnvironment.sdkType,
             StatsigMetadata.SDK_VERSION_KEY: DeviceEnvironment.sdkVersion,
             StatsigMetadata.SESSION_ID_KEY: sessionID,
-            StatsigMetadata.STABLE_ID_KEY: getStableID(overrideStableID),
+            StatsigMetadata.STABLE_ID_KEY: getStableID(
+                overrideStableID, userDefaults: userDefaults),
         ]
     }
 
-    private func get(_ overrideStableID: String? = nil) -> [String: String?] {
+    private func get(
+        _ overrideStableID: String? = nil, userDefaults: DefaultsLike
+    ) -> [String: String?] {
         lock.lock()
         defer { lock.unlock() }
 
@@ -94,7 +118,8 @@ struct DeviceEnvironment {
             StatsigMetadata.SDK_TYPE_KEY: DeviceEnvironment.sdkType,
             StatsigMetadata.SDK_VERSION_KEY: DeviceEnvironment.sdkVersion,
             StatsigMetadata.SESSION_ID_KEY: sessionID,
-            StatsigMetadata.STABLE_ID_KEY: getStableID(overrideStableID),
+            StatsigMetadata.STABLE_ID_KEY: getStableID(
+                overrideStableID, userDefaults: userDefaults),
             StatsigMetadata.SYS_VERSION_KEY: systemVersion,
             StatsigMetadata.SYS_NAME_KEY: systemName,
         ]

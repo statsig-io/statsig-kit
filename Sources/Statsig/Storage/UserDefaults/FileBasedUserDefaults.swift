@@ -104,6 +104,44 @@ class FileBasedUserDefaults: DefaultsLike {
         return dictionary(forKey: key)
     }
 
+    // Update the legacy cache's two indexes in one dictionary transaction so
+    // concurrent clients cannot replace each other's whole-cache snapshots.
+    func upsertLegacyCache(
+        _ payload: [String: Any], fullKey: String, v2Key: String, maxEntries: Int
+    ) {
+        let url = cacheURL
+        dict.updateAndGetDataAsync(dispatchQueue: persistenceDispatchQueue) { values in
+            var cache =
+                (values[UserDefaultsKeys.localStorageKey] ?? nil)
+                as? [String: [String: Any]] ?? [:]
+            var mapping =
+                (values[UserDefaultsKeys.cacheKeyMappingKey] ?? nil)
+                as? [String: String] ?? [:]
+            cache[fullKey] = payload
+            mapping[v2Key] = fullKey
+
+            if cache.count > maxEntries,
+                let oldest = cache.min(by: {
+                    Time.parse($0.value[InternalStore.evalTimeKey])
+                        < Time.parse($1.value[InternalStore.evalTimeKey])
+                })?.key
+            {
+                cache.removeValue(forKey: oldest)
+                mapping = mapping.filter { $0.value != oldest }
+            }
+
+            values[UserDefaultsKeys.localStorageKey] = cache
+            values[UserDefaultsKeys.cacheKeyMappingKey] = mapping
+        } completion: { data in
+            guard let data = data, let url = url else { return }
+            do {
+                try data.write(to: url)
+            } catch {
+                PrintHandler.log("[Statsig]: Failed to write data to storage provider.")
+            }
+        }
+    }
+
     private func getValue(forKey key: String) -> Any? {
         return dict[key] as? Any
     }

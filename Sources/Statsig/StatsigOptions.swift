@@ -52,7 +52,10 @@ public class StatsigOptions {
     public var overrideStableID: String?
 
     /**
-     Use file caching instead of UserDefaults. Useful if you are running into size limits with UserDefaults (ie tvOS)
+     Use file caching instead of UserDefaults. Useful if you are running into size limits with UserDefaults (ie tvOS).
+     When first switching to the file cache, the stable ID is copied from UserDefaults if the file
+     has none. Cached evaluation values are not copied, so they start cold until refreshed.
+     A caller-built StatsigUser may write its stable ID to UserDefaults before client creation.
      */
     public var enableCacheByFile = false
 
@@ -178,6 +181,9 @@ public class StatsigOptions {
         Provides a customizable storage mechanism for the SDK.
         Users can pass an object that conforms to the `StorageProvider` protocol, allowing them to implement
         their own caching strategy for reading from and writing to the cache (e.g., using an encrypted file on disk).
+        Both static and instance clients use this provider for their legacy cache. Existing instance cache values
+        in UserDefaults are not copied, so they start cold; a missing stable ID is copied once.
+        The provider must support concurrent reads and writes from SDK queues.
     */
     public var storageProvider: StorageProvider?
 

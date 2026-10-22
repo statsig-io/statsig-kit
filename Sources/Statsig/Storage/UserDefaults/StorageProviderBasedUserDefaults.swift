@@ -18,6 +18,10 @@ class StorageProviderBasedUserDefaults: DefaultsLike {
         attributes: [])
     private let storageProvider: StorageProvider
 
+    func wraps(_ provider: StorageProvider) -> Bool {
+        return (storageProvider as AnyObject) === (provider as AnyObject)
+    }
+
     init(storageProvider: StorageProvider) {
         self.storageProvider = storageProvider
         readFromStorageProvider()

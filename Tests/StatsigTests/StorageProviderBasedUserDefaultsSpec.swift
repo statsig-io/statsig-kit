@@ -10,39 +10,48 @@ import OHHTTPStubsSwift
 #endif
 
 class MockStorageProvider: StorageProvider {
-    var storage: [String: Data] = [:]
+    private let lock = NSLock()
+    private var stored: [String: Data] = [:]
+    var storage: [String: Data] {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
 
     func write(_ value: Data, _ key: String) {
-        storage[key] = value
+        lock.withLock { stored[key] = value }
     }
 
     func read(_ key: String) -> Data? {
-        return storage[key]
+        return lock.withLock { stored[key] }
     }
 
     func remove(_ key: String) {
-        storage[key] = nil
+        lock.withLock { stored[key] = nil }
     }
 }
 
 class MockLockedStorageProvider: StorageProvider {
-    var storage: [String: Data] = [:]
+    private let stateLock = NSLock()
+    private var stored: [String: Data] = [:]
     public let writeLock = NSLock()
-    var doneWriting = false
+    private var didWrite = false
+    var doneWriting: Bool { stateLock.withLock { didWrite } }
 
     func write(_ value: Data, _ key: String) {
         writeLock.withLock {
-            storage[key] = value
-            doneWriting = true
+            stateLock.withLock {
+                stored[key] = value
+                didWrite = true
+            }
         }
     }
 
     func read(_ key: String) -> Data? {
-        return storage[key]
+        return stateLock.withLock { stored[key] }
     }
 
     func remove(_ key: String) {
-        storage[key] = nil
+        stateLock.withLock { stored[key] = nil }
     }
 }
 

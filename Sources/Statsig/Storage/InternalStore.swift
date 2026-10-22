@@ -35,6 +35,7 @@ class InternalStore {
     static let sdkConfigsKey = "sdk_configs"
 
     var cache: StatsigValuesCache
+    let userDefaults: DefaultsLike
     var localOverrides: [String: Any] = InternalStore.getEmptyOverrides()
     let storeQueue = DispatchQueue(
         label: storeQueueLabel, qos: .userInitiated, attributes: .concurrent)
@@ -42,14 +43,18 @@ class InternalStore {
     let sdkKey: String
     let storageTypeOption: StatsigOptions.EXPERIMENTAL_StorageType
 
-    init(_ sdkKey: String, _ user: StatsigUser, options: StatsigOptions) {
+    init(
+        _ sdkKey: String, _ user: StatsigUser, options: StatsigOptions,
+        userDefaults: DefaultsLike = StatsigUserDefaults.defaults
+    ) {
         Diagnostics.mark?.initialize.readCache.start()
         self.sdkKey = sdkKey
+        self.userDefaults = userDefaults
         self.storageTypeOption = options.EXPERIMENTAL_storageType
         storageService = StorageService.forSDKKey(sdkKey, storageProvider: options.storageProvider)
-        cache = StatsigValuesCache(sdkKey, user, storageService, options)
+        cache = StatsigValuesCache(sdkKey, user, storageService, options, userDefaults)
         let savedOverrides =
-            StatsigUserDefaults.defaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)
+            userDefaults.dictionarySafe(forKey: UserDefaultsKeys.localOverridesKey)
             ?? [:]
         localOverrides = InternalStore.getEmptyOverrides().merging(savedOverrides) { (_, saved) in
             saved
@@ -345,7 +350,7 @@ class InternalStore {
     }
 
     private func saveOverrides() {
-        StatsigUserDefaults.defaults.setDictionarySafe(
+        userDefaults.setDictionarySafe(
             localOverrides, forKey: UserDefaultsKeys.localOverridesKey)
     }
 
@@ -439,7 +444,7 @@ class InternalStore {
             UserPayloadStore.migrateIfNeeded(
                 cacheByID,
                 cacheKeyMapping,
-                StatsigUserDefaults.defaults,
+                self.userDefaults,
                 storageService.userPayload.storageAdapter
             )
         }

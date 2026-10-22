@@ -119,11 +119,33 @@ public struct StatsigUser: Sendable {
         }
     }
 
-    mutating func setStableID(_ overrideStableID: String) {
+    // Creating a client without a supplied user must not read the global defaults
+    // before the client's storage option has been applied.
+    internal init(userDefaults: DefaultsLike) {
+        self.userID = nil
+        self.email = nil
+        self.ip = nil
+        self.country = nil
+        self.locale = nil
+        self.appVersion = nil
+        self.custom = nil
+        self.privateAttributes = nil
+        self.optOutNonSdkMetadata = false
+        self.customIDs = nil
+        self.userAgent = nil
+        self.deviceEnvironment = DeviceEnvironment.get(userDefaults: userDefaults)
+    }
+
+    mutating func setStableID(
+        _ overrideStableID: String?,
+        userDefaults: DefaultsLike = StatsigUserDefaults.defaults
+    ) {
         if self.optOutNonSdkMetadata ?? false {
-            self.deviceEnvironment = DeviceEnvironment.getSDKMetadata(overrideStableID)
+            self.deviceEnvironment = DeviceEnvironment.getSDKMetadata(
+                overrideStableID, userDefaults: userDefaults)
         } else {
-            self.deviceEnvironment = DeviceEnvironment.get(overrideStableID)
+            self.deviceEnvironment = DeviceEnvironment.get(
+                overrideStableID, userDefaults: userDefaults)
         }
     }
 

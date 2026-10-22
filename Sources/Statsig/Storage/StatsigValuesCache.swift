@@ -24,6 +24,7 @@ struct StatsigValuesCache {
     var hashUsed: String? = nil
     var sdkKey: String
     var options: StatsigOptions
+    let userDefaults: DefaultsLike
     var bootstrapMetadata: BootstrapMetadata? = nil
     var sdkFlags: SDKFlags?
     var sdkConfigs: SDKConfigs?
@@ -74,14 +75,16 @@ struct StatsigValuesCache {
         _ sdkKey: String,
         _ user: StatsigUser,
         _ storageService: StorageService?,
-        _ options: StatsigOptions
+        _ options: StatsigOptions,
+        _ userDefaults: DefaultsLike = StatsigUserDefaults.defaults
     ) {
         self.options = options
+        self.userDefaults = userDefaults
         self.sdkKey = sdkKey
         self.storageService = storageService
         self.userCacheKey = UserCacheKey.from(options, user, sdkKey)
         if let storageService = storageService {
-            let loaded = StatsigValuesCache.loadCache(userCacheKey, storageService)
+            let loaded = StatsigValuesCache.loadCache(userCacheKey, storageService, userDefaults)
             self.cacheByID = loaded.cache
             self.cacheKeyMapping = [:]
             if loaded.needsMigration {
@@ -89,16 +92,16 @@ struct StatsigValuesCache {
             }
         } else {
             self.cacheByID = StatsigValuesCache.loadDictMigratingIfRequired(
-                forKey: UserDefaultsKeys.localStorageKey)
+                forKey: UserDefaultsKeys.localStorageKey, userDefaults: userDefaults)
             self.cacheKeyMapping =
-                StatsigUserDefaults.defaults.dictionarySafe(
+                userDefaults.dictionarySafe(
                     forKey: UserDefaultsKeys.cacheKeyMappingKey)
                 as? [String: String] ?? [:]
         }
         self.stickyDeviceExperiments = StatsigValuesCache.loadDictMigratingIfRequired(
-            forKey: UserDefaultsKeys.stickyDeviceExperimentsKey)
+            forKey: UserDefaultsKeys.stickyDeviceExperimentsKey, userDefaults: userDefaults)
         self.networkFallbackInfo = StatsigValuesCache.loadDictMigratingIfRequired(
-            forKey: UserDefaultsKeys.networkFallbackInfoKey)
+            forKey: UserDefaultsKeys.networkFallbackInfoKey, userDefaults: userDefaults)
 
         self.userCache = [:]
         self.userLastUpdateTime = 0
@@ -109,7 +112,8 @@ struct StatsigValuesCache {
 
     static func loadCache(
         _ userCacheKey: UserCacheKey,
-        _ storageService: StorageService
+        _ storageService: StorageService,
+        _ userDefaults: DefaultsLike = StatsigUserDefaults.defaults
     ) -> (cache: [String: [String: Any]], needsMigration: Bool) {
         let migrationStatus = StorageServiceMigrationStatus.migrationStatus
         if migrationStatus != .legacy {
@@ -126,7 +130,7 @@ struct StatsigValuesCache {
         }
 
         let userDefaultsDict = StatsigValuesCache.loadDictMigratingIfRequired(
-            forKey: UserDefaultsKeys.localStorageKey)
+            forKey: UserDefaultsKeys.localStorageKey, userDefaults: userDefaults)
 
         return (userDefaultsDict, !userDefaultsDict.isEmpty)
     }
@@ -249,7 +253,7 @@ struct StatsigValuesCache {
 
     mutating func saveNetworkFallbackInfo(_ fallbackInfo: FallbackInfo?) {
         guard let fallbackInfo = fallbackInfo, !fallbackInfo.isEmpty else {
-            StatsigUserDefaults.defaults.removeObject(
+            userDefaults.removeObject(
                 forKey: UserDefaultsKeys.networkFallbackInfoKey)
             return
         }
@@ -262,7 +266,7 @@ struct StatsigValuesCache {
                 "previous": entry.previous,
             ]
         }
-        StatsigUserDefaults.defaults.setDictionarySafe(
+        userDefaults.setDictionarySafe(
             dict, forKey: UserDefaultsKeys.networkFallbackInfoKey)
     }
 
@@ -386,10 +390,16 @@ struct StatsigValuesCache {
             return
         }
 
-        StatsigUserDefaults.defaults.setDictionarySafe(
-            cacheByID, forKey: UserDefaultsKeys.localStorageKey)
-        StatsigUserDefaults.defaults.setDictionarySafe(
-            cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
+        if let fileDefaults = userDefaults as? FileBasedUserDefaults {
+            fileDefaults.upsertLegacyCache(
+                payload, fullKey: cacheKey.fullUserWithSDKKey, v2Key: cacheKey.v2,
+                maxEntries: MaxCachedUserObjects)
+        } else {
+            userDefaults.setDictionarySafe(
+                cacheByID, forKey: UserDefaultsKeys.localStorageKey)
+            userDefaults.setDictionarySafe(
+                cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
+        }
     }
 
     mutating func runCacheEviction() {
@@ -489,15 +499,19 @@ struct StatsigValuesCache {
         cacheByID[userCacheKey.fullUserWithSDKKey] = userCache
         if let storageService = getStorageService() {
             storageService.userPayload.write(key: userCacheKey, payload: userCache)
+        } else if let fileDefaults = userDefaults as? FileBasedUserDefaults {
+            fileDefaults.upsertLegacyCache(
+                userCache, fullKey: userCacheKey.fullUserWithSDKKey, v2Key: userCacheKey.v2,
+                maxEntries: MaxCachedUserObjects)
         } else {
-            StatsigUserDefaults.defaults.setDictionarySafe(
+            userDefaults.setDictionarySafe(
                 cacheByID, forKey: UserDefaultsKeys.localStorageKey)
-            StatsigUserDefaults.defaults.setDictionarySafe(
+            userDefaults.setDictionarySafe(
                 cacheKeyMapping, forKey: UserDefaultsKeys.cacheKeyMappingKey)
         }
-        StatsigUserDefaults.defaults.setDictionarySafe(
+        userDefaults.setDictionarySafe(
             stickyDeviceExperiments, forKey: UserDefaultsKeys.stickyDeviceExperimentsKey)
-        StatsigUserDefaults.defaults.setDictionarySafe(
+        userDefaults.setDictionarySafe(
             networkFallbackInfo, forKey: UserDefaultsKeys.networkFallbackInfoKey)
     }
 
@@ -557,18 +571,20 @@ struct StatsigValuesCache {
         return bootstrapMetadata
     }
 
-    private static func loadDictMigratingIfRequired(forKey key: String) -> [String: [String: Any]] {
-        if let dict = StatsigUserDefaults.defaults.dictionarySafe(forKey: key)
+    private static func loadDictMigratingIfRequired(
+        forKey key: String, userDefaults: DefaultsLike
+    ) -> [String: [String: Any]] {
+        if let dict = userDefaults.dictionarySafe(forKey: key)
             as? [String: [String: Any]]
         {
             return dict
         }
 
         // Load and Migrate Legacy
-        if let dict = StatsigUserDefaults.defaults.dictionary(forKey: key)
+        if let dict = userDefaults.dictionary(forKey: key)
             as? [String: [String: Any]]
         {
-            StatsigUserDefaults.defaults.setDictionarySafe(dict, forKey: key)
+            userDefaults.setDictionarySafe(dict, forKey: key)
             return dict
         }
 
@@ -577,15 +593,15 @@ struct StatsigValuesCache {
 
     private mutating func migrateLegacyStickyExperimentValues(_ currentUser: StatsigUser) {
         let previousUserID =
-            StatsigUserDefaults.defaults.string(forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
+            userDefaults.string(forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
             ?? ""
-        let previousUserStickyExperiments = StatsigUserDefaults.defaults.dictionary(
+        let previousUserStickyExperiments = userDefaults.dictionary(
             forKey: UserDefaultsKeys.DEPRECATED_stickyUserExperimentsKey)
         if previousUserID == currentUser.userID, let oldStickyExps = previousUserStickyExperiments {
             userCache[InternalStore.stickyExpKey] = oldStickyExps
         }
 
-        let previousCache = StatsigUserDefaults.defaults.dictionary(
+        let previousCache = userDefaults.dictionary(
             forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
         if let previousCache = previousCache {
             if let gates = userCache[InternalStore.gatesKey] as? [String: Bool], gates.count == 0 {
@@ -598,11 +614,11 @@ struct StatsigValuesCache {
             }
         }
 
-        StatsigUserDefaults.defaults.removeObject(
+        userDefaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_localStorageKey)
-        StatsigUserDefaults.defaults.removeObject(
+        userDefaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_stickyUserExperimentsKey)
-        StatsigUserDefaults.defaults.removeObject(
+        userDefaults.removeObject(
             forKey: UserDefaultsKeys.DEPRECATED_stickyUserIDKey)
     }
 
