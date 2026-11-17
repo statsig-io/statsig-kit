@@ -1,9 +1,14 @@
 class InitializeStepMarker: MarkerBase {
     let step: String
 
-    init(_ recorder: MarkerRecorder, key: String, step: String) {
+    init(
+        _ recorder: MarkerRecorder,
+        key: String,
+        step: String,
+        context: MarkerContext = .initialize
+    ) {
         self.step = step
-        super.init(recorder, context: .initialize, markerKey: key)
+        super.init(recorder, context: context, markerKey: key)
     }
 
     func start() {

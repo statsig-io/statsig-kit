@@ -86,6 +86,99 @@ class InternalStoreSpec: BaseSpec {
                 expect(self.cacheIsEmpty(store3.cache.userCache)).to(beTrue())
             }
 
+            it("captures bootstrap evaluation details after the store update barrier") {
+                let userA = StatsigUser(userID: "diagnostics-user-a")
+                let userB = StatsigUser(userID: "diagnostics-user-b")
+                let store = InternalStore(sdkKey, userA, options: options)
+                let queueEntered = DispatchSemaphore(value: 0)
+                let releaseQueue = DispatchSemaphore(value: 0)
+                let completed = DispatchSemaphore(value: 0)
+                var capturedDetails: EvaluationDetails?
+                var bootstrapValues = StatsigSpec.mockUserValues
+                bootstrapValues[InternalStore.lcutKey] = UInt64(222)
+
+                store.storeQueue.async(flags: .barrier) {
+                    queueEntered.signal()
+                    releaseQueue.wait()
+                }
+                expect(queueEntered.wait(timeout: .now() + 1)).to(equal(.success))
+
+                store.updateUser(userB, values: bootstrapValues) { details in
+                    capturedDetails = details
+                    completed.signal()
+                }
+
+                expect(completed.wait(timeout: .now() + 0.1)).to(equal(.timedOut))
+                releaseQueue.signal()
+                expect(completed.wait(timeout: .now() + 1)).to(equal(.success))
+                expect(capturedDetails?.source).to(equal(.Bootstrap))
+                expect(capturedDetails?.lcut).to(equal(222))
+            }
+
+            it("captures response evaluation details from the response cache entry") {
+                let userA = StatsigUser(userID: "diagnostics-user-a")
+                let userB = StatsigUser(userID: "diagnostics-user-b")
+                let store = InternalStore(sdkKey, userA, options: options)
+                let cacheKeyA = UserCacheKey.from(options, userA, sdkKey)
+                let updatedUser = DispatchSemaphore(value: 0)
+                let savedValues = DispatchSemaphore(value: 0)
+                var capturedDetails: EvaluationDetails?
+                var responseValues = StatsigSpec.mockUserValues
+                responseValues[InternalStore.lcutKey] = UInt64(111)
+
+                store.updateUser(userB) { _ in
+                    updatedUser.signal()
+                }
+                expect(updatedUser.wait(timeout: .now() + 1)).to(equal(.success))
+
+                store.saveValues(
+                    responseValues,
+                    cacheKeyA,
+                    userA.getFullUserHash(),
+                    detailsCompletion: { details in
+                        capturedDetails = details
+                        savedValues.signal()
+                    })
+
+                expect(savedValues.wait(timeout: .now() + 1)).to(equal(.success))
+                expect(capturedDetails?.source).to(equal(.Network))
+                expect(capturedDetails?.lcut).to(equal(111))
+                expect(store.cache.userCacheKey.fullUserWithSDKKey).to(
+                    equal(UserCacheKey.from(options, userB, sdkKey).fullUserWithSDKKey))
+            }
+
+            it("retains a snapshot for each overlapping response for the same user") {
+                let user = StatsigUser(userID: "diagnostics-user")
+                let store = InternalStore(sdkKey, user, options: options)
+                let cacheKey = UserCacheKey.from(options, user, sdkKey)
+                let completed = DispatchSemaphore(value: 0)
+                let lock = NSLock()
+                var capturedLcuts: [UInt64] = []
+                var firstResponse = StatsigSpec.mockUserValues
+                var secondResponse = StatsigSpec.mockUserValues
+                firstResponse[InternalStore.lcutKey] = UInt64(111)
+                secondResponse[InternalStore.lcutKey] = UInt64(222)
+
+                for response in [firstResponse, secondResponse] {
+                    store.saveValues(
+                        response,
+                        cacheKey,
+                        user.getFullUserHash(),
+                        detailsCompletion: { details in
+                            lock.lock()
+                            if let lcut = details?.lcut {
+                                capturedLcuts.append(lcut)
+                            }
+                            lock.unlock()
+                            completed.signal()
+                        })
+                }
+
+                expect(completed.wait(timeout: .now() + 1)).to(equal(.success))
+                expect(completed.wait(timeout: .now() + 1)).to(equal(.success))
+                expect(capturedLcuts.sorted()).to(equal([111, 222]))
+            }
+
             it("migrates old values to new cache") {
                 // set up deprecated cache
                 let configKey = "config"

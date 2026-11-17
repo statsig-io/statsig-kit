@@ -162,6 +162,8 @@ class NetworkService {
         fullChecksum: String?,
         marker: NetworkMarker? = nil,
         processMarker: InitializeStepMarker? = nil,
+        fallbackDetails: EvaluationDetails? = nil,
+        detailsCompletion: ((StatsigClientError?, EvaluationDetails) -> Void)? = nil,
         completion: ResultCompletionBlock?
     ) {
         let cacheKey = UserCacheKey.from(self.statsigOptions, user, self.sdkKey)
@@ -177,7 +179,8 @@ class NetworkService {
         var completed = false
         let lock = NSLock()
 
-        let done: (StatsigClientError?) -> Void = { [weak self] err in
+        let details = fallbackDetails ?? store.cache.getEvaluationDetails()
+        let done: (StatsigClientError?, EvaluationDetails) -> Void = { [weak self] err, details in
             // Ensures the completion is invoked only once
             lock.lock()
             defer { lock.unlock() }
@@ -194,6 +197,17 @@ class NetworkService {
 
             self?.store.finalizeValues(completionQueue: .main) {
                 task?.cancel()
+                // Finalize the operation's snapshot without reading another user's active cache.
+                let finalizedDetails =
+                    details.source == .Loading
+                    ? EvaluationDetails(
+                        source: .NoValues,
+                        reason: details.reason,
+                        lcut: details.lcut,
+                        receivedAt: details.receivedAt,
+                        prefix: details.prefix)
+                    : details
+                detailsCompletion?(err, finalizedDetails)
                 completion?(err)
             }
 
@@ -201,7 +215,7 @@ class NetworkService {
 
         if statsigOptions.initTimeout > 0 {
             DispatchQueue.global().asyncAfter(deadline: .now() + statsigOptions.initTimeout) {
-                done(StatsigClientError(.initTimeoutExpired))
+                done(StatsigClientError(.initTimeoutExpired), details)
             }
         }
 
@@ -219,7 +233,7 @@ class NetworkService {
         case .success(let data):
             body = data
         case .failure(let error):
-            done(StatsigClientError(.failedToFetchValues, cause: error))
+            done(StatsigClientError(.failedToFetchValues, cause: error), details)
             return
         }
 
@@ -231,7 +245,7 @@ class NetworkService {
             marker: marker
         ) { [weak self] data, response, error in
             if let error = error {
-                done(StatsigClientError(.failedToFetchValues, cause: error))
+                done(StatsigClientError(.failedToFetchValues, cause: error), details)
                 return
             }
 
@@ -242,7 +256,8 @@ class NetworkService {
                     StatsigClientError(
                         .failedToFetchValues,
                         message:
-                            "An error occurred during fetching values for the user. \(statusCode)"))
+                            "An error occurred during fetching values for the user. \(statusCode)"),
+                    details)
                 return
             }
 
@@ -250,7 +265,7 @@ class NetworkService {
                 done(
                     StatsigClientError(
                         .failedToFetchValues,
-                        message: "Failed to call NetworkService as it has been released"))
+                        message: "Failed to call NetworkService as it has been released"), details)
                 return
             }
 
@@ -267,14 +282,20 @@ class NetworkService {
                 done(
                     StatsigClientError(
                         .failedToFetchValues, message: "No values returned with initialize response"
-                    ))
+                    ), details)
                 return
             }
 
-            self.store.saveValues(values, cacheKey, fullUserHash) {
-                processMarker?.end(success: true)
-                done(nil)
-            }
+            self.store.saveValues(
+                values,
+                cacheKey,
+                fullUserHash,
+                detailsCompletion: { savedDetails in
+                    done(nil, savedDetails ?? details)
+                },
+                completion: {
+                    processMarker?.end(success: true)
+                })
 
         } taskCapture: { [weak self] capturedTask in
             self?.inflightRequests[cacheKey.v2] = capturedTask

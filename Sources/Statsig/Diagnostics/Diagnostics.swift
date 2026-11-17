@@ -63,6 +63,13 @@ class Diagnostics {
         let event = DiagnosticsEvent(user, context.rawValue, markers)
         logger.log(event)
     }
+
+    static func startUpdateUser(disabled: Bool) -> UpdateUserDiagnostics? {
+        guard !disabled else {
+            return nil
+        }
+        return UpdateUserDiagnostics()
+    }
 }
 
 fileprivate final class DiagnosticsImpl: MarkersContainer {

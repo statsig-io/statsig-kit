@@ -1,6 +1,6 @@
 class OverallMarker: MarkerBase {
-    convenience init(_ recorder: MarkerRecorder) {
-        self.init(recorder, context: .initialize, markerKey: "overall")
+    convenience init(_ recorder: MarkerRecorder, context: MarkerContext = .initialize) {
+        self.init(recorder, context: context, markerKey: "overall")
     }
 
     func start() {

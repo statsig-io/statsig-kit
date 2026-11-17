@@ -279,6 +279,19 @@ struct StatsigValuesCache {
         )
     }
 
+    mutating func getEvaluationDetails(for cacheKey: UserCacheKey, source: EvaluationSource)
+        -> EvaluationDetails
+    {
+        let values =
+            cacheKey.fullUserWithSDKKey == userCacheKey.fullUserWithSDKKey
+            ? userCache : (getCacheValues(forCacheKey: cacheKey) ?? getDefaultValues())
+        return EvaluationDetails(
+            source: source,
+            lcut: Time.parse(values[InternalStore.lcutKey]),
+            receivedAt: Time.parse(values[InternalStore.evalTimeKey])
+        )
+    }
+
     func getInitializeResponseValues() -> [String: Any?] {
         [
             InternalStore.gatesKey: gates,

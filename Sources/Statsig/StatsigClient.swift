@@ -965,6 +965,8 @@ extension StatsigClient {
         marker: NetworkMarker? = nil,
         processMarker: InitializeStepMarker? = nil,
         storeMarker: InitializeStepMarker? = nil,
+        fallbackDetails: EvaluationDetails? = nil,
+        detailsCompletion: ((StatsigClientError?, EvaluationDetails) -> Void)? = nil,
         completion: ResultCompletionBlock?
     ) {
         let currentUser = user
@@ -978,10 +980,11 @@ extension StatsigClient {
             previousDerivedFields: initValues.previousDerivedFields,
             fullChecksum: initValues.fullChecksum,
             marker: marker,
-            processMarker: processMarker
-        ) { [weak self] error in
-            if let self = self {
-                if let error = error {
+            processMarker: processMarker,
+            fallbackDetails: fallbackDetails,
+            detailsCompletion: detailsCompletion,
+            completion: { [weak self] error in
+                if let self = self, let error = error {
                     self.logger.log(
                         Event.statsigInternalEvent(
                             user: user,
@@ -989,10 +992,9 @@ extension StatsigClient {
                             value: nil,
                             metadata: ["error": error.message]))
                 }
+                completion?(error)
             }
-
-            completion?(error)
-        }
+        )
     }
 
     private func scheduleRepeatingSync() {
@@ -1048,28 +1050,53 @@ extension StatsigClient {
         let normalizedUser = StatsigClient.normalizeUser(
             user, options: statsigOptions, userDefaults: userDefaults,
             rebindStableID: rebindStableID)
+        let diagnostics = Diagnostics.startUpdateUser(disabled: statsigOptions.disableDiagnostics)
+        diagnostics?.start()
         currentUser = normalizedUser
         networkService.updateDeviceEnvironment(normalizedUser.deviceEnvironment)
-        store.updateUser(currentUser, values: values)
         logger.user = currentUser
 
         if values != nil {
+            store.updateUser(currentUser, values: values) { [weak self] details in
+                guard let self else { return }
+                diagnostics?.complete(
+                    self.logger,
+                    user: normalizedUser,
+                    success: true,
+                    details: details,
+                    errorMessage: nil
+                )
+            }
             completion?(nil)
             return
         }
 
-        ensureMainThread { [weak self] in
-            self?.fetchValuesFromNetwork(user: normalizedUser) { [weak self, completion] error in
-                guard let self = self else {
-                    return
-                }
-
-                if self.statsigOptions.enableAutoValueUpdate {
-                    self.scheduleRepeatingSync()
-                }
-
-                self.notifyOnUserUpdatedListeners(error)
-                completion?(error)
+        store.updateUser(currentUser) { [weak self] fallbackDetails in
+            ensureMainThread {
+                self?.fetchValuesFromNetwork(
+                    user: normalizedUser,
+                    marker: diagnostics?.network,
+                    processMarker: diagnostics?.process,
+                    fallbackDetails: fallbackDetails,
+                    detailsCompletion: { [weak self] error, details in
+                        guard let self else { return }
+                        diagnostics?.complete(
+                            self.logger,
+                            user: normalizedUser,
+                            success: error == nil,
+                            details: details,
+                            errorMessage: error?.message
+                        )
+                    },
+                    completion: { [weak self, completion] error in
+                        guard let self else { return }
+                        if self.statsigOptions.enableAutoValueUpdate {
+                            self.scheduleRepeatingSync()
+                        }
+                        self.notifyOnUserUpdatedListeners(error)
+                        completion?(error)
+                    }
+                )
             }
         }
     }

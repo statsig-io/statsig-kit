@@ -6,6 +6,7 @@ fileprivate let NANO_IN_MS = 1_000_000.0
 
 enum MarkerContext: String {
     case initialize = "initialize"
+    case updateUser = "update_user"
     case apiCall = "api_call"
 }
 

@@ -244,8 +244,25 @@ class InternalStore {
         _ userHash: String?,
         _ completion: (() -> Void)? = nil
     ) {
+        saveValues(
+            values,
+            cacheKey,
+            userHash,
+            detailsCompletion: nil,
+            completion: completion
+        )
+    }
+
+    func saveValues(
+        _ values: [String: Any],
+        _ cacheKey: UserCacheKey,
+        _ userHash: String?,
+        detailsCompletion: ((EvaluationDetails?) -> Void)?,
+        completion: (() -> Void)? = nil
+    ) {
         guard SDKKeyValidator.validate(sdkKey, values) else {
             completion?()
+            detailsCompletion?(nil)
             return
         }
 
@@ -257,14 +274,27 @@ class InternalStore {
             guard let self = self else { return }
 
             self.cache.saveValues(values, cacheKey, userHash)
+            let details = self.cache.getEvaluationDetails(
+                for: cacheKey,
+                source: values["has_updates"] as? Bool == true ? .Network : .NetworkNotModified)
 
-            DispatchQueue.global().async { completion?() }
+            DispatchQueue.global().async {
+                completion?()
+                detailsCompletion?(details)
+            }
         }
     }
 
-    func updateUser(_ newUser: StatsigUser, values: [String: Any]? = nil) {
+    func updateUser(
+        _ newUser: StatsigUser,
+        values: [String: Any]? = nil,
+        detailsCompletion: ((EvaluationDetails) -> Void)? = nil
+    ) {
         storeQueue.async(flags: .barrier) { [weak self] in
-            self?.cache.updateUser(newUser, values)
+            guard let self else { return }
+            self.cache.updateUser(newUser, values)
+            let details = self.cache.getEvaluationDetails()
+            DispatchQueue.global().async { detailsCompletion?(details) }
         }
     }
 

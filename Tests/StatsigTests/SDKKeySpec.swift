@@ -49,6 +49,23 @@ class SDKKeySpec: BaseSpec {
                 TestUtils.clearStorage()
             }
 
+            it("completes initialization when the response belongs to another SDK key") {
+                var response = StatsigSpec.mockUserValues
+                response["hashed_sdk_key_used"] = "another-client-key".djb2()
+                stub(condition: isHost(ApiHost)) { _ in
+                    HTTPStubsResponse(jsonObject: response, statusCode: 200, headers: nil)
+                }
+
+                var callbackCount = 0
+                waitUntil(timeout: .seconds(2)) { done in
+                    Statsig.initialize(sdkKey: "client-api-key") { _ in
+                        callbackCount += 1
+                        done()
+                    }
+                }
+                expect(callbackCount).to(equal(1))
+            }
+
             it("works when provided invalid SDK key by returning default value") {
                 stub(condition: isHost(ApiHost)) { _ in
                     return HTTPStubsResponse(jsonObject: [:], statusCode: 403, headers: nil)

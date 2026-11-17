@@ -3,8 +3,12 @@ import Foundation
 class NetworkMarker: MarkerBase {
     let step = "network_request"
 
-    convenience init(_ recorder: MarkerRecorder, key: String) {
-        self.init(recorder, context: .initialize, markerKey: key)
+    convenience init(
+        _ recorder: MarkerRecorder,
+        key: String,
+        context: MarkerContext = .initialize
+    ) {
+        self.init(recorder, context: context, markerKey: key)
     }
 
     func start(attempt: Int) {
